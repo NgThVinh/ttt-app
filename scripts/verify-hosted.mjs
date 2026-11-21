@@ -55,6 +55,11 @@ async function counts() {
     "audit_log",
     "approval_requests",
     "attendance_events",
+    "polls",
+    "poll_options",
+    "poll_votes",
+    "notifications",
+    "weekly_series",
   ])
     result[table] = (
       await db.query(`select count(*)::text n from public.${table}`)
@@ -203,6 +208,74 @@ try {
         p.amount === "60000",
     ),
     "hosted removal issues correct refund",
+  );
+  stage = "scheduling";
+  const poll = (
+    await db.query(
+      "select public.create_poll($1,'Rollback scheduling','Test court',2,now()+interval '1 day',jsonb_build_array(jsonb_build_object('starts_at',now()+interval '2 days','ends_at',now()+interval '2 days 2 hours'))) id",
+      [g],
+    )
+  ).rows[0].id;
+  const option = (
+    await db.query("select id from public.poll_options where poll_id=$1", [
+      poll,
+    ])
+  ).rows[0].id;
+  await actor(b);
+  await db.query("select public.vote_poll($1,'yes')", [option]);
+  assert(
+    await denied("select public.close_poll($1,$2)", [poll, option]),
+    "poll member cannot close creator poll",
+  );
+  await actor(a);
+  assert(
+    await denied("select public.close_poll($1,$2)", [poll, option]),
+    "poll minimum enforced on hosted database",
+  );
+  await db.query("select public.vote_poll($1,'yes')", [option]);
+  const scheduled = (
+    await db.query("select public.close_poll($1,$2) id", [poll, option])
+  ).rows[0].id;
+  assert(
+    (
+      await db.query(
+        "select committed_at from public.session_attendees where session_id=$1",
+        [scheduled],
+      )
+    ).rows.every((r) => r.committed_at === null),
+    "poll votes remain uncommitted intentions",
+  );
+  await db.query("select public.set_weekly_series($1,2)", [scheduled]);
+  assert(
+    (
+      await db.query(
+        "select id from public.sessions where weekly_series_id=(select weekly_series_id from public.sessions where id=$1)",
+        [scheduled],
+      )
+    ).rowCount === 3,
+    "hosted weekly instances generated",
+  );
+  assert(
+    await denied("select public.run_scheduled_jobs()"),
+    "users cannot call scheduled maintenance",
+  );
+  await db.query("reset role");
+  await db.query("select public.run_scheduled_jobs()");
+  const notificationCount = (
+    await db.query(
+      "select count(*)::int n from public.notifications where group_id=$1",
+      [g],
+    )
+  ).rows[0].n;
+  await db.query("select public.run_scheduled_jobs()");
+  assert(
+    (
+      await db.query(
+        "select count(*)::int n from public.notifications where group_id=$1",
+        [g],
+      )
+    ).rows[0].n === notificationCount,
+    "hosted reminder retry deduplicated",
   );
   stage = "rollback";
   await db.query("rollback");

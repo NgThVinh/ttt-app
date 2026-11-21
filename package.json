@@ -11,7 +11,9 @@
     "test": "vitest run",
     "db:status": "node --env-file=.env scripts/migrate.mjs",
     "db:migrate": "node --env-file=.env scripts/migrate.mjs --apply",
-    "db:verify": "node --env-file=.env scripts/verify-hosted.mjs"
+    "db:verify": "node --env-file=.env scripts/verify-hosted.mjs",
+    "db:cron": "node --env-file=.env scripts/install-cron.mjs",
+    "db:cron:install": "node --env-file=.env scripts/install-cron.mjs --apply"
   },
   "dependencies": {
     "@supabase/ssr": "latest",

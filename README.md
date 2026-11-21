@@ -8,7 +8,7 @@ Use Node.js 24 LTS. Run `npm ci`, `npm run dev`, then visit http://localhost:300
 
 Commands: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`.
 
-Hosted database: all 10 migrations were applied on 2026-11-22; all 13 business tables have RLS. Hosted permission/accounting smoke checks passed in a rolled-back transaction, preserving existing Auth users and leaving no test data. `npm run db:status` inspects migration state; `npm run db:migrate` applies new files atomically; `npm run db:verify` reruns the rollback-only checks. The website and remaining features are not yet deployed or fully accepted.
+Hosted database: all 14 migrations were applied on 2026-11-22; all 18 business tables have RLS. Hosted permission/accounting/scheduling smoke checks passed in a rolled-back transaction, preserving existing Auth users and leaving no test data. `npm run db:status` inspects migration state; `npm run db:migrate` applies new files atomically; `npm run db:verify` reruns the rollback-only checks. The website and remaining features are not yet deployed or fully accepted.
 
 Implemented: responsive dashboard and demonstration mode, local Hamilton expense calculator, server-side Supabase Google/email authentication, pure bigint allocation/reconciliation with tests, initial RLS migration and guarded payment RPC.
 
@@ -22,6 +22,10 @@ Sessions: `/sessions/new` creates played sessions with reviewed allocation previ
 
 Approvals: `/approvals` lists pending session requests addressed to the current member and requests they sent. Attendance/weight requests and shared expense proposals require the current collector's explicit app approval against a preview, immutable payload hash and session revision. Participant-only extras activate directly. Collector nomination requires the existing collector's consent when initiated by the session creator, followed by the nominee's separate acceptance with bank details. Confirmed payments are preserved when collection responsibility moves. Requests expire after 72 hours, can be rejected or withdrawn, and are rate limited to 20 per user per day. History includes actor names and attendance events.
 
-Pending: session metadata editing/cancellation, admin fallback/unlock, editable existing extras/proposals, categories/templates, receipt storage, scheduling, notifications, AI, full PWA support and hosted deployment. Hosted end-to-end and concurrent execution remain unverified. Stale requests must be withdrawn and resubmitted; they are not silently rebased. The canonical requirements are in `docs/handoff_prompt.md`.
+Scheduling: `/polls` creates multi-slot polls; votes are updated under the voter's identity. Creators/admins close a qualifying slot exactly once, producing a planned session with no collector and no automatic attendance commitments. `/notifications` is private to the recipient. Polls/notifications subscribe to Supabase Realtime with focus/30-second refresh fallback. Session and poll pages offer native sharing/clipboard fallback for Messenger without bank data.
+
+Weekly sessions generate up to four weeks ahead, for 1–12 configured weeks; new instances have no collector or committed attendees. The hosted `3t-minute-maintenance` cron runs every minute for deadline finalization, reminder schedules, request expiry, weekly generation and admin escalation. `npm run db:cron` shows job state and latest runs; `npm run db:cron:install` installs it. Notifications are in-app only so far; Web Push and receipt cleanup are still pending.
+
+Pending: session metadata editing/cancellation, admin fallback/unlock, editable existing extras/proposals, categories/templates, receipt storage, Web Push, manual reminder controls, AI, full PWA support and hosted deployment. Browser end-to-end, websocket delivery and concurrent execution remain unverified. Stale requests must be withdrawn and resubmitted; they are not silently rebased. The canonical requirements are in `docs/handoff_prompt.md`.
 
 See DEPLOY.md for infrastructure prerequisites and DECISIONS.md for design choices.

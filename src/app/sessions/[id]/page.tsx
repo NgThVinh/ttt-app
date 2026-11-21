@@ -10,6 +10,8 @@ import ActionForm from "@/components/action-form";
 import ExpenseForm from "@/components/expense-form";
 import FinancialChangeForm from "@/components/financial-change-form";
 import SessionRequestForm from "@/components/session-request-form";
+import ShareButton from "@/components/share-button";
+import { weeklySeries } from "@/app/polls/actions";
 import { sessionCommand, changePayment } from "../actions";
 export default async function Session({
   params,
@@ -44,13 +46,18 @@ export default async function Session({
     .eq("status", "active");
   const { data: metadata } = await db
     .from("sessions")
-    .select("created_by")
+    .select("created_by,weekly_series_id")
     .eq("id", id)
     .maybeSingle();
   return (
     <main>
       <Link href="/sessions">Các buổi chơi</Link>
       <h1>{s.title}</h1>
+      <ShareButton
+        title={s.title}
+        text={`${s.title} tại ${s.venue}. Xem lịch, chốt tham gia và phần tiền của bạn trong app.`}
+        path={`/sessions/${s.id}`}
+      />
       <p>
         {s.venue} ·{" "}
         {new Date(s.starts_at).toLocaleString("vi-VN", {
@@ -233,6 +240,40 @@ export default async function Session({
       <p>
         <Link href="/approvals">Chờ tôi duyệt và các yêu cầu đã gửi</Link>
       </p>
+      {metadata?.created_by === user.id && s.status === "planned" && (
+        <section className="panel">
+          <h2>Lịch lặp hàng tuần</h2>
+          {metadata.weekly_series_id ? (
+            <ActionForm action={weeklySeries} label="Dừng tạo buổi lặp mới">
+              <input
+                type="hidden"
+                name="id"
+                value={metadata.weekly_series_id}
+              />
+              <input type="hidden" name="operation" value="stop" />
+            </ActionForm>
+          ) : (
+            <ActionForm action={weeklySeries} label="Bật lặp hàng tuần">
+              <input type="hidden" name="id" value={s.id} />
+              <input type="hidden" name="operation" value="start" />
+              <label htmlFor="repeat-weeks">Số tuần tiếp theo (1–12)</label>
+              <input
+                id="repeat-weeks"
+                name="weeks"
+                type="number"
+                min="1"
+                max="12"
+                defaultValue="4"
+                required
+              />
+              <p>
+                Buổi mới chưa có người tính tiền; mỗi người tự chốt. Hệ thống
+                tạo trước tối đa 4 tuần.
+              </p>
+            </ActionForm>
+          )}
+        </section>
+      )}
       <section className="panel">
         <h2>Lịch sử</h2>
         {s.history.map((h, i) => (

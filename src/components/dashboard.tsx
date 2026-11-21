@@ -190,7 +190,11 @@ export default function Dashboard({
             </button>
             <button
               aria-label="Thông báo"
-              onClick={() => toast("Bạn chưa có thông báo mới.")}
+              onClick={() =>
+                demo
+                  ? toast("Đăng nhập để xem thông báo.")
+                  : router.push("/notifications")
+              }
             >
               <Bell size={20} />
             </button>

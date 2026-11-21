@@ -15,6 +15,10 @@ export default async function Sessions() {
     <main>
       <Link href="/">Trang chủ</Link>
       <h1>Buổi chơi</h1>
+      <p>
+        <Link href="/polls">Thăm dò lịch chơi</Link> ·{" "}
+        <Link href="/notifications">Thông báo</Link>
+      </p>
       <Link className="primary" href="/sessions/new">
         Tạo buổi chơi
       </Link>
