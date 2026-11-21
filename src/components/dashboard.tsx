@@ -476,7 +476,13 @@ export default function Dashboard({
                         </Link>
                       </p>
                       <p>
-                        <Link href="/groups">Xem các yêu cầu trong nhóm</Link>
+                        <Link href="/approvals">
+                          Chờ tôi duyệt và yêu cầu đã gửi
+                        </Link>{" "}
+                        ·{" "}
+                        <Link href="/groups">
+                          Xác minh thành viên trong nhóm
+                        </Link>
                       </p>
                     </div>
                   )}

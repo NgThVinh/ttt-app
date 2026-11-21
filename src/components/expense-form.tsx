@@ -84,6 +84,12 @@ export default function ExpenseForm({
   return (
     <section className="panel">
       <h2>Thêm phụ phí hoặc giảm giá</h2>
+      {s.my_member_id !== s.collector_member_id && (
+        <p>
+          Khoản chỉ bạn chịu có hiệu lực ngay. Khoản có người khác chịu cần
+          người tính tiền duyệt; bảng dưới đây là dự kiến.
+        </p>
+      )}
       <div onChange={() => setReview(false)}>
         <label htmlFor="expense-title">Tên khoản chi</label>
         <input

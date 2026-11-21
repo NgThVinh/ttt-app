@@ -37,7 +37,9 @@ beforeAll(async () => {
   await db.exec(
     `create role anon;create role authenticated;create role service_role;create schema auth;create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz,raw_user_meta_data jsonb default '{}');create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema public,auth to authenticated,anon,service_role;grant execute on function auth.uid() to public;`,
   );
-  await db.exec('alter default privileges in schema public grant all on tables to anon,authenticated,service_role');
+  await db.exec(
+    "alter default privileges in schema public grant all on tables to anon,authenticated,service_role",
+  );
   for (const file of readdirSync("supabase/migrations")
     .filter((f) => f.endsWith(".sql"))
     .sort())
@@ -93,12 +95,12 @@ it("allocations conserve integer VND and text DTOs preserve precision", async ()
 });
 it("creator/member cannot edit money unless they are the collector; outsiders cannot read", async () => {
   await actor(b);
-  await expect(
-    db.query(
-      "select public.add_expense($1,$2,'Extra','1000',$3,$4,'total','equal','{}','reason')",
-      [sid, (await details()).revision, people[1], people],
-    ),
-  ).rejects.toThrow(/người tính tiền/);
+  const originalCount = (await details()).expenses.length;
+  await db.query(
+    "select public.add_expense($1,$2,'Extra','1000',$3,$4,'total','equal','{}','reason')",
+    [sid, (await details()).revision, people[1], people],
+  );
+  expect((await details()).expenses.length).toBe(originalCount);
   await actor(outside);
   await expect(details()).rejects.toThrow(/quyền/);
   await actor(a);
@@ -327,6 +329,325 @@ it("client roles cannot truncate business data, and logs cannot be truncated eve
   await expect(db.exec("truncate public.attendance_events")).rejects.toThrow(
     /bất biến/,
   );
+});
+
+async function approvalFixture() {
+  await actor(a);
+  const id = (
+    await db.query<{ id: string }>(
+      "select public.create_session($1,'Approvals','Court',now()-interval '1 hour',now()-interval '1 hour',true,$2,'100000',true) id",
+      [group, people],
+    )
+  ).rows[0].id;
+  return id;
+}
+
+it("planned session weight and late join approvals apply only to the requesting member", async () => {
+  await actor(a);
+  const id = (
+    await db.query<{ id: string }>(
+      "select public.create_session($1,'Planned approvals','Court',now()+interval '1 day',now()+interval '1 day',false,'{}','0',true) id",
+      [group],
+    )
+  ).rows[0].id;
+  await actor(b);
+  await db.query("select public.set_rsvp($1,true)", [id]);
+  await db.query("select public.request_session_change($1,'weight',$2)", [
+    id,
+    { weight: "0.5", reason: "Play half a session" },
+  ]);
+  let r = await requestRow(id);
+  await actor(a);
+  await db.query("select public.decide_session_request($1,true,$2)", [
+    r.id,
+    r.payload_hash,
+  ]);
+  expect(
+    (await sessionState(id)).attendees.find((p) => p.member_id === people[1])
+      ?.weight,
+  ).toBe("0.5");
+  await actor(b);
+  await db.query("select public.set_rsvp($1,false)", [id]);
+  await db.exec("reset role");
+  await db.query(
+    "update public.sessions set starts_at=now()-interval '1 hour',commit_deadline=now()-interval '1 hour' where id=$1",
+    [id],
+  );
+  await actor(b);
+  await db.query("select public.request_session_change($1,'join',$2)", [
+    id,
+    { reason: "I actually played" },
+  ]);
+  r = await requestRow(id);
+  await actor(a);
+  await db.query("select public.decide_session_request($1,true,$2)", [
+    r.id,
+    r.payload_hash,
+  ]);
+  await db.query("select public.finish_session($1,$2,'100000')", [
+    id,
+    (await sessionState(id)).revision,
+  ]);
+  expect((await sessionState(id)).settlements[0]).toMatchObject({
+    from_member: people[1],
+    to_member: people[0],
+    amount: "100000",
+  });
+});
+async function requestRow(id: string) {
+  return (
+    await db.query<{
+      id: string;
+      payload_hash: string;
+      payload: Record<string, unknown>;
+      status: string;
+      required_authority: string;
+    }>(
+      "select id,payload_hash,payload,status,required_authority from public.approval_requests where session_id=$1 and status='pending' order by created_at desc limit 1",
+      [id],
+    )
+  ).rows[0];
+}
+async function sessionState(id: string) {
+  return (
+    await db.query<{
+      d: {
+        revision: string;
+        expenses: { id: string; amount: string }[];
+        settlements: {
+          id: string;
+          amount: string;
+          status: string;
+          from_member: string;
+          to_member: string;
+        }[];
+        collector_member_id: string;
+        attendees: {
+          member_id: string;
+          removed_at: string | null;
+          weight: string;
+        }[];
+      };
+    }>("select public.session_details($1) d", [id])
+  ).rows[0].d;
+}
+it("shared expense proposals have no money effect before a collector approves the exact preview", async () => {
+  const id = await approvalFixture();
+  const before = await sessionState(id);
+  await actor(b);
+  await db.query(
+    "select public.add_expense($1,$2,'Water','20000',$3,$4,'total','equal','{}','Water for everyone')",
+    [id, before.revision, people[1], people],
+  );
+  expect((await sessionState(id)).expenses).toEqual(before.expenses);
+  const r = await requestRow(id);
+  await expect(
+    db.query("select public.decide_session_request($1,true,$2)", [
+      r.id,
+      r.payload_hash,
+    ]),
+  ).rejects.toThrow(/thẩm quyền/);
+  await actor(a);
+  const preview = await db.query(
+    "select public.preview_session_request($1,$2)",
+    [r.id, r.payload_hash],
+  );
+  expect(preview.rows).toHaveLength(1);
+  expect((await sessionState(id)).revision).toBe(before.revision);
+  await db.query("select public.decide_session_request($1,true,$2)", [
+    r.id,
+    r.payload_hash,
+  ]);
+  expect((await sessionState(id)).expenses).toHaveLength(2);
+  expect(
+    (
+      await db.query<{ status: string }>(
+        "select status from public.expenses where id=$1",
+        [r.payload.expense_id],
+      )
+    ).rows[0].status,
+  ).toBe("active");
+  await expect(
+    db.query("select public.decide_session_request($1,true,$2)", [
+      r.id,
+      r.payload_hash,
+    ]),
+  ).rejects.toThrow(/hết hạn/);
+  await actor(b);
+  await expect(
+    db.query(
+      "select public.write_expense_internal($1,'0','Bypass','1000',$2,$3,'total','equal','{}','Bypass')",
+      [id, people[1], people],
+    ),
+  ).rejects.toThrow(/permission denied/);
+});
+it("a participant-only extra is effective immediately", async () => {
+  const id = await approvalFixture();
+  await actor(b);
+  await db.query(
+    "select public.add_expense($1,$2,'Parking','5000',$3,$4,'total','equal','{}','Own parking')",
+    [id, (await sessionState(id)).revision, people[1], [people[1]]],
+  );
+  expect((await sessionState(id)).expenses).toHaveLength(2);
+  expect(
+    (
+      await db.query(
+        "select id from public.approval_requests where session_id=$1",
+        [id],
+      )
+    ).rows,
+  ).toHaveLength(0);
+});
+it("leave requests bind the requester identity and refunds require collector approval", async () => {
+  const id = await approvalFixture();
+  await db.query("select public.payment_action($1,'confirm')", [
+    (await sessionState(id)).settlements[0].id,
+  ]);
+  await actor(b);
+  await db.query("select public.request_session_change($1,'leave',$2)", [
+    id,
+    { member_id: people[0], reason: "I was entered by mistake" },
+  ]);
+  const r = await requestRow(id);
+  expect(r.payload.member_id).toBe(people[1]);
+  await actor(a);
+  await db.query("select public.decide_session_request($1,true,$2)", [
+    r.id,
+    r.payload_hash,
+  ]);
+  expect(
+    (await sessionState(id)).settlements.find((p) => p.status === "pending"),
+  ).toMatchObject({
+    from_member: people[0],
+    to_member: people[1],
+    amount: "50000",
+  });
+});
+it("stale revisions, expired requests and changed payloads cannot execute", async () => {
+  const id = await approvalFixture();
+  await actor(b);
+  await db.query("select public.request_session_change($1,'weight',$2)", [
+    id,
+    { weight: "0.5", reason: "Half session" },
+  ]);
+  const r = await requestRow(id);
+  await actor(a);
+  await db.query(
+    "select public.add_expense($1,$2,'Water','1000',$3,$4,'total','equal','{}','New cost')",
+    [id, (await sessionState(id)).revision, people[0], people],
+  );
+  await expect(
+    db.query("select public.decide_session_request($1,true,$2)", [
+      r.id,
+      r.payload_hash,
+    ]),
+  ).rejects.toThrow(/thay đổi/);
+  await actor(b);
+  await db.query("select public.cancel_session_request($1)", [r.id]);
+  await db.query("select public.request_session_change($1,'weight',$2)", [
+    id,
+    { weight: "0.5", reason: "Half session again" },
+  ]);
+  const next = await requestRow(id);
+  await db.exec("reset role");
+  await db.query(
+    'update public.approval_requests set payload=payload||\'{"weight":"0.1"}\' where id=$1',
+    [next.id],
+  );
+  await actor(a);
+  await expect(
+    db.query("select public.decide_session_request($1,true,$2)", [
+      next.id,
+      next.payload_hash,
+    ]),
+  ).rejects.toThrow(/thay đổi/);
+  await db.exec("reset role");
+  await db.query(
+    "update public.approval_requests set expires_at=now()-interval '1 second' where id=$1",
+    [next.id],
+  );
+  await actor(a);
+  await expect(
+    db.query("select public.decide_session_request($1,true,$2)", [
+      next.id,
+      next.payload_hash,
+    ]),
+  ).rejects.toThrow(/hết hạn/);
+});
+it("collector transfer preserves confirmed payments and reroutes outstanding economic balances", async () => {
+  const id = await approvalFixture();
+  const original = (await sessionState(id)).settlements[0];
+  await db.query("select public.payment_action($1,'confirm')", [original.id]);
+  await db.query(
+    "select public.request_session_change($1,'collector_nomination',$2)",
+    [id, { member_id: people[1], reason: "B paid for the court" }],
+  );
+  const r = await requestRow(id);
+  expect(r.required_authority).toBe(people[1]);
+  await actor(b);
+  await db.query(
+    "insert into public.profiles(id,display_name,bank_bin,bank_account_no,bank_account_name) values($1,'B','970415','87654321','B') on conflict(id) do update set bank_bin='970415',bank_account_no='87654321',bank_account_name='B'",
+    [b],
+  );
+  await db.query("select public.decide_session_request($1,true,$2)", [
+    r.id,
+    r.payload_hash,
+  ]);
+  const after = await sessionState(id);
+  expect(after.collector_member_id).toBe(people[1]);
+  expect(after.settlements.find((p) => p.id === original.id)).toMatchObject({
+    status: "confirmed",
+    amount: "50000",
+  });
+  expect(after.settlements.find((p) => p.status === "pending")).toMatchObject({
+    from_member: people[0],
+    to_member: people[1],
+    amount: "100000",
+  });
+});
+it("a creator cannot replace an existing collector without both consent and acceptance", async () => {
+  await actor(b);
+  const id = (
+    await db.query<{ id: string }>(
+      "select public.create_session($1,'Future','Court',now()+interval '1 day',now()+interval '1 day',false,'{}','0',false) id",
+      [group],
+    )
+  ).rows[0].id;
+  await actor(a);
+  await db.query("select public.claim_collector($1,'0','100000')", [id]);
+  await actor(b);
+  await db.query(
+    "select public.request_session_change($1,'collector_nomination',$2)",
+    [id, { member_id: people[1], reason: "Please transfer to me" }],
+  );
+  const r = await requestRow(id);
+  expect(r.payload.phase).toBe("consent");
+  await expect(
+    db.query("select public.decide_session_request($1,true,$2)", [
+      r.id,
+      r.payload_hash,
+    ]),
+  ).rejects.toThrow(/thẩm quyền/);
+  await actor(a);
+  await db.query("select public.decide_session_request($1,true,$2)", [
+    r.id,
+    r.payload_hash,
+  ]);
+  expect((await sessionState(id)).collector_member_id).toBe(people[0]);
+  const accepted = await requestRow(id);
+  expect(accepted.payload.phase).toBe("accept");
+  await actor(b);
+  await expect(
+    db.query("select public.decide_session_request($1,true,$2)", [
+      r.id,
+      r.payload_hash,
+    ]),
+  ).rejects.toThrow(/thay đổi/);
+  await db.query("select public.decide_session_request($1,true,$2)", [
+    accepted.id,
+    accepted.payload_hash,
+  ]);
+  expect((await sessionState(id)).collector_member_id).toBe(people[1]);
 });
 it("SQL Hamilton results match the TypeScript preview with negative amounts and zero shares", async () => {
   await actor(a);

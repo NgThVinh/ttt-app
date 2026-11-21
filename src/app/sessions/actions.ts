@@ -132,7 +132,12 @@ export async function addExpense(
     };
   revalidatePath(`/sessions/${p.sid}`);
   revalidatePath("/debts");
-  return { ok: true, message: "Đã lưu khoản chi và tính lại công nợ." };
+  revalidatePath("/approvals");
+  return {
+    ok: true,
+    message:
+      "Đã tiếp nhận khoản chi. Khoản đề xuất chỉ tính vào công nợ sau khi được duyệt.",
+  };
 }
 export async function changePayment(
   _state: FormResult,

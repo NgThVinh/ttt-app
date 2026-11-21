@@ -55,6 +55,7 @@ export const detailSchema = z.object({
       action: z.string(),
       created_at: z.string(),
       reason: z.string().nullable(),
+      actor_name: z.string().optional(),
     }),
   ),
 });
