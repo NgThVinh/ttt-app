@@ -8,7 +8,10 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:status": "node --env-file=.env scripts/migrate.mjs",
+    "db:migrate": "node --env-file=.env scripts/migrate.mjs --apply",
+    "db:verify": "node --env-file=.env scripts/verify-hosted.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "latest",
@@ -25,10 +28,12 @@
     "@electric-sql/pglite": "^0.5.17",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "latest",
+    "@types/pg": "^8.23.1",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "eslint": "latest",
     "eslint-config-next": "^16.4.0",
+    "pg": "^8.23.1",
     "prettier": "^3.10.1",
     "tailwindcss": "^4.0.0",
     "typescript": "latest",

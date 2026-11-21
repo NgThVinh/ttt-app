@@ -8,6 +8,8 @@ Use Node.js 24 LTS. Run `npm ci`, `npm run dev`, then visit http://localhost:300
 
 Commands: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`.
 
+Hosted database: all 10 migrations were applied on 2026-11-22; all 13 business tables have RLS. Hosted permission/accounting smoke checks passed in a rolled-back transaction, preserving existing Auth users and leaving no test data. `npm run db:status` inspects migration state; `npm run db:migrate` applies new files atomically; `npm run db:verify` reruns the rollback-only checks. The website and remaining features are not yet deployed or fully accepted.
+
 Implemented: responsive dashboard and demonstration mode, local Hamilton expense calculator, server-side Supabase Google/email authentication, pure bigint allocation/reconciliation with tests, initial RLS migration and guarded payment RPC.
 
 Group management: `/groups` lists memberships and exposes group creation only to the verified super admin. Group pages support expiring/revocable invitations, member roles, soft removal, and admin-approved claims of existing guest members. `/me` saves private bank/profile information. Invite destinations survive Google and email authentication; return URLs are allowlisted.
