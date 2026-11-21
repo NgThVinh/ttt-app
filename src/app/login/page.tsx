@@ -1,6 +1,7 @@
 ﻿import { appName } from "@/lib/config";
 import Link from "next/link";
 import { login, googleLogin } from "../actions";
+import { safeReturnPath } from "@/lib/auth-redirect";
 export default async function Login({
   searchParams,
 }: {
@@ -22,10 +23,12 @@ export default async function Login({
         </h1>
         <p>Một chỗ cho lịch chơi, chia tiền và những khoản cần nhớ.</p>
         <form action={googleLogin}>
+          <input type="hidden" name="next" value={safeReturnPath(p.next)} />
           <button className="primary full">Tiếp tục với Google</button>
         </form>
         <div className="divider">hoặc dùng email</div>
         <form action={login}>
+          <input type="hidden" name="next" value={safeReturnPath(p.next)} />
           <label htmlFor="email">Email của bạn</label>
           <input
             id="email"

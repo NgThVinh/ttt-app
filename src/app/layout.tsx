@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: appName,
   description: "Thích Tính Tiền — Chơi hết mình, chia tiền nhẹ tênh",
   manifest: "/manifest.webmanifest",
+  referrer: "no-referrer",
 };
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (

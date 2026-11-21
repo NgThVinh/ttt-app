@@ -124,7 +124,13 @@ export default function Dashboard({
           {nav.map(({ name, icon: Icon }) => (
             <button
               key={name}
-              onClick={() => setTab(name)}
+              onClick={() =>
+                !demo && name === "Nhóm"
+                  ? router.push("/groups")
+                  : !demo && name === "Tôi"
+                    ? router.push("/me")
+                    : setTab(name)
+              }
               className={tab === name ? "active" : ""}
             >
               <Icon size={20} />
@@ -494,7 +500,13 @@ export default function Dashboard({
           <button
             className={tab === name ? "active" : ""}
             key={name}
-            onClick={() => setTab(name)}
+            onClick={() =>
+              !demo && name === "Nhóm"
+                ? router.push("/groups")
+                : !demo && name === "Tôi"
+                  ? router.push("/me")
+                  : setTab(name)
+            }
           >
             <Icon size={20} />
             <span>{name}</span>
