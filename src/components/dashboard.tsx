@@ -45,12 +45,19 @@ export default function Dashboard({
   groups = [],
   sessions = [],
   setupError = false,
+  summary = null,
 }: {
   demo?: boolean;
   name?: string;
   groups?: Group[];
   sessions?: Session[];
   setupError?: boolean;
+  summary?: {
+    owe: string;
+    owed: string;
+    payCount: number;
+    receiveCount: number;
+  } | null;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState("Trang chủ"),
@@ -103,6 +110,9 @@ export default function Dashboard({
         },
       ]
     : sessions;
+  const upcoming = items
+    .filter((s) => s.status === "planned")
+    .sort((a, b) => a.starts_at.localeCompare(b.starts_at))[0];
   return (
     <div className={dark ? "app dark" : "app"}>
       <aside className="sidebar">
@@ -115,7 +125,11 @@ export default function Dashboard({
           <div>
             <small>NHÓM CỦA BẠN</small>
             <strong>
-              {demo ? "Hội cầu lông vui vẻ" : groups[0]?.name || "Chưa có nhóm"}
+              {demo
+                ? "Hội cầu lông vui vẻ"
+                : groups.length > 1
+                  ? "Tất cả nhóm"
+                  : groups[0]?.name || "Chưa có nhóm"}
             </strong>
           </div>
           <ChevronDown size={16} />
@@ -129,7 +143,11 @@ export default function Dashboard({
                   ? router.push("/groups")
                   : !demo && name === "Tôi"
                     ? router.push("/me")
-                    : setTab(name)
+                    : !demo && name === "Buổi chơi"
+                      ? router.push("/sessions")
+                      : !demo && name === "Công nợ"
+                        ? router.push("/debts")
+                        : setTab(name)
               }
               className={tab === name ? "active" : ""}
             >
@@ -215,13 +233,19 @@ export default function Dashboard({
                   </span>
                   <small>Tôi cần trả</small>
                   <h2>
-                    {demo ? "125.000" : "—"}
+                    {demo
+                      ? "125.000"
+                      : summary
+                        ? formatMoney(summary.owe).slice(0, -1)
+                        : "—"}
                     <span>đ</span>
                   </h2>
                   <p>
                     {demo
                       ? "2 khoản đang chờ bạn"
-                      : "Chưa kết nối dữ liệu công nợ"}
+                      : summary
+                        ? `${summary.payCount} khoản cần trả`
+                        : "Chưa tải được công nợ"}
                     <span className="tiny-label">Chưa trả</span>
                   </p>
                 </article>
@@ -231,13 +255,19 @@ export default function Dashboard({
                   </span>
                   <small>Tôi cần thu</small>
                   <h2>
-                    {demo ? "340.000" : "—"}
+                    {demo
+                      ? "340.000"
+                      : summary
+                        ? formatMoney(summary.owed).slice(0, -1)
+                        : "—"}
                     <span>đ</span>
                   </h2>
                   <p>
                     {demo
                       ? "4 người cần thanh toán"
-                      : "Chưa kết nối dữ liệu công nợ"}
+                      : summary
+                        ? `${summary.receiveCount} khoản cần thu`
+                        : "Chưa tải được công nợ"}
                     <span className="tiny-label green">Cần thu</span>
                   </p>
                 </article>
@@ -245,7 +275,9 @@ export default function Dashboard({
                   <span className="stat-icon lavender">
                     <CalendarDays size={21} />
                   </span>
-                  <small>Buổi chơi tháng này</small>
+                  <small>
+                    {demo ? "Buổi chơi tháng này" : "Buổi chơi gần đây"}
+                  </small>
                   <h2>
                     {demo ? "8" : sessions.length}
                     <span> buổi</span>
@@ -265,56 +297,74 @@ export default function Dashboard({
                       <h2>
                         Sắp tới <span className="live-dot" />
                       </h2>
-                      <button onClick={() => setTab("Buổi chơi")}>
-                        Xem lịch chơi <ArrowUpRight size={16} />
+                      <button
+                        onClick={() =>
+                          demo ? setTab("Buổi chơi") : router.push("/sessions")
+                        }
+                      >
+                        Xem lịch chơi
                       </button>
                     </div>
-                    {items.find((s) => s.status === "planned") ? (
+                    {upcoming ? (
                       <>
                         <div className="event-head">
                           <div className="date-tile">
-                            <small>THÁNG 11</small>
-                            <b>26</b>
-                            <span>Thứ Năm</span>
+                            <small>
+                              {new Date(upcoming.starts_at).toLocaleDateString(
+                                "vi-VN",
+                                {
+                                  month: "short",
+                                  timeZone: "Asia/Ho_Chi_Minh",
+                                },
+                              )}
+                            </small>
+                            <b>
+                              {new Date(upcoming.starts_at).toLocaleDateString(
+                                "vi-VN",
+                                {
+                                  day: "2-digit",
+                                  timeZone: "Asia/Ho_Chi_Minh",
+                                },
+                              )}
+                            </b>
                           </div>
                           <div>
                             <span className="badge green">Sắp diễn ra</span>
-                            <h3>
-                              {items.find((s) => s.status === "planned")?.title}
-                            </h3>
+                            <h3>{upcoming.title}</h3>
                             <p>
                               <Clock size={15} />
-                              19:00 – 21:00 <span>·</span> <MapPin size={15} />
-                              {items[0]?.venue}
+                              {new Date(upcoming.starts_at).toLocaleTimeString(
+                                "vi-VN",
+                                {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  timeZone: "Asia/Ho_Chi_Minh",
+                                },
+                              )}
+                              <MapPin size={15} />
+                              {upcoming.venue}
                             </p>
                           </div>
                         </div>
                         <div className="event-bottom">
-                          <div className="avatar-stack">
-                            {["M", "A", "B", "L"].map((s, i) => (
-                              <span
-                                className={
-                                  ["mint", "peach", "lavender", "blue"][i]
-                                }
-                                key={s}
-                              >
-                                {s}
-                              </span>
-                            ))}
-                            <small>+4</small>
-                            <span>8 người đã chốt đi</span>
-                          </div>
-                          <button
-                            className="primary"
-                            onClick={() =>
-                              demo
-                                ? toast("Đăng nhập để chốt tham gia.")
-                                : toast("Luồng RSVP đang được triển khai.")
-                            }
-                          >
-                            <Check size={16} />
-                            Tôi đi
-                          </button>
+                          <span>Chốt đi trước hạn của buổi nhé.</span>
+                          {demo ? (
+                            <button
+                              className="primary"
+                              onClick={() =>
+                                toast("Đăng nhập để chốt tham gia.")
+                              }
+                            >
+                              Tôi đi
+                            </button>
+                          ) : (
+                            <Link
+                              className="primary"
+                              href={`/sessions/${upcoming.id}`}
+                            >
+                              Xem và chốt tham gia
+                            </Link>
+                          )}
                         </div>
                       </>
                     ) : (
@@ -326,7 +376,11 @@ export default function Dashboard({
                   <section className="recent">
                     <div className="section-title">
                       <h2>Những buổi gần đây</h2>
-                      <button onClick={() => setTab("Buổi chơi")}>
+                      <button
+                        onClick={() =>
+                          demo ? setTab("Buổi chơi") : router.push("/sessions")
+                        }
+                      >
                         Xem tất cả <ArrowUpRight size={16} />
                       </button>
                     </div>
@@ -336,7 +390,13 @@ export default function Dashboard({
                         <div className="session-row" key={s.id}>
                           <div className="sport-icon">🏸</div>
                           <div>
-                            <strong>{s.title}</strong>
+                            {demo ? (
+                              <strong>{s.title}</strong>
+                            ) : (
+                              <Link href={`/sessions/${s.id}`}>
+                                <strong>{s.title}</strong>
+                              </Link>
+                            )}
                             <small>
                               {new Date(s.starts_at).toLocaleDateString(
                                 "vi-VN",
@@ -371,7 +431,13 @@ export default function Dashboard({
                 <section className="tasks">
                   <div className="section-title">
                     <h2>Việc cần làm</h2>
-                    <span className="count">{demo ? 3 : 0}</span>
+                    <span className="count">
+                      {demo
+                        ? 3
+                        : summary
+                          ? summary.payCount + summary.receiveCount
+                          : "—"}
+                    </span>
                   </div>
                   {demo ? (
                     <>
@@ -402,7 +468,16 @@ export default function Dashboard({
                   ) : (
                     <div className="empty">
                       <CheckCircle2 size={30} />
-                      <p>Bạn đã xem hết việc cần làm.</p>
+                      <p>
+                        <Link href="/debts">
+                          {summary
+                            ? `${summary.payCount} khoản cần trả, ${summary.receiveCount} khoản cần thu hoặc xác nhận.`
+                            : "Xem công nợ của tôi"}
+                        </Link>
+                      </p>
+                      <p>
+                        <Link href="/groups">Xem các yêu cầu trong nhóm</Link>
+                      </p>
                     </div>
                   )}
                   <div className="friendly-note">
@@ -424,7 +499,13 @@ export default function Dashboard({
                 <div className="session-row" key={s.id}>
                   <span className="sport-icon">🏸</span>
                   <div>
-                    <strong>{s.title}</strong>
+                    {demo ? (
+                      <strong>{s.title}</strong>
+                    ) : (
+                      <Link href={`/sessions/${s.id}`}>
+                        <strong>{s.title}</strong>
+                      </Link>
+                    )}
                     <small>
                       {s.venue} ·{" "}
                       {new Date(s.starts_at).toLocaleDateString("vi-VN")}
@@ -505,7 +586,11 @@ export default function Dashboard({
                 ? router.push("/groups")
                 : !demo && name === "Tôi"
                   ? router.push("/me")
-                  : setTab(name)
+                  : !demo && name === "Buổi chơi"
+                    ? router.push("/sessions")
+                    : !demo && name === "Công nợ"
+                      ? router.push("/debts")
+                      : setTab(name)
             }
           >
             <Icon size={20} />

@@ -1,0 +1,143 @@
+"use client";
+import { useState, useActionState } from "react";
+import type { SessionDetail } from "@/lib/session-data";
+import { formatMoney } from "@/lib/money";
+import { previewChange, applyChange } from "@/app/sessions/actions";
+import ActionForm from "./action-form";
+type PreviewResult = {
+  message: string;
+  detail?: SessionDetail;
+  payload?: string;
+};
+export default function FinancialChangeForm({
+  session: s,
+  members,
+}: {
+  session: SessionDetail;
+  members: { id: string; display_name: string }[];
+}) {
+  const [action, setAction] = useState("attendee"),
+    [target, setTarget] = useState(members[0]?.id || ""),
+    [operation, setOperation] = useState("weight"),
+    [weight, setWeight] = useState("0.5"),
+    [expense, setExpense] = useState(s.expenses[0]?.id || ""),
+    [reason, setReason] = useState("");
+  const payload = JSON.stringify({
+    sid: s.id,
+    revision: s.revision,
+    action,
+    body:
+      action === "attendee"
+        ? { member_id: target, operation, weight, reason }
+        : { expense_id: expense, reason },
+  });
+  const [state, submit, pending] = useActionState<PreviewResult, FormData>(
+    previewChange,
+    { message: "" },
+  );
+  const reviewed = state.detail && state.detail.revision !== s.revision;
+  return (
+    <section className="panel">
+      <h2>Sửa người, hệ số hoặc xóa khoản chi</h2>
+      <form action={submit} key={s.revision}>
+        <input type="hidden" name="payload" value={payload} />
+        <label htmlFor="change-action">Thay đổi</label>
+        <select
+          id="change-action"
+          value={action}
+          onChange={(e) => setAction(e.target.value)}
+        >
+          <option value="attendee">Người tham gia / hệ số</option>
+          <option value="delete_expense">Xóa khoản chi (giữ lịch sử)</option>
+        </select>
+        {action === "attendee" ? (
+          <>
+            <label htmlFor="change-member">Thành viên</label>
+            <select
+              id="change-member"
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+            >
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.display_name}
+                </option>
+              ))}
+            </select>
+            <label htmlFor="change-operation">Thao tác</label>
+            <select
+              id="change-operation"
+              value={operation}
+              onChange={(e) => setOperation(e.target.value)}
+            >
+              <option value="weight">Đổi hệ số</option>
+              <option value="remove">Rút khỏi buổi</option>
+              <option value="add">Thêm vào buổi</option>
+            </select>
+            {operation === "weight" && (
+              <>
+                <label htmlFor="change-weight">Hệ số mới</label>
+                <input
+                  id="change-weight"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                />
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <label htmlFor="change-expense">Khoản chi</label>
+            <select
+              id="change-expense"
+              value={expense}
+              onChange={(e) => setExpense(e.target.value)}
+            >
+              {s.expenses.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.title} · {formatMoney(e.amount)}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+        <label htmlFor="change-reason">Lý do</label>
+        <input
+          id="change-reason"
+          required
+          maxLength={500}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+        <button
+          className="secondary"
+          disabled={pending}
+          style={{ marginTop: 16 }}
+        >
+          Xem trước thay đổi
+        </button>
+      </form>
+      {state.message && <p role="status">{state.message}</p>}
+      {reviewed && state.payload === payload && (
+        <>
+          <h3>Công nợ sau thay đổi</h3>
+          {state
+            .detail!.settlements.filter((p) => p.status !== "confirmed")
+            .map((p) => (
+              <p key={p.id}>
+                {p.from_name} trả {p.to_name}:{" "}
+                <strong>{formatMoney(p.amount)}</strong>
+              </p>
+            ))}
+          <p>
+            Các khoản đã xác nhận được giữ nguyên. Thay đổi chỉ được lưu khi bấm
+            nút dưới đây.
+          </p>
+          <ActionForm action={applyChange} label="Xác nhận lưu thay đổi">
+            <input type="hidden" name="payload" value={payload} />
+          </ActionForm>
+        </>
+      )}
+    </section>
+  );
+}

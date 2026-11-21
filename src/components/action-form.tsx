@@ -6,10 +6,12 @@ export default function ActionForm({
   action,
   children,
   label = "Lưu",
+  disabled = false,
 }: {
   action: (state: FormResult, form: FormData) => Promise<FormResult>;
   children: React.ReactNode;
   label?: string;
+  disabled?: boolean;
 }) {
   const [state, submit, pending] = useActionState(action, { message: "" });
   const router = useRouter();
@@ -19,7 +21,11 @@ export default function ActionForm({
   return (
     <form action={submit}>
       {children}
-      <button disabled={pending} className="primary" style={{ marginTop: 16 }}>
+      <button
+        disabled={pending || disabled}
+        className="primary"
+        style={{ marginTop: 16 }}
+      >
         {pending ? "Đang xử lý…" : label}
       </button>
       {state.message && (

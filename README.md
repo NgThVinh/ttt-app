@@ -14,6 +14,10 @@ Group management: `/groups` lists memberships and exposes group creation only to
 
 Tests now execute migrations and RLS against embedded PostgreSQL (PGlite) with a minimal Supabase Auth identity fixture. This exercises database permissions and transactions without Docker; it does not replace hosted Auth, Storage, Realtime, concurrency, or full permission-matrix acceptance tests.
 
-Pending: session editing/creation UI and RPCs, all split modes, remaining approval workflows, actual debt dashboard, receipt storage, scheduling, notifications, AI, full PWA support and deployment. The current UI labels incomplete data paths and does not claim financial writes succeeded. The canonical requirements are in `docs/handoff_prompt.md`.
+Sessions: `/sessions/new` creates played sessions with reviewed allocation previews or future sessions with self RSVP. `/sessions/[id]` supports claiming an unassigned collector role, finalizing attendance, expense breakdowns, collector-entered extras/discounts with all four split modes, and sender/receiver payment actions. Collector changes to attendance, weights and expense deletion have database-backed previews that roll back all writes, followed by an explicit save against the reviewed revision. Confirmed transfers remain immutable and corrections create new collections/refunds.
+
+`/debts` and the home totals read actual personal settlements with money encoded as decimal strings. Payment screens show recipient bank details and copy buttons. QR images require an operator-owned VietQR template; see `.env.example` and DEPLOY.md.
+
+Pending: session metadata editing/cancellation, collector nomination/change and admin fallback/unlock, remaining approval workflows and participant expense proposals, editable existing extras, categories/templates, receipt storage, scheduling, notifications, AI, full PWA support and hosted deployment. Hosted end-to-end and concurrent execution remain unverified. The canonical requirements are in `docs/handoff_prompt.md`.
 
 See DEPLOY.md for infrastructure prerequisites and DECISIONS.md for design choices.

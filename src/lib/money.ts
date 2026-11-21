@@ -9,7 +9,8 @@ export function allocate(
   if (
     !splits.length ||
     new Set(splits.map((s) => s.memberId)).size !== splits.length ||
-    splits.some((s) => s.weight <= 0n)
+    splits.some((s) => s.weight < 0n) ||
+    splits.every((s) => s.weight === 0n)
   )
     throw new Error("Danh sách chia không hợp lệ");
   const sign = amount < 0n ? -1n : 1n,
