@@ -1,5 +1,7 @@
 # Tiến độ theo tám mốc
 
+- Bản tối ưu feedback `d2d8403` đã deploy production ngày 23/11/2026 (`dpl_APh7NR7NDGXip9pkingKgg9jMRFy`, Ready). Kiểm tra UI trên domain bằng tài khoản test đã có qua cả ba màn nhóm/tạo buổi/thanh toán; không ghi thêm công nợ, không gọi LLM.
+
 - 23/11/2026: xử lý bốn feedback của production-user-review: ưu tiên thanh toán trước phần chia/người tham gia, bằng chứng tùy chọn đóng mặc định; Mời bạn đầu trang nhóm, role management/khách/link cũ thu gọn, không mặc định đổi quyền; hệ số/phụ phí/giải thích làm tròn chỉ mở khi cần. Có nhãn khi tùy chỉnh và giữ đầy đủ preview/revision. Browser `test:minimal-ux` và `test:payment-ui` qua trên local, không gọi LLM. 163 test thường/typecheck/lint/build qua; không cần migration.
 
 - Đã thử như người dùng trên domain production bằng hai tài khoản test độc lập: chờ mời → admin tạo link → tham gia → lưu ngân hàng giả → tạo buổi hai người/100.000đ → công nợ 50.000đ → báo chuyển → người nhận xác nhận → công nợ 0đ. 10 bước đạt, không có runtime error, sáu màn không tràn ngang ở 390/1440px. Không gọi LLM/chuyển tiền/gửi email; Google consent/SMTP không nằm trong lượt này. Giữ lịch sử trong nhóm `[TEST]` riêng. Đánh giá UX còn bốn điểm cần giản lược, chi tiết trong [production-user-review.md](production-user-review.md); chưa coi UI hoàn toàn tối giản.

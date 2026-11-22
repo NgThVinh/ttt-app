@@ -1,5 +1,7 @@
 # Deployment status and prerequisites
 
+Latest UI deployment (23/11/2026): source `d2d8403`, deployment `dpl_APh7NR7NDGXip9pkingKgg9jMRFy`, Ready at https://thichtinhtien.online. A read-only product check with existing test identities confirmed the simplified invitation, customization and payment screens. AI remains disabled pending its separate acceptance; no runtime secrets or migrations changed for this UI release.
+
 Production is now deployed at https://thichtinhtien.online (22/11/2026), deployment `dpl_6H5VkMSu2kTD62qhrtGBVBiF3mpu`, source through `bc33108`. Vercel reports Ready and the custom-domain alias is active. Required runtime credentials were published as secrets through stdin; CLI-only database credentials and shared provider keys were not uploaded. Production `AI_KILL_SWITCH=1` until full AI acceptance; push cron/SMTP/device acceptance remain pending. The initial failed build was caused by uploaded tests importing excluded tooling; `.vercelignore` now excludes test files while local/CI still checks them.
 
 Real production smoke check: `/login` 200, anonymous `/` redirects to login, callback without a code redirects to a safe error page, and a root OAuth code routes to `/auth/callback` before the membership gate. Chromium confirmed the Google button reaches accounts.google.com with the configured production callback. No real Google consent/session was completed by automation. The owner confirmed saving Supabase Site URL and callback redirect allowlist. Old one-use codes must not be reused; start a fresh login at the production domain.

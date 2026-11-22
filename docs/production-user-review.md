@@ -2,6 +2,8 @@
 
 ## Cập nhật xử lý feedback — 23/11/2026
 
+Đã deploy commit `d2d8403` lên https://thichtinhtien.online, deployment `dpl_APh7NR7NDGXip9pkingKgg9jMRFy` Ready. Kiểm tra lại trên domain bằng tài khoản test cũ xác nhận Mời bạn ở đầu, quản lý quyền/tùy chỉnh/bằng chứng đóng mặc định và Thanh toán trước Người tham gia. Lượt kiểm tra sau deploy không ghi dữ liệu nghiệp vụ hay gọi LLM; ảnh/report ở `.tools/ux-after/`.
+
 Đã sửa cả bốn điểm bên dưới (giữ lại quan sát gốc để đối chiếu):
 
 - Thanh toán được đưa trước danh sách người/phần chia; số tiền, người nhận, ngân hàng và CTA xuất hiện trước bằng chứng. Bằng chứng vẫn đủ chức năng nhưng đóng mặc định trong mục tùy chọn.
