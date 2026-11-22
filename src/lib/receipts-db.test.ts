@@ -231,3 +231,46 @@ it("30-day expiry denies reads immediately and queues deletion without deleting 
     ).rows,
   ).toHaveLength(1);
 });
+it("retains replaced proof access for sender/receiver/admin and denies removed members", async () => {
+  await db.exec("reset role");
+  const sid = (
+    await db.query<{ session_id: string }>(
+      "select session_id from public.settlements where id=$1",
+      [payment],
+    )
+  ).rows[0].session_id;
+  const id = (
+    await db.query<{ id: string }>(
+      "insert into public.settlements(session_id,from_member,to_member,amount,ref_code,status) select session_id,from_member,to_member,9000,'OLD234','cancelled' from public.settlements where id=$1 returning id",
+      [payment],
+    )
+  ).rows[0].id;
+  await actor(b);
+  const sender = (
+    await db.query<{
+      r: { id: string; amount: string; can_read_evidence: boolean }[];
+    }>("select public.replaced_payments($1) r", [sid])
+  ).rows[0].r;
+  expect(sender.find((p) => p.id === id)).toMatchObject({
+    amount: "9000",
+    can_read_evidence: true,
+  });
+  await actor(c);
+  expect(
+    (
+      await db.query<{ r: { can_read_evidence: boolean }[] }>(
+        "select public.replaced_payments($1) r",
+        [sid],
+      )
+    ).rows[0].r.every((p) => !p.can_read_evidence),
+  ).toBe(true);
+  await db.exec("reset role");
+  await db.query(
+    "update public.group_members set status='removed' where group_id=$1 and user_id=$2",
+    [group, c],
+  );
+  await actor(c);
+  await expect(
+    db.query("select public.replaced_payments($1)", [sid]),
+  ).rejects.toThrow();
+});

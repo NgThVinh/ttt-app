@@ -18,6 +18,7 @@ import SessionRequestForm from "@/components/session-request-form";
 import ShareButton from "@/components/share-button";
 import { weeklySeries } from "@/app/polls/actions";
 import { sessionCommand, changePayment } from "../actions";
+import { remindPayment } from "@/app/notifications/actions";
 export default async function Session({
   params,
 }: {
@@ -42,6 +43,21 @@ export default async function Session({
       </main>
     );
   const s = parsed.data;
+  const replacedResult = await db.rpc("replaced_payments", { sid: id });
+  const replaced = z
+    .array(
+      z.object({
+        id: z.uuid(),
+        amount: z.string().regex(/^\d+$/),
+        from_name: z.string(),
+        to_name: z.string(),
+        ref_code: z.string(),
+        created_at: z.string(),
+        reason: z.string().nullable(),
+        can_read_evidence: z.boolean(),
+      }),
+    )
+    .safeParse(replacedResult.data);
   const collector = s.my_member_id === s.collector_member_id;
   const due = s.deadline_passed;
   const { data: members } = await db
@@ -264,6 +280,13 @@ export default async function Session({
                 target={p.id}
                 canUpload={p.from_member === s.my_member_id}
               />
+              {collector &&
+                p.to_member === s.my_member_id &&
+                p.status === "pending" && (
+                  <ActionForm action={remindPayment} label="Nhắc thanh toán">
+                    <input type="hidden" name="target" value={p.id} />
+                  </ActionForm>
+                )}
               {p.status !== "confirmed" && p.from_member === s.my_member_id && (
                 <>
                   {p.bank_account_no ? (
@@ -308,6 +331,29 @@ export default async function Session({
           </article>
         ))}
       </section>
+      {replaced.success && replaced.data.length > 0 && (
+        <section className="panel">
+          <h2>Khoản đã thay thế</h2>
+          <p>
+            Các khoản này giữ lại lịch sử và bằng chứng. Hãy dùng khoản hiện tại
+            để báo chuyển và xác nhận lại.
+          </p>
+          {replaced.data.map((p) => (
+            <article key={p.id} className="session-row">
+              <div>
+                <strong>
+                  {p.from_name} → {p.to_name}: {formatMoney(p.amount)}
+                </strong>
+                <p>3T-{p.ref_code} · Đã thay thế</p>
+                {p.reason && <p>{p.reason}</p>}
+                {p.can_read_evidence && (
+                  <ReceiptPanel bucket="3t-payment-evidence" target={p.id} />
+                )}
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
       {s.status !== "planned" &&
         s.status !== "cancelled" &&
         (collector ||
