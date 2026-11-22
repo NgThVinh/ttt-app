@@ -8,6 +8,7 @@ import { decryptGroupKey } from "./crypto";
 import { systemPrompt, PROMPT_VERSION } from "./prompts/system";
 import { readTools } from "./harness/read-tools";
 import { draftTools } from "./harness/draft-tools";
+import { toolPalette } from "./harness/tool-palette";
 import type { supabase } from "@/lib/supabase";
 import { databaseUrlForProject } from "../../../scripts/migration-utils.mjs";
 const sid = "11111111-1111-4111-8111-111111111111",
@@ -251,7 +252,7 @@ it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
             model,
             system: systemPrompt("2026-11-22T09:00:00Z"),
             prompt: context + "\n" + c.text,
-            tools,
+            ...toolPalette(tools, c.text),
             stopWhen: stepCountIs(3),
             maxOutputTokens: 2000,
             maxRetries: 0,

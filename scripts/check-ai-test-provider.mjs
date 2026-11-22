@@ -61,6 +61,32 @@ try {
     settings.envelope,
     process.env.AI_KEY_ENCRYPTION_SECRET,
   );
+  if (
+    settings.provider === "openai-compatible" &&
+    new URL(settings.base_url).hostname === "openrouter.ai"
+  ) {
+    const response = await fetch("https://openrouter.ai/api/v1/key", {
+      headers: { Authorization: "Bearer " + apiKey },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok)
+      throw Object.assign(new Error(), {
+        code: "OPENROUTER_KEY_STATUS_" + response.status,
+      });
+    const { data } = await response.json();
+    if (data.free_model_daily_requests?.remaining === 0) {
+      console.log(
+        JSON.stringify({
+          connected: false,
+          blocked: "FREE_DAILY_QUOTA_EXHAUSTED",
+          model: settings.model,
+          quota: data.free_model_daily_requests,
+          generationRequested: false,
+        }),
+      );
+      throw Object.assign(new Error(), { code: "FREE_DAILY_QUOTA_EXHAUSTED" });
+    }
+  }
   let model;
   if (settings.provider === "google")
     model = createGoogleGenerativeAI({ apiKey })(settings.model);

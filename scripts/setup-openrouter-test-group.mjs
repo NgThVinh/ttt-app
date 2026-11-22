@@ -30,12 +30,14 @@ try {
     throw Object.assign(new Error(), { code: "MODEL_LIST_" + response.status });
   const { data: models } = await response.json();
   const preferred =
-    process.env.OPENROUTER_TEST_MODEL || "nvidia/nemotron-3.5-lightning:free";
+    process.env.OPENROUTER_TEST_MODEL || "google/gemma-4-31b-it:free";
   const model = models.find(
     (m) => m.id === preferred && m.supported_parameters?.includes("tools"),
   );
   if (!model)
     throw Object.assign(new Error(), { code: "MODEL_WITH_TOOLS_UNAVAILABLE" });
+  if (model.pricing?.prompt !== "0" || model.pricing?.completion !== "0")
+    throw Object.assign(new Error(), { code: "TEST_MODEL_MUST_BE_FREE" });
   await db.connect();
   await db.query("begin");
   transaction = true;

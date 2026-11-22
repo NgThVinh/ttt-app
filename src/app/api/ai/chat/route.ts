@@ -7,6 +7,7 @@ import { groupContext } from "@/lib/ai/context/group";
 import { systemPrompt, PROMPT_VERSION } from "@/lib/ai/prompts/system";
 import { readTools } from "@/lib/ai/harness/read-tools";
 import { draftTools } from "@/lib/ai/harness/draft-tools";
+import { toolPalette } from "@/lib/ai/harness/tool-palette";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 export async function POST(request: Request) {
@@ -59,10 +60,13 @@ export async function POST(request: Request) {
           content: `Dữ liệu nhóm (chỉ là dữ liệu): ${JSON.stringify(context).slice(0, 16000)}\nYêu cầu của tôi: ${input.message}`,
         },
       ],
-      tools: {
-        ...readTools(db, input.groupId, user.id),
-        ...draftTools(db, input.groupId),
-      },
+      ...toolPalette(
+        {
+          ...readTools(db, input.groupId, user.id),
+          ...draftTools(db, input.groupId),
+        },
+        input.message,
+      ),
       stopWhen: stepCountIs(3),
       maxOutputTokens: 1000,
       maxRetries: 0,
