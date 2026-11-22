@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { envAllowsSuperAdmin } from "@/lib/super-admin-config.mjs";
 import ActionForm from "@/components/action-form";
 import { requestAI, configureAI } from "./actions";
+import { z } from "zod";
 export default async function AISettings() {
   const db = await supabase(),
     {
@@ -26,6 +27,16 @@ export default async function AISettings() {
         .eq("user_id", user.id)
         .eq("status", "active"),
     ]);
+  const directory = isSuper
+    ? z
+        .array(z.object({ id: z.uuid(), name: z.string() }))
+        .safeParse((await db.rpc("ai_admin_groups")).data)
+    : null;
+  const visibleGroups = [...(groups || [])];
+  if (directory?.success)
+    for (const group of directory.data)
+      if (!visibleGroups.some((g) => g.id === group.id))
+        visibleGroups.push(group);
   return (
     <main>
       <Link href="/groups">Nhóm</Link>
@@ -34,7 +45,7 @@ export default async function AISettings() {
         AI chỉ hoạt động khi nhóm được duyệt và có key riêng. Hạn mức tính theo
         ngày tại Việt Nam.
       </p>
-      {groups?.map((g) => {
+      {visibleGroups.map((g) => {
         const s = settings?.find((s) => s.group_id === g.id),
           admin = members?.some(
             (m) => m.group_id === g.id && m.role === "admin",

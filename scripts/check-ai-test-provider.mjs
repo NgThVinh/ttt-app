@@ -40,9 +40,9 @@ try {
   const result = await generateText({
     model: createGoogleGenerativeAI({ apiKey })(settings.model),
     prompt: "Trả lời đúng một từ: sẵn-sàng",
-    maxOutputTokens: 100,
+    maxOutputTokens: 256,
     maxRetries: 0,
-    abortSignal: AbortSignal.timeout(30000),
+    abortSignal: AbortSignal.timeout(90000),
   });
   console.log(
     JSON.stringify({
@@ -57,6 +57,7 @@ try {
     JSON.stringify({
       connected: false,
       code: error.statusCode || error.code || error.name,
+      kind: error.name,
     }),
   );
   process.exitCode = 1;
