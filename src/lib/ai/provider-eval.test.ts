@@ -2,8 +2,11 @@ import { it, expect } from "vitest";
 import { z } from "zod";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import pg from "pg";
-import { generateText, stepCountIs } from "ai";
+import { generateText, stepCountIs, hasToolCall } from "ai";
+import { evalBudget, canRunEval } from "./eval-budget";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { generationLimits } from "./generation-limits";
 import { freeFallbackBody } from "./free-fallback.mjs";
 import { decryptGroupKey } from "./crypto";
 import { systemPrompt, PROMPT_VERSION } from "./prompts/system";
@@ -163,6 +166,8 @@ it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
       calls?: { tool: string; input: unknown }[];
       finishReason?: string;
     }[] = [];
+    const budget = evalBudget(process.env.AI_EVAL_TOKEN_BUDGET);
+    let stoppedBecause: string | null = null;
     try {
       await db.connect();
       const { groupId } = JSON.parse(
@@ -175,20 +180,28 @@ it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
         )
       ).rows[0];
       if (
-        settings?.provider !== "openai-compatible" ||
-        settings.base_url !== "https://openrouter.ai/api/v1"
+        !settings ||
+        !(
+          settings.provider === "google" ||
+          (settings.provider === "openai-compatible" &&
+            settings.base_url === "https://openrouter.ai/api/v1")
+        )
       )
-        throw Error("Expected enabled OpenRouter test group");
-      const model = createOpenAICompatible({
-        name: "group-provider",
-        baseURL: settings.base_url,
-        transformRequestBody: freeFallbackBody,
-        apiKey: decryptGroupKey(
-          groupId,
-          settings.envelope,
-          process.env.AI_KEY_ENCRYPTION_SECRET || "",
-        ),
-      })(settings.model);
+        throw Error("Expected enabled Gemini or OpenRouter test group");
+      const key = decryptGroupKey(
+        groupId,
+        settings.envelope,
+        process.env.AI_KEY_ENCRYPTION_SECRET || "",
+      );
+      const model =
+        settings.provider === "google"
+          ? createGoogleGenerativeAI({ apiKey: key })(settings.model)
+          : createOpenAICompatible({
+              name: "group-provider",
+              baseURL: settings.base_url,
+              transformRequestBody: freeFallbackBody,
+              apiKey: key,
+            })(settings.model);
       // Reuse production schemas with synthetic results. No business RPC executes.
       const fake = {} as Awaited<ReturnType<typeof supabase>>;
       const definitions = {
@@ -247,6 +260,17 @@ it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
       );
       for (const [index, c] of cases.entries()) {
         if (selected && !selected.has(index + 1)) continue;
+        // Leave room for one 3-step request; do not automatically spend through
+        // the entire suite after reaching the conservative local budget.
+        if (
+          !canRunEval(
+            results.map((r) => r.tokens),
+            budget,
+          )
+        ) {
+          stoppedBecause = "TOKEN_BUDGET";
+          break;
+        }
         if (index) await new Promise((resolve) => setTimeout(resolve, 3200));
         try {
           const context = `Actor: An, user_id 00000000-0000-4000-8000-000000000001, member_id 55555555-5555-4555-8555-555555555555, role admin. ${c.tool === "draft_rsvp" ? "Session status planned, starts_at 2026-11-26T12:00:00Z, commit_deadline 2026-11-26T10:00:00Z, own RSVP none." : "Session status played, revision 3, collector_member_id 55555555-5555-4555-8555-555555555555; actor is the collector and a going attendee with weight 1; no confirmed payments; no lock. Expense categories and templates empty."} Nhóm kiểm thử. Tôi là An, member_id 55555555-5555-4555-8555-555555555555. Buổi Cầu lông tối thứ Năm có id ${sid}, revision 3. Thăm dò Cuối tuần id ${pid}, khung 19 giờ option_id ${option}. Khoản thanh toán duy nhất id ${payment}, 85000đ: nếu tôi nói đã chuyển thì tôi là người chuyển; nếu xác nhận nhận hoặc nhắc Bình thì tôi là người nhận. Khi thêm phụ phí không có danh mục: category_id rỗng, expense_id rỗng, note rỗng, values [].`;
@@ -255,8 +279,10 @@ it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
             system: systemPrompt("2026-11-22T09:00:00Z"),
             prompt: context + "\n" + c.text,
             ...toolPalette(tools, c.text),
-            stopWhen: stepCountIs(3),
-            maxOutputTokens: 2000,
+            // Tool/parameter eval needs no additional prose after the target
+            // tool; production still supports three steps and streaming replies.
+            stopWhen: [stepCountIs(3), hasToolCall(c.tool)],
+            ...generationLimits(settings.provider, settings.model),
             maxRetries: 0,
             abortSignal: AbortSignal.timeout(30000),
           });
@@ -281,7 +307,7 @@ it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
           results.push({
             case: index + 1,
             passed: false,
-            tokens: 0,
+            tokens: 6000,
             error:
               e && typeof e === "object" && "statusCode" in e
                 ? String(e.statusCode)
@@ -291,7 +317,10 @@ it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
         console.log(
           `AI eval ${index + 1}/40: ${results.at(-1)!.passed ? "PASS" : "FAIL"}`,
         );
-        if (results.at(-1)?.error === "429") break;
+        if (results.at(-1)?.error) {
+          stoppedBecause = "PROVIDER_ERROR";
+          break;
+        }
       }
       mkdirSync(".tools", { recursive: true });
       const at = new Date().toISOString();
@@ -301,6 +330,10 @@ it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
           {
             promptVersion: PROMPT_VERSION,
             model: settings.model,
+            tokenBudget: budget,
+            stoppedBecause,
+            accountedTokens: results.reduce((sum, r) => sum + r.tokens, 0),
+            stopsAfterTargetTool: true,
             at,
             results,
             diagnostic: !!selected,
@@ -319,6 +352,10 @@ it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
           {
             promptVersion: PROMPT_VERSION,
             model: settings.model,
+            tokenBudget: budget,
+            stoppedBecause,
+            accountedTokens: results.reduce((sum, r) => sum + r.tokens, 0),
+            stopsAfterTargetTool: true,
             at: new Date().toISOString(),
             results,
             diagnostic: !!selected,
