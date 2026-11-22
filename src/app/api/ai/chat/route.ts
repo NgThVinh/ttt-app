@@ -182,7 +182,7 @@ export async function POST(request: Request) {
         plan.families,
       ),
       stopWhen: stepCountIs(3),
-      maxOutputTokens: 1000,
+      ...agent.generation,
       maxRetries: 0,
       abortSignal: AbortSignal.any([
         request.signal,

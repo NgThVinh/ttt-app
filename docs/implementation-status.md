@@ -1,5 +1,8 @@
 # Tiến độ theo tám mốc
 
+- Theo yêu cầu quay lại Gemini và dùng tiết kiệm: probe `gemini-2.5-flash-lite` trả 404; `gemini-3.5-flash-lite` gọi tool thành công với 43 input + 18 output = 61 token, reasoning 0. Đã chuyển riêng nhóm test sang Google bằng key mã hóa, tắt decision routing OpenRouter của nhóm này; giới hạn 20 tin/người/ngày, 100.000 token/nhóm/ngày (không tăng mức cũ). Runtime model này dùng thinking minimal, tối đa 512 output/lượt, không retry; probe tối đa 128 output. Không chạy bộ 40 câu provider trong đợt này để tiết kiệm; chưa coi full eval đã đạt.
+- Kiểm tra sau chuyển bằng credential đã mã hóa của nhóm cũng thành công (74 token); hai probe thành công dùng tổng 135 token. 159 test thường/typecheck/lint/build qua.
+
 - 22/11/2026: thêm tự đổi model chat miễn phí theo yêu cầu mới: model cấu hình → `openrouter/free`, bắt buộc hỗ trợ tham số và price cap 0 cho input/output/request. Runtime/probe/eval dùng chung; không replay agent/tool sau lỗi. Probe thật có fallback vẫn HTTP 429; không coi đã nghiệm thu 40 câu tool/tham số. 159 test thường, typecheck/lint/build và secret scan qua. Không cần migration cho thay đổi này; Decisions giữ nguyên.
 
 Nguồn yêu cầu: [handoff_prompt.md](handoff_prompt.md) và kế hoạch tám mốc đã thống nhất với người dùng. Cập nhật ngày 22/11/2026. Chưa mốc nào được coi là nghiệm thu toàn bộ chỉ dựa trên số migration hoặc số test.

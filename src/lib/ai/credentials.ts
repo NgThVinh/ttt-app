@@ -4,6 +4,7 @@ import type { supabase } from "@/lib/supabase";
 import { internalSupabase } from "@/lib/internal-supabase";
 import { decryptGroupKey } from "./crypto";
 import { groupModel } from "./providers";
+import { generationLimits } from "./generation-limits";
 import { probeDecision } from "./harness/decision-router.mjs";
 const settingsSchema = z.object({
   status: z.literal("approved"),
@@ -61,6 +62,7 @@ export async function agentForUserGroup(
     settings.data.decision_model;
   return {
     model: () => groupModel(settings.data, key),
+    generation: generationLimits(settings.data.provider, settings.data.model),
     decision: decision
       ? async (message: string, signal: AbortSignal) =>
           probeDecision(key, decision, message, { signal })

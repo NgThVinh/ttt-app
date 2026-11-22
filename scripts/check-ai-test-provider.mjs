@@ -133,7 +133,15 @@ try {
       }),
     },
     toolChoice: { type: "tool", toolName: "connection_probe" },
-    maxOutputTokens: 1000,
+    maxOutputTokens: settings.provider === "google" ? 128 : 1000,
+    ...(settings.provider === "google" &&
+    settings.model === "gemini-3.5-flash-lite"
+      ? {
+          providerOptions: {
+            google: { thinkingConfig: { thinkingLevel: "minimal" } },
+          },
+        }
+      : {}),
     maxRetries: 0,
     abortSignal: AbortSignal.timeout(90000),
   });
