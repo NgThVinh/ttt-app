@@ -13,6 +13,7 @@
     "test:pwa": "node scripts/verify-pwa.mjs",
     "test:auth-ui": "node scripts/verify-auth-ui.mjs",
     "test:payment-ui": "node scripts/verify-payment-ui.mjs",
+    "test:poll-ui": "node scripts/verify-poll-ui.mjs",
     "security:check": "node scripts/check-secrets.mjs",
     "db:status": "node --env-file=.env scripts/migrate.mjs",
     "db:migrate": "node --env-file=.env scripts/migrate.mjs --apply",

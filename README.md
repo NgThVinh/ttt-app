@@ -42,6 +42,8 @@ Shared forms/profile/loading use shadcn/ui components with the 3T palette and 44
 
 `npm run test:payment-ui` checks browser receipt uploads, private file permissions, safe retry after a lost committed response, server-confirmed receipt of funds, stale-preview rejection, a post-collection refund and collector handover. It uses only local fixtures and no LLM. Local Supabase must be migrated and Playwright Chromium installed; screenshots/logs stay in `.tools/payment-ui`.
 
+`npm run test:poll-ui` uses two local browser identities to verify actual WebSocket updates, vote thresholds, repeated close returning one session and explicit self RSVP after a poll closes. It makes no AI calls.
+
 Pending: full permission/tool eval acceptance, remaining UI flow/accessibility checks, production OAuth/SMTP, push/Realtime on real devices, and hosted website deployment. Stale requests must be withdrawn and resubmitted; they are not silently rebased. The canonical requirements are in `docs/handoff_prompt.md`; milestone progress and acceptance gaps are tracked in [docs/implementation-status.md](docs/implementation-status.md).
 
 See DEPLOY.md for infrastructure prerequisites and DECISIONS.md for design choices.
