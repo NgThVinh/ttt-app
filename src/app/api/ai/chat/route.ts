@@ -9,6 +9,10 @@ import { readTools } from "@/lib/ai/harness/read-tools";
 import { draftTools } from "@/lib/ai/harness/draft-tools";
 import { toolPalette } from "@/lib/ai/harness/tool-palette";
 import { paymentReference } from "@/lib/ai/harness/payment-reference";
+import {
+  attemptsHarnessOverride,
+  harnessOverrideReply,
+} from "@/lib/ai/harness/input-guard";
 import { formatMoney } from "@/lib/money";
 import {
   decisionPlan,
@@ -51,6 +55,13 @@ export async function POST(request: Request) {
   let routingTokens = 0;
   try {
     const context = await groupContext(db, input.groupId, user.id);
+    if (attemptsHarnessOverride(input.message))
+      return new Response(harnessOverrideReply, {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "private, no-store",
+        },
+      });
     const agent = await agentForUserGroup(db, input.groupId);
     const reservation = await db.rpc("reserve_ai_run", {
       g: input.groupId,

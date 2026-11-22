@@ -25,6 +25,7 @@
     "test:ai:provider": "node scripts/run-ai-provider-eval.mjs",
     "ai:check:decisions": "node --env-file=.env scripts/check-decision-model.mjs",
     "ai:eval:decisions": "node --env-file=.env scripts/check-decision-model.mjs --batch",
+    "ai:eval:decisions:full": "node --env-file=.env scripts/check-decision-model.mjs --batch --full",
     "ai:enable:decisions": "node --env-file=.env scripts/enable-test-decision-routing.mjs",
     "ai:verify:runtime": "node --env-file=.env scripts/verify-decision-runtime.mjs"
   },

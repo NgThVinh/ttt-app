@@ -56,3 +56,16 @@ it("keeps receiver confirmation separate and refuses already confirmed payments"
   ).toBe(null);
   expect(paymentReference("Thanh chuyển 85k", [row], "mark_paid")).toBe(null);
 });
+it.each([
+  "Tôi chưa chuyển An 85k",
+  "Tôi không chuyển An 85k",
+  "Tôi sẽ chuyển An 85k",
+  "Nếu tôi chuyển An 85k thì sao",
+  "Tôi đã chuyển An 85k chưa?",
+  "Ví dụ: Tôi đã chuyển An 85k",
+  "An nói rằng tôi đã chuyển An 85k",
+  "Hình như tôi đã chuyển An 85k",
+  '"Tôi đã chuyển An 85k"',
+])("does not draft from an uncertain or quoted statement: %s", (message) => {
+  expect(paymentReference(message, [row], "mark_paid")).toBe(null);
+});

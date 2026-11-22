@@ -63,7 +63,17 @@ export function paymentReference(
 ) {
   const parsed = rowsSchema.parse(rows),
     amounts = explicitAmounts(message);
-  if (negativeAmount.test(normalize(message))) return null;
+  const normalized = normalize(message);
+  // Routing confidence is not evidence that money moved. Ambiguous, future,
+  // conditional, quoted or negated messages must be reviewed in the app instead.
+  if (
+    negativeAmount.test(normalized) ||
+    /\b(chua|khong|dung|se|sap|neu|gia su|du dinh|co le|hinh nhu|bao rang|noi rang|vi du|thu nghiem)\b/.test(
+      normalized,
+    ) ||
+    /[?"“”«»]/.test(message)
+  )
+    return null;
   if (amounts.length > 1) return null;
   const ref = normalize(message).match(/\b3t-([a-z0-9]{6})\b/)?.[1];
   if (!ref && amounts.length !== 1) return null;

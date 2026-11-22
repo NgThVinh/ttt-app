@@ -2,6 +2,7 @@ import pg from "pg";
 import { readFileSync, writeFileSync } from "node:fs";
 import { databaseUrlForProject } from "./migration-utils.mjs";
 import { decryptGroupKey } from "../src/lib/ai/crypto.ts";
+import { decisionEvalCases } from "../src/lib/ai/harness/decision-eval-cases.mjs";
 import {
   isFreeDecisionModel,
   probeDecision,
@@ -66,7 +67,7 @@ try {
     process.env.AI_KEY_ENCRYPTION_SECRET,
   );
   if (process.argv.includes("--batch")) {
-    const cases = [
+    const smokeCases = [
       { id: "debt", message: "Ai còn nợ tiền tôi?", expected: "debts" },
       {
         id: "sent",
@@ -104,55 +105,78 @@ try {
         expected: "privileged",
       },
     ];
+    const cases = process.argv.includes("--full")
+      ? decisionEvalCases
+      : smokeCases;
     const start = Date.now();
-    const response = await fetch("https://openrouter.ai/api/alpha/decisions", {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + key,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(
-        decisionBatchRequest(
-          model.id,
-          cases.map(({ id, message }) => ({ id, message })),
-        ),
-      ),
-      signal: AbortSignal.timeout(30000),
-      redirect: "error",
-    });
-    if (!response.ok) {
-      console.log(
-        JSON.stringify({ ok: false, status: response.status, model: model.id }),
+    const results = [];
+    const usages = [];
+    for (let offset = 0; offset < cases.length; offset += 10) {
+      const batch = cases.slice(offset, offset + 10);
+      const response = await fetch(
+        "https://openrouter.ai/api/alpha/decisions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + key,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(
+            decisionBatchRequest(
+              model.id,
+              batch.map(({ id, message }) => ({ id, message })),
+            ),
+          ),
+          signal: AbortSignal.timeout(30000),
+          redirect: "error",
+        },
       );
-      process.exitCode = 1;
-    } else {
-      const value = await response.json(),
-        answers = parseDecisionBatch(
-          value,
-          cases.map((c) => c.id),
+      if (!response.ok) {
+        console.log(
+          JSON.stringify({
+            ok: false,
+            status: response.status,
+            model: model.id,
+          }),
         );
-      const results = cases.map((c) => ({
-        id: c.id,
-        expected: c.expected,
-        ...answers[c.id],
-        passed: answers[c.id].intent === c.expected,
-      }));
-      const report = {
-        at: new Date().toISOString(),
-        model: model.id,
-        latencyMs: Date.now() - start,
-        passed: results.filter((r) => r.passed).length,
-        total: cases.length,
-        usage: value.usage || null,
-        results,
-      };
-      writeFileSync(
-        ".tools/ai-decision-batch.json",
-        JSON.stringify(report, null, 2),
-      );
-      console.log(JSON.stringify(report));
-      if (report.passed !== report.total) process.exitCode = 1;
+        process.exitCode = 1;
+      } else {
+        const value = await response.json(),
+          answers = parseDecisionBatch(
+            value,
+            batch.map((c) => c.id),
+          );
+        results.push(
+          ...batch.map((c) => ({
+            id: c.id,
+            expected: c.expected,
+            ...answers[c.id],
+            passed: answers[c.id].intent === c.expected,
+          })),
+        );
+        usages.push(value.usage || null);
+      }
+      if (!response.ok) break;
     }
+    const report = {
+      at: new Date().toISOString(),
+      model: model.id,
+      latencyMs: Date.now() - start,
+      passed: results.filter((r) => r.passed).length,
+      total: cases.length,
+      completed: results.length,
+      usages,
+      results,
+    };
+    writeFileSync(
+      process.argv.includes("--full")
+        ? ".tools/ai-decision-full.json"
+        : ".tools/ai-decision-batch.json",
+      JSON.stringify(report, null, 2),
+    );
+    console.log(JSON.stringify(report));
+    if (report.passed !== report.total || report.completed !== report.total)
+      process.exitCode = 1;
   } else {
     // One small synthetic classification probe, even if chat quota is exhausted:
     // the actual Decisions response determines whether this endpoint is available.
