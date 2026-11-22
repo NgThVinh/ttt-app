@@ -1,5 +1,5 @@
 "use client";
-import { useState, useActionState } from "react";
+import { useState, useActionState, useId } from "react";
 import type { SessionDetail } from "@/lib/session-data";
 import { formatMoney } from "@/lib/money";
 import { previewChange, applyChange } from "@/app/sessions/actions";
@@ -19,6 +19,7 @@ export default function FinancialChangeForm({
   members: { id: string; display_name: string }[];
   administrative?: { sourceId: string | null };
 }) {
+  const formId = useId();
   const [action, setAction] = useState("attendee"),
     [target, setTarget] = useState(members[0]?.id || ""),
     [operation, setOperation] = useState("weight"),
@@ -50,9 +51,9 @@ export default function FinancialChangeForm({
         }}
       >
         <input type="hidden" name="payload" value={payload} />
-        <label htmlFor="change-action">Thay đổi</label>
+        <label htmlFor={`${formId}-action`}>Thay đổi</label>
         <select
-          id="change-action"
+          id={`${formId}-action`}
           value={action}
           onChange={(e) => setAction(e.target.value)}
         >
@@ -61,9 +62,9 @@ export default function FinancialChangeForm({
         </select>
         {action === "attendee" ? (
           <>
-            <label htmlFor="change-member">Thành viên</label>
+            <label htmlFor={`${formId}-member`}>Thành viên</label>
             <select
-              id="change-member"
+              id={`${formId}-member`}
               value={target}
               onChange={(e) => setTarget(e.target.value)}
             >
@@ -73,9 +74,9 @@ export default function FinancialChangeForm({
                 </option>
               ))}
             </select>
-            <label htmlFor="change-operation">Thao tác</label>
+            <label htmlFor={`${formId}-operation`}>Thao tác</label>
             <select
-              id="change-operation"
+              id={`${formId}-operation`}
               value={operation}
               onChange={(e) => setOperation(e.target.value)}
             >
@@ -85,9 +86,9 @@ export default function FinancialChangeForm({
             </select>
             {operation === "weight" && (
               <>
-                <label htmlFor="change-weight">Hệ số mới</label>
+                <label htmlFor={`${formId}-weight`}>Hệ số mới</label>
                 <input
-                  id="change-weight"
+                  id={`${formId}-weight`}
                   value={weight}
                   onChange={(e) => setWeight(e.target.value)}
                 />
@@ -96,9 +97,9 @@ export default function FinancialChangeForm({
           </>
         ) : (
           <>
-            <label htmlFor="change-expense">Khoản chi</label>
+            <label htmlFor={`${formId}-expense`}>Khoản chi</label>
             <select
-              id="change-expense"
+              id={`${formId}-expense`}
               value={expense}
               onChange={(e) => setExpense(e.target.value)}
             >
@@ -110,9 +111,9 @@ export default function FinancialChangeForm({
             </select>
           </>
         )}
-        <label htmlFor="change-reason">Lý do</label>
+        <label htmlFor={`${formId}-reason`}>Lý do</label>
         <input
-          id="change-reason"
+          id={`${formId}-reason`}
           required
           maxLength={500}
           value={reason}
