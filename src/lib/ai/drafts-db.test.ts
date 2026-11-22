@@ -218,3 +218,77 @@ it("keeps received confirmation T3 and stops when session revision changes", asy
     db.query("select public.decide_ai_draft($1,$2,true)", [d.id, d.hash]),
   ).rejects.toThrow();
 });
+it("keeps session and poll creation as drafts, then applies each once", async () => {
+  await enable();
+  await actor(a);
+  const sessionsBefore = (
+    await db.query<{ n: number }>("select count(*)::int n from public.sessions")
+  ).rows[0].n;
+  const p = {
+    g: group,
+    title_text: "AI planned",
+    venue_text: "Court",
+    start_time: new Date(Date.now() + 86400000).toISOString(),
+    deadline: new Date(Date.now() + 3600000).toISOString(),
+    already_played: false,
+    people: [],
+    court: "0",
+    be_collector: false,
+    weights: {},
+    extras: [],
+    nominee: "",
+  };
+  await expect(
+    draft("create_session", { ...p, g: randomUUID() }),
+  ).rejects.toThrow();
+  const s = await draft("create_session", p);
+  expect(s.tier).toBe("T2");
+  expect(
+    (
+      await db.query<{ n: number }>(
+        "select count(*)::int n from public.sessions",
+      )
+    ).rows[0].n,
+  ).toBe(sessionsBefore);
+  await db.query("select public.decide_ai_draft($1,$2,true)", [s.id, s.hash]);
+  await db.query("select public.decide_ai_draft($1,$2,true)", [s.id, s.hash]);
+  expect(
+    (
+      await db.query<{ n: number }>(
+        "select count(*)::int n from public.sessions",
+      )
+    ).rows[0].n,
+  ).toBe(sessionsBefore + 1);
+  const pollsBefore = (
+    await db.query<{ n: number }>("select count(*)::int n from public.polls")
+  ).rows[0].n;
+  const poll = await draft("create_poll", {
+    g: group,
+    title_text: "AI poll",
+    venue_text: "Court",
+    minimum: 1,
+    deadline: p.deadline,
+    options: [
+      {
+        starts_at: p.start_time,
+        ends_at: new Date(Date.now() + 90000000).toISOString(),
+      },
+    ],
+  });
+  expect(
+    (await db.query<{ n: number }>("select count(*)::int n from public.polls"))
+      .rows[0].n,
+  ).toBe(pollsBefore);
+  await db.query("select public.decide_ai_draft($1,$2,true)", [
+    poll.id,
+    poll.hash,
+  ]);
+  await db.query("select public.decide_ai_draft($1,$2,true)", [
+    poll.id,
+    poll.hash,
+  ]);
+  expect(
+    (await db.query<{ n: number }>("select count(*)::int n from public.polls"))
+      .rows[0].n,
+  ).toBe(pollsBefore + 1);
+});

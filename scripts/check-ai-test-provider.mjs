@@ -32,6 +32,27 @@ try {
   ).rows[0];
   if (!settings)
     throw Object.assign(new Error(), { code: "TEST_GROUP_NOT_ENABLED" });
+  if (process.argv[2]) {
+    const r = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/" +
+        encodeURIComponent(process.argv[2]),
+      {
+        headers: {
+          "x-goog-api-key": decryptGroupKey(
+            groupId,
+            settings.envelope,
+            process.env.AI_KEY_ENCRYPTION_SECRET,
+          ),
+        },
+        signal: AbortSignal.timeout(15000),
+      },
+    );
+    if (!r.ok)
+      throw Object.assign(new Error(), {
+        code: "MODEL_UNAVAILABLE_" + r.status,
+      });
+    settings.model = process.argv[2];
+  }
   const apiKey = decryptGroupKey(
     groupId,
     settings.envelope,

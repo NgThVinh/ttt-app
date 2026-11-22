@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import type { supabase } from "@/lib/supabase";
 import { expenseInputSchema } from "@/lib/session-data";
+import { expenseDraftSchema } from "@/lib/session-data";
 export function draftTools(
   db: Awaited<ReturnType<typeof supabase>>,
   group: string,
@@ -19,6 +20,78 @@ export function draftTools(
     return data;
   }
   return {
+    draft_session: tool({
+      description:
+        "Tạo bản nháp buổi đã chơi hoặc hẹn trước, gồm người tham gia, hệ số và phụ phí. Ngày giờ ISO có múi giờ. Chưa ghi buổi thật khi chưa xác nhận trong app.",
+      inputSchema: z.object({
+        title: z.string().trim().min(1).max(160),
+        venue: z.string().trim().min(1).max(200),
+        starts_at: z.iso.datetime({ offset: true }),
+        deadline: z.iso.datetime({ offset: true }),
+        already_played: z.boolean(),
+        people: z.array(z.uuid()).max(100),
+        court: z.string().regex(/^\d+$/),
+        be_collector: z.boolean(),
+        nominee: z.uuid().or(z.literal("")),
+        weights: z.record(z.uuid(), z.string().regex(/^\d+(\.\d{1,6})?$/)),
+        extras: z.array(expenseDraftSchema).max(199),
+      }),
+      execute: (v) =>
+        draft("create_session", {
+          g: group,
+          title_text: v.title,
+          venue_text: v.venue,
+          start_time: v.starts_at,
+          deadline: v.deadline,
+          already_played: v.already_played,
+          people: v.people,
+          court: v.court,
+          be_collector: v.be_collector,
+          nominee: v.nominee,
+          weights: v.weights,
+          extras: v.extras.map((e) => ({
+            expense_id: "",
+            category_id: e.category_id,
+            note_text: e.note,
+            title_text: e.title,
+            raw_amount: e.amount,
+            payer: e.payer,
+            beneficiaries: e.beneficiaries,
+            mode: e.mode,
+            split: e.split,
+            values_text: e.values,
+            reason: e.reason,
+          })),
+        }),
+    }),
+    draft_poll: tool({
+      description:
+        "Bản nháp thăm dò nhiều khung giờ tương lai. Người hỏi xác nhận trong app trước khi gửi tới nhóm.",
+      inputSchema: z.object({
+        title: z.string().trim().min(1).max(160),
+        venue: z.string().trim().min(1).max(200),
+        minimum: z.number().int().min(1).max(100),
+        deadline: z.iso.datetime({ offset: true }),
+        options: z
+          .array(
+            z.object({
+              starts_at: z.iso.datetime({ offset: true }),
+              ends_at: z.iso.datetime({ offset: true }),
+            }),
+          )
+          .min(1)
+          .max(24),
+      }),
+      execute: (v) =>
+        draft("create_poll", {
+          g: group,
+          title_text: v.title,
+          venue_text: v.venue,
+          minimum: v.minimum,
+          deadline: v.deadline,
+          options: v.options,
+        }),
+    }),
     draft_rsvp: tool({
       description:
         "Tạo bản nháp tự chốt đi/không đi trước hạn. Người hỏi phải mở bản nháp và xác nhận.",
