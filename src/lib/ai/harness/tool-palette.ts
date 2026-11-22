@@ -21,7 +21,7 @@ const families = {
   polls: ["get_poll_results", "draft_vote", "draft_poll"],
   group: ["get_group_summary"],
 } as const;
-type Family = keyof typeof families;
+export type Family = keyof typeof families;
 export function initialFamilies(message: string): Family[] {
   const text = message
     .normalize("NFD")
@@ -52,7 +52,11 @@ export function initialFamilies(message: string): Family[] {
   return result.size ? [...result] : ["group"];
 }
 /** Selection reduces provider input; discovery recovers mismatches. It never grants authority. */
-export function toolPalette(definitions: ToolSet, message: string) {
+export function toolPalette(
+  definitions: ToolSet,
+  message: string,
+  preferred?: Family[],
+) {
   const enabled = new Set<string>(["discover_tools"]);
   function add(family: Family | "all") {
     for (const name of family === "all"
@@ -60,7 +64,7 @@ export function toolPalette(definitions: ToolSet, message: string) {
       : families[family])
       if (Object.hasOwn(definitions, name)) enabled.add(name);
   }
-  initialFamilies(message).forEach(add);
+  (preferred?.length ? preferred : initialFamilies(message)).forEach(add);
   const tools: ToolSet = {
     ...definitions,
     discover_tools: tool({

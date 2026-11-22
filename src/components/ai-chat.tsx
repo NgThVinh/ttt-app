@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 export default function AIChat({
   groups,
 }: {
@@ -107,7 +108,29 @@ export default function AIChat({
         aria-live="polite"
         style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
       >
-        {reply}
+        {reply
+          .split(
+            /(\/(?:ai\/drafts|sessions|groups|polls)\/[a-f0-9-]{36}|\/ai\/settings|\/debts|\/me)(?=[\s.,!?)]|$)/g,
+          )
+          .map((part, index) =>
+            /^\/(?:ai\/drafts\/[a-f0-9-]{36}|(?:sessions|groups|polls)\/[a-f0-9-]{36}|ai\/settings|debts|me)$/.test(
+              part,
+            ) ? (
+              <Link
+                key={index}
+                href={part}
+                style={{ textDecoration: "underline" }}
+              >
+                {part.startsWith("/ai/drafts/")
+                  ? "Xem và xác nhận bản nháp"
+                  : part === "/debts"
+                    ? "Xem công nợ"
+                    : part}
+              </Link>
+            ) : (
+              part
+            ),
+          )}
       </div>
       <p>
         Mọi thao tác ghi cần xem và xác nhận bản nháp. Yêu cầu T3 được duyệt

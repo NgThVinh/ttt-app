@@ -98,7 +98,7 @@ export function parseDecisionBatch(value, ids) {
   );
 }
 /** Research probe only: no credential lookup, business tool execution or authority decision. */
-export async function probeDecision(apiKey, model, message) {
+export async function probeDecision(apiKey, model, message, options = {}) {
   const response = await fetch("https://openrouter.ai/api/alpha/decisions", {
     method: "POST",
     headers: {
@@ -106,7 +106,9 @@ export async function probeDecision(apiKey, model, message) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(decisionRequest(model, message)),
-    signal: AbortSignal.timeout(30000),
+    signal: options.signal
+      ? AbortSignal.any([options.signal, AbortSignal.timeout(10000)])
+      : AbortSignal.timeout(30000),
     redirect: "error",
   });
   if (!response.ok) return { ok: false, status: response.status };

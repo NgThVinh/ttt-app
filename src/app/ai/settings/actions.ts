@@ -5,6 +5,48 @@ import { supabase } from "@/lib/supabase";
 import { envAllowsSuperAdmin } from "@/lib/super-admin-config.mjs";
 import { encryptGroupKey } from "@/lib/ai/crypto";
 import type { FormResult } from "@/components/action-form";
+export async function configureDecisionRouting(
+  _state: FormResult,
+  form: FormData,
+): Promise<FormResult> {
+  const db = await supabase(),
+    {
+      data: { user },
+    } = await db.auth.getUser();
+  if (
+    !user ||
+    !envAllowsSuperAdmin(
+      user.email,
+      user.email_confirmed_at,
+      process.env.SUPER_ADMIN_EMAILS,
+    )
+  )
+    return { message: "Chỉ super admin được cấu hình." };
+  const input = z
+    .object({
+      g: z.uuid(),
+      revision: z.string().regex(/^\d+$/),
+      model: z.enum([
+        "",
+        "perplexity/pplx-decider-flash-v1.3:free",
+        "perplexity/pplx-decider-v1.3:free",
+      ]),
+      reason: z.string().trim().min(1).max(500),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!input.success) return { message: "Kiểm tra model và lý do." };
+  const p = input.data;
+  const { error } = await db.rpc("configure_group_decisions", {
+    g: p.g,
+    expected_revision: p.revision,
+    model_id: p.model || null,
+    reason: p.reason,
+  });
+  if (error)
+    return { message: "Nhóm cần bật OpenRouter. Tải lại nếu cấu hình đã đổi." };
+  revalidatePath("/ai/settings");
+  return { ok: true, message: "Đã cập nhật định tuyến ý định của nhóm." };
+}
 export async function requestAI(
   _state: FormResult,
   form: FormData,

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { envAllowsSuperAdmin } from "@/lib/super-admin-config.mjs";
 import ActionForm from "@/components/action-form";
-import { requestAI, configureAI } from "./actions";
+import { requestAI, configureAI, configureDecisionRouting } from "./actions";
 import { z } from "zod";
 export default async function AISettings() {
   const db = await supabase(),
@@ -164,6 +164,40 @@ export default async function AISettings() {
                 </label>
               </ActionForm>
             )}
+            {isSuper &&
+              s?.status === "approved" &&
+              s.enabled &&
+              s.provider === "openai-compatible" &&
+              s.base_url === "https://openrouter.ai/api/v1" && (
+                <ActionForm
+                  action={configureDecisionRouting}
+                  label="Lưu định tuyến ý định"
+                >
+                  <h3>Decision model</h3>
+                  <input type="hidden" name="g" value={g.id} />
+                  <input
+                    type="hidden"
+                    name="revision"
+                    value={String(s.revision)}
+                  />
+                  <label>
+                    Model
+                    <select name="model" defaultValue={s.decision_model || ""}>
+                      <option value="">Tắt</option>
+                      <option value="perplexity/pplx-decider-flash-v1.3:free">
+                        Decider Flash V1.3 Free
+                      </option>
+                      <option value="perplexity/pplx-decider-v1.3:free">
+                        Decider V1.3 Free
+                      </option>
+                    </select>
+                  </label>
+                  <label>
+                    Lý do
+                    <input name="reason" required maxLength={500} />
+                  </label>
+                </ActionForm>
+              )}
           </section>
         );
       })}

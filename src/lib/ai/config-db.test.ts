@@ -219,3 +219,78 @@ it("reserves quota atomically, prevents cross-group access and respects immediat
     ).rows[0].r,
   ).toBe(null);
 });
+it("enables decision routing only by super admin with a current revision and a supported free model", async () => {
+  await db.exec("reset role");
+  await db.query(
+    "update public.group_ai_settings set enabled=true,provider='openai-compatible',base_url='https://openrouter.ai/api/v1' where group_id=$1",
+    [group],
+  );
+  const r = (
+    await db.query<{ revision: string }>(
+      "select revision::text revision from public.group_ai_settings where group_id=$1",
+      [group],
+    )
+  ).rows[0].revision;
+  await actor(b);
+  await expect(
+    db.query(
+      "select public.configure_group_decisions($1,$2,'perplexity/pplx-decider-flash-v1.3:free','Test')",
+      [group, r],
+    ),
+  ).rejects.toThrow();
+  await actor(a);
+  await expect(
+    db.query(
+      "select public.configure_group_decisions($1,$2,'typesafe/jev-router','Test')",
+      [group, r],
+    ),
+  ).rejects.toThrow();
+  await expect(
+    db.query(
+      "select public.configure_group_decisions($1,null,'perplexity/pplx-decider-flash-v1.3:free','Test')",
+      [group],
+    ),
+  ).rejects.toThrow();
+  await db.exec("reset role");
+  await db.query(
+    "update public.group_ai_settings set base_url=null where group_id=$1",
+    [group],
+  );
+  await actor(a);
+  await expect(
+    db.query(
+      "select public.configure_group_decisions($1,$2,'perplexity/pplx-decider-flash-v1.3:free','Test')",
+      [group, r],
+    ),
+  ).rejects.toThrow();
+  await db.exec("reset role");
+  await db.query(
+    "update public.group_ai_settings set base_url='https://openrouter.ai/api/v1' where group_id=$1",
+    [group],
+  );
+  await actor(a);
+  await db.query(
+    "select public.configure_group_decisions($1,$2,'perplexity/pplx-decider-flash-v1.3:free','Test')",
+    [group, r],
+  );
+  expect(
+    (
+      await db.query<{ decision_model: string }>(
+        "select decision_model from public.group_ai_settings where group_id=$1",
+        [group],
+      )
+    ).rows[0].decision_model,
+  ).toBe("perplexity/pplx-decider-flash-v1.3:free");
+  await expect(
+    db.query("select public.configure_group_decisions($1,$2,null,'Test')", [
+      group,
+      r,
+    ]),
+  ).rejects.toThrow();
+  await expect(
+    db.query(
+      "update public.group_ai_settings set decision_model=null where group_id=$1",
+      [group],
+    ),
+  ).rejects.toThrow();
+});

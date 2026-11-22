@@ -4,15 +4,23 @@ import type { supabase } from "@/lib/supabase";
 import { internalSupabase } from "@/lib/internal-supabase";
 import { decryptGroupKey } from "./crypto";
 import { groupModel } from "./providers";
+import { probeDecision } from "./harness/decision-router.mjs";
 const settingsSchema = z.object({
   status: z.literal("approved"),
   enabled: z.literal(true),
   provider: z.enum(["google", "anthropic", "openai-compatible"]),
   model: z.string().min(1),
   base_url: z.string().nullable(),
+  decision_model: z
+    .enum([
+      "perplexity/pplx-decider-flash-v1.3:free",
+      "perplexity/pplx-decider-v1.3:free",
+    ])
+    .nullable()
+    .default(null),
 });
 /** Kept outside business tools. No caller can choose an actor or access plaintext. */
-export async function modelForUserGroup(
+export async function agentForUserGroup(
   db: Awaited<ReturnType<typeof supabase>>,
   group: string,
 ) {
@@ -33,7 +41,7 @@ export async function modelForUserGroup(
     throw Error("Không có quyền truy cập nhóm.");
   const result = await db
     .from("group_ai_settings")
-    .select("status,enabled,provider,model,base_url")
+    .select("status,enabled,provider,model,base_url,decision_model")
     .eq("group_id", group)
     .single();
   const settings = settingsSchema.safeParse(result.data);
@@ -42,8 +50,26 @@ export async function modelForUserGroup(
     g: group,
   });
   if (error || !data) throw Error("Nhóm chưa có key AI hoạt động.");
-  return groupModel(
-    settings.data,
-    decryptGroupKey(group, data, process.env.AI_KEY_ENCRYPTION_SECRET || ""),
+  const key = decryptGroupKey(
+    group,
+    data,
+    process.env.AI_KEY_ENCRYPTION_SECRET || "",
   );
+  const decision =
+    settings.data.provider === "openai-compatible" &&
+    settings.data.base_url === "https://openrouter.ai/api/v1" &&
+    settings.data.decision_model;
+  return {
+    model: () => groupModel(settings.data, key),
+    decision: decision
+      ? async (message: string, signal: AbortSignal) =>
+          probeDecision(key, decision, message, { signal })
+      : null,
+  };
+}
+export async function modelForUserGroup(
+  db: Awaited<ReturnType<typeof supabase>>,
+  group: string,
+) {
+  return (await agentForUserGroup(db, group)).model();
 }

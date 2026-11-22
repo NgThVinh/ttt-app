@@ -14,6 +14,7 @@ const debtSchema = z.array(
     amount: z.string().regex(/^\d+$/),
     status: z.string(),
     mine_is_sender: z.boolean(),
+    ref_code: z.string().optional(),
   }),
 );
 /** Business tools receive only the user's SSR client, never an internal client. */

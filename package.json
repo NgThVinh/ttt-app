@@ -24,7 +24,9 @@
     "ai:check": "node --env-file=.env scripts/check-ai-test-provider.mjs",
     "test:ai:provider": "node scripts/run-ai-provider-eval.mjs",
     "ai:check:decisions": "node --env-file=.env scripts/check-decision-model.mjs",
-    "ai:eval:decisions": "node --env-file=.env scripts/check-decision-model.mjs --batch"
+    "ai:eval:decisions": "node --env-file=.env scripts/check-decision-model.mjs --batch",
+    "ai:enable:decisions": "node --env-file=.env scripts/enable-test-decision-routing.mjs",
+    "ai:verify:runtime": "node --env-file=.env scripts/verify-decision-runtime.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.107",
