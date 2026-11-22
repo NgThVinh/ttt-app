@@ -1,5 +1,16 @@
 # Deployment status and prerequisites
 
+Production domain selected by the owner: `https://thichtinhtien.online`. Local development keeps `http://localhost:3000`; set `NEXT_PUBLIC_APP_URL=https://thichtinhtien.online` in the Vercel production environment when deploying.
+
+Domain-specific Auth setup:
+
+- Google Cloud OAuth client (Web application): authorized JavaScript origins `http://localhost:3000` and `https://thichtinhtien.online`. Authorized redirect URI for the configured hosted project: `https://ubkfdlxrtsnuxjezopht.supabase.co/auth/v1/callback`. Enter the client ID/secret in the Supabase Google provider settings and enable it. The app callback below belongs in Supabase's redirect allowlist, not Google's callback field.
+- Supabase Authentication / URL Configuration: production Site URL `https://thichtinhtien.online`; allow `https://thichtinhtien.online/auth/callback` and the app's callback query variants (`?next=...`). During development also allow `http://localhost:3000/**`. Verify return-to-invite links explicitly. See https://supabase.com/docs/guides/auth/redirect-urls.
+- Resend SMTP option: verify the sending domain `auth.thichtinhtien.online` using the exact DNS records Resend provides; choose sender `login@auth.thichtinhtien.online`, sender name `3T`. Configure custom SMTP in Supabase with host `smtp.resend.com`, port `465`, username `resend`, password equal to the Resend API key. See https://resend.com/docs/send-with-smtp. A sending domain does not need to host a website.
+- Add `thichtinhtien.online` to the Vercel project and use the DNS values Vercel displays for that project. Do not guess record targets or overwrite existing mail records. Domain verification, DNS changes and HTTPS delivery have not yet been checked.
+
+These are intended production values, not a claim that DNS, OAuth, SMTP or Vercel domain linking is already configured. OAuth/SMTP secrets entered in the local `.env` or ignored `.secrets/` directory do not automatically update hosted Supabase settings.
+
 Admin fallback: open the session's admin panel. Each operation requires a 15-minute preview tied to the current revision/hash and a public reason. Eligibility is checked again on application. Source requests older than 72 hours must be expired and are recreated with current data; old requests never become approved. Collector nominees still accept separately. Guest-receiver confirmations require explicit statement review; registered refund recipients retain their own confirmation authority. Admin unlock lasts 24 hours and does not grant ordinary financial authority. Both source withdrawal and bank/fallback lock-order races are covered by the 11-case concurrency suite.
 
 Run `npm run test:concurrency` with Docker available for nine actual PostgreSQL transaction races. It creates a uniquely named, labelled container bound to a random loopback port and removes that container afterwards. No hosted connection or `.env` is used. CI runs this suite. This verifies SQL concurrency with minimal Auth fixtures; browser/Auth-provider delivery still needs separate acceptance.
