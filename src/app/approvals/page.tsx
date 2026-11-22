@@ -31,6 +31,7 @@ export default async function Approvals() {
       )
       .not("session_id", "is", null)
       .eq("status", "pending")
+      .neq("type", "admin_fallback")
       .gt("expires_at", new Date().toISOString())
       .order("created_at"),
     db.from("group_members").select("id,user_id,display_name,status"),

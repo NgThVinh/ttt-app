@@ -74,6 +74,7 @@ async function counts() {
     "super_admin_allowlist",
     "group_creation_requests",
     "financial_command_results",
+    "admin_execution_context",
   ])
     result[`private:${table}`] = (
       await db.query(`select count(*)::text n from app_private.${table}`)
@@ -254,6 +255,120 @@ try {
       [guestMember],
     ),
     "hosted admin cannot override linked member bank",
+  );
+  await actor(b);
+  await db.query(
+    "insert into public.profiles(id,display_name,bank_bin,bank_account_no,bank_account_name) values($1,'Rollback B','970415','87654321','TEST B') on conflict(id) do update set bank_bin='970415',bank_account_no='87654321',bank_account_name='TEST B'",
+    [b],
+  );
+  const groupAdminMember = (
+    await db.query(
+      "select id from public.group_members where group_id=$1 and user_id=$2",
+      [createdGroup, a],
+    )
+  ).rows[0].id;
+  const fallbackSession = (
+    await db.query(
+      "select public.create_session($1,'Rollback fallback','Court',now()-interval '1 hour',now()-interval '1 hour',true,$2,'100000',true) id",
+      [createdGroup, [groupAdminMember, guestMember]],
+    )
+  ).rows[0].id;
+  await actor(a);
+  const agedRequest = (
+    await db.query("select public.request_session_change($1,'weight',$2) id", [
+      fallbackSession,
+      { weight: "0.5", reason: "Rollback half session" },
+    ])
+  ).rows[0].id;
+  assert(
+    await denied(
+      "select public.preview_admin_financial($1,1,'apply_request','{}','Too early',$2)",
+      [fallbackSession, agedRequest],
+    ),
+    "hosted admin fallback cannot bypass a responsive collector",
+  );
+  await db.query("reset role");
+  await db.query(
+    "update public.approval_requests set created_at=now()-interval '73 hours',expires_at=now()-interval '1 hour' where id=$1",
+    [agedRequest],
+  );
+  await actor(a);
+  const fallbackDraft = (
+    await db.query(
+      "select public.preview_admin_financial($1,1,'apply_request','{}','Current rollback review',$2) p",
+      [fallbackSession, agedRequest],
+    )
+  ).rows[0].p;
+  assert(
+    (
+      await db.query(
+        "select weight::text w from public.session_attendees where session_id=$1 and member_id=$2",
+        [fallbackSession, groupAdminMember],
+      )
+    ).rows[0].w === "1",
+    "hosted fallback preview changes no real allocation",
+  );
+  await db.query("select public.apply_admin_financial($1,$2)", [
+    fallbackDraft.id,
+    fallbackDraft.hash,
+  ]);
+  assert(
+    (
+      await db.query(
+        "select status from public.approval_requests where id=$1",
+        [agedRequest],
+      )
+    ).rows[0].status === "expired",
+    "hosted fallback never revives expired source request",
+  );
+  assert(
+    (
+      await db.query(
+        "select id from public.approval_requests where session_id=$1 and payload->>'source_request_id'=$2 and status='approved'",
+        [fallbackSession, agedRequest],
+      )
+    ).rowCount === 1,
+    "hosted fallback approves a fresh reviewed request",
+  );
+  await db.query("reset role");
+  await db.query(
+    "update public.settlements set status='confirmed',confirmed_at=now()-interval '31 days' where session_id=$1 and status='pending'",
+    [fallbackSession],
+  );
+  await db.query(
+    "update public.sessions set status='settled',settled_at=now()-interval '31 days' where id=$1",
+    [fallbackSession],
+  );
+  await actor(a);
+  const fallbackRevision = (
+    await db.query("select revision::text r from public.sessions where id=$1", [
+      fallbackSession,
+    ])
+  ).rows[0].r;
+  await db.query(
+    "select public.unlock_session($1,$2,'Rollback unlock review')",
+    [fallbackSession, fallbackRevision],
+  );
+  assert(
+    !(
+      await db.query("select public.session_is_locked($1) locked", [
+        fallbackSession,
+      ])
+    ).rows[0].locked,
+    "hosted admin unlock is effective",
+  );
+  assert(
+    await denied("select public.apply_financial_change($1,$2,'attendee',$3)", [
+      fallbackSession,
+      String(Number(fallbackRevision) + 1),
+      {
+        member_id: groupAdminMember,
+        operation: "weight",
+        weight: "1",
+        reason: "Unlock grants no authority",
+      },
+    ]),
+    "hosted unlock does not grant admin ordinary financial powers",
   );
   await db.query("reset role");
   await db.query("set local role service_role");

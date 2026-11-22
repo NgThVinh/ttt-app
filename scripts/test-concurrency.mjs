@@ -513,6 +513,110 @@ try {
       );
     passed.push(stage);
   }
+  stage = "guest bank edit versus fallback assignment";
+  {
+    const guest = (
+      await owner.query(
+        "insert into public.group_members(group_id,display_name) values($1,'Race guest') returning id",
+        [group],
+      )
+    ).rows[0].id;
+    await user(a, (db) =>
+      db.query(
+        "select public.set_guest_bank($1,'970415','12345678','GUEST','Initial bank')",
+        [guest],
+      ),
+    );
+    const sid = await planned();
+    const draft = (
+      await user(a, (db) =>
+        db.query(
+          "select public.preview_admin_financial($1,0,'assign_guest_collector',$2,'Guest assignment',null) p",
+          [sid, { member_id: guest }],
+        ),
+      )
+    ).rows[0].p;
+    const r = await race(
+      a,
+      a,
+      (db) =>
+        db.query("select public.apply_admin_financial($1,$2)", [
+          draft.id,
+          draft.hash,
+        ]),
+      (db) =>
+        db.query(
+          "select public.set_guest_bank($1,'970415','87654321','GUEST','Changed bank')",
+          [guest],
+        ),
+    );
+    assert(
+      r.second.ok,
+      "bank edit and fallback serialize without a group/member/session deadlock",
+    );
+    assert(
+      (
+        await owner.query(
+          "select collector_member_id from public.sessions where id=$1",
+          [sid],
+        )
+      ).rows[0].collector_member_id === guest,
+      "guest assignment persists",
+    );
+    passed.push(stage);
+  }
+  stage = "withdraw source versus fallback application";
+  {
+    const sid = await played();
+    await user(b, (db) =>
+      db.query("select public.request_session_change($1,'weight',$2)", [
+        sid,
+        { weight: "0.5", reason: "Half session" },
+      ]),
+    );
+    const source = (
+      await owner.query(
+        "select id from public.approval_requests where session_id=$1 and type='weight' and status='pending'",
+        [sid],
+      )
+    ).rows[0].id;
+    await owner.query(
+      "update public.approval_requests set created_at=now()-interval '73 hours',expires_at=now()-interval '1 hour' where id=$1",
+      [source],
+    );
+    const draft = (
+      await user(b, async (db) =>
+        db.query(
+          "select public.preview_admin_financial($1,$2,'apply_request','{}','Escalated review',$3) p",
+          [sid, await revision(sid), source],
+        ),
+      )
+    ).rows[0].p;
+    const r = await race(
+      b,
+      b,
+      (db) => db.query("select public.cancel_session_request($1)", [source]),
+      (db) =>
+        db.query("select public.apply_admin_financial($1,$2)", [
+          draft.id,
+          draft.hash,
+        ]),
+    );
+    assert(
+      !r.second.ok,
+      "withdrawn source invalidates a previously reviewed fallback draft",
+    );
+    assert(
+      (
+        await owner.query(
+          "select id from public.session_recalculations where session_id=$1",
+          [sid],
+        )
+      ).rowCount === 1,
+      "withdrawal race produces no fallback money change",
+    );
+    passed.push(stage);
+  }
   console.log(
     JSON.stringify({
       passed,

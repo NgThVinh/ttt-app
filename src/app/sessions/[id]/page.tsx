@@ -2,6 +2,7 @@
 import PaymentQr from "@/components/payment-qr";
 import ReceiptPanel from "@/components/receipt-panel";
 import SessionCalendarForm from "@/components/session-calendar-form";
+import AdminSessionPanel from "@/components/admin-session-panel";
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { z } from "zod";
@@ -43,7 +44,7 @@ export default async function Session({
   const due = s.deadline_passed;
   const { data: members } = await db
     .from("group_members")
-    .select("id,display_name,user_id,role")
+    .select("id,display_name,user_id,role,status")
     .eq("group_id", s.group_id)
     .eq("status", "active");
   const { data: metadata } = await db
@@ -68,6 +69,24 @@ export default async function Session({
     metadata?.created_by === user.id ||
     members?.some((m) => m.user_id === user.id && m.role === "admin");
   const locked = s.calendar_locked;
+  const admin = members?.some(
+    (m) => m.user_id === user.id && m.role === "admin",
+  );
+  const { data: fallbackRequests } = admin
+    ? await db
+        .from("approval_requests")
+        .select("id,type,created_at")
+        .eq("session_id", s.id)
+        .in("status", ["pending", "expired"])
+        .in("type", [
+          "join",
+          "leave",
+          "weight",
+          "expense_proposal",
+          "collector_nomination",
+        ])
+        .order("created_at")
+    : { data: [] };
   const canCancel =
     !!allExpenses &&
     !!paymentHistory &&
@@ -103,6 +122,14 @@ export default async function Session({
       </p>
       {metadata?.note && (
         <p style={{ whiteSpace: "pre-wrap" }}>{metadata.note}</p>
+      )}
+      {admin && (
+        <AdminSessionPanel
+          key={`admin-${s.revision}`}
+          session={s}
+          members={members || []}
+          requests={fallbackRequests || []}
+        />
       )}
       {canManage && !locked && (
         <SessionCalendarForm

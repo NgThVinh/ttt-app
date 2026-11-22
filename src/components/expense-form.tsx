@@ -5,10 +5,13 @@ import { addExpense } from "@/app/sessions/actions";
 import type { SessionDetail } from "@/lib/session-data";
 import { splitExpense, balances } from "@/lib/expense-calculation";
 import { reconcile, formatMoney } from "@/lib/money";
+import AdminReview from "./admin-review";
 export default function ExpenseForm({
   session: s,
+  administrative,
 }: {
   session: SessionDetail;
+  administrative?: { sourceId: string | null };
 }) {
   const people = s.attendees.filter((m) => m.rsvp === "going" && !m.removed_at);
   const [title, setTitle] = useState(""),
@@ -84,7 +87,7 @@ export default function ExpenseForm({
   return (
     <section className="panel">
       <h2>Thêm phụ phí hoặc giảm giá</h2>
-      {s.my_member_id !== s.collector_member_id && (
+      {!administrative && s.my_member_id !== s.collector_member_id && (
         <p>
           Khoản chỉ bạn chịu có hiệu lực ngay. Khoản có người khác chịu cần
           người tính tiền duyệt; bảng dưới đây là dự kiến.
@@ -217,15 +220,32 @@ export default function ExpenseForm({
           >
             Tôi đã xem phần chia và công nợ mới
           </button>
-          {review && (
-            <ActionForm action={addExpense} label="Lưu khoản chi">
-              <input
-                type="hidden"
-                name="payload"
-                value={JSON.stringify(payload)}
+          {review &&
+            (administrative ? (
+              <AdminReview
+                session={s}
+                command="add_expense"
+                body={{
+                  title_text: title,
+                  raw_amount: amount,
+                  payer,
+                  beneficiaries: selected,
+                  mode,
+                  split,
+                  values_text: selected.map((id) => values[id] || "0"),
+                }}
+                reason={reason}
+                sourceId={administrative.sourceId}
               />
-            </ActionForm>
-          )}
+            ) : (
+              <ActionForm action={addExpense} label="Lưu khoản chi">
+                <input
+                  type="hidden"
+                  name="payload"
+                  value={JSON.stringify(payload)}
+                />
+              </ActionForm>
+            ))}
         </>
       )}
     </section>

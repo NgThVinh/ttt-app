@@ -4,6 +4,7 @@ import type { SessionDetail } from "@/lib/session-data";
 import { formatMoney } from "@/lib/money";
 import { previewChange, applyChange } from "@/app/sessions/actions";
 import ActionForm from "./action-form";
+import AdminReview from "./admin-review";
 type PreviewResult = {
   message: string;
   detail?: SessionDetail;
@@ -12,9 +13,11 @@ type PreviewResult = {
 export default function FinancialChangeForm({
   session: s,
   members,
+  administrative,
 }: {
   session: SessionDetail;
   members: { id: string; display_name: string }[];
+  administrative?: { sourceId: string | null };
 }) {
   const [action, setAction] = useState("attendee"),
     [target, setTarget] = useState(members[0]?.id || ""),
@@ -39,7 +42,13 @@ export default function FinancialChangeForm({
   return (
     <section className="panel">
       <h2>Sửa người, hệ số hoặc xóa khoản chi</h2>
-      <form action={submit} key={s.revision}>
+      <form
+        action={submit}
+        key={s.revision}
+        onSubmit={(e) => {
+          if (administrative) e.preventDefault();
+        }}
+      >
         <input type="hidden" name="payload" value={payload} />
         <label htmlFor="change-action">Thay đổi</label>
         <select
@@ -109,14 +118,25 @@ export default function FinancialChangeForm({
           value={reason}
           onChange={(e) => setReason(e.target.value)}
         />
-        <button
-          className="secondary"
-          disabled={pending}
-          style={{ marginTop: 16 }}
-        >
-          Xem trước thay đổi
-        </button>
+        {!administrative && (
+          <button
+            className="secondary"
+            disabled={pending}
+            style={{ marginTop: 16 }}
+          >
+            Xem trước thay đổi
+          </button>
+        )}
       </form>
+      {administrative && (
+        <AdminReview
+          session={s}
+          command="apply_financial_change"
+          body={{ action_name: action, body: JSON.parse(payload).body }}
+          reason={reason}
+          sourceId={administrative.sourceId}
+        />
+      )}
       {state.message && <p role="status">{state.message}</p>}
       {reviewed && state.payload === payload && (
         <>
