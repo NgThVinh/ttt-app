@@ -7,6 +7,7 @@ import { expenseInputSchema } from "@/lib/session-data";
 import { moneySchema } from "@/lib/schemas";
 import type { FormResult } from "@/components/action-form";
 import { detailSchema } from "@/lib/session-data";
+import { runFinancialCommand } from "@/lib/financial-command";
 import {
   sessionCalendarFormSchema,
   sessionCalendarSchema,
@@ -101,23 +102,29 @@ export async function createSession(
     : start;
   if (!Number.isFinite(deadline.getTime()) || deadline > start)
     return { message: "Hạn chốt cần không muộn hơn giờ bắt đầu." };
-  const { data, error } = await db.rpc("create_session", {
-    g: input.data.groupId,
-    title_text: input.data.title,
-    venue_text: input.data.venue,
-    start_time: start.toISOString(),
-    deadline: deadline.toISOString(),
-    already_played: input.data.flow === "played",
-    people: input.data.flow === "played" ? ids.data : [],
-    court: input.data.court,
-    be_collector: input.data.flow === "played" || form.has("collector"),
-  });
-  if (error)
+  const { data, error } = await runFinancialCommand(
+    db,
+    form.get("request_key"),
+    "create_session",
+    {
+      g: input.data.groupId,
+      title_text: input.data.title,
+      venue_text: input.data.venue,
+      start_time: start.toISOString(),
+      deadline: deadline.toISOString(),
+      already_played: input.data.flow === "played",
+      people: input.data.flow === "played" ? ids.data : [],
+      court: input.data.court,
+      be_collector: input.data.flow === "played" || form.has("collector"),
+    },
+  );
+  const created = z.object({ id: z.uuid() }).safeParse(data);
+  if (error || !created.success)
     return {
       message:
         "Chưa tạo được: kiểm tra ngân hàng của người tính tiền, thời gian và danh sách tham gia.",
     };
-  redirect(`/sessions/${data}`);
+  redirect(`/sessions/${created.data.id}`);
 }
 export async function sessionCommand(
   _state: FormResult,
@@ -139,7 +146,9 @@ export async function sessionCommand(
   const { error } =
     p.operation === "going" || p.operation === "not_going"
       ? await db.rpc("set_rsvp", { sid: p.sid, going: p.operation === "going" })
-      : await db.rpc(
+      : await runFinancialCommand(
+          db,
+          form.get("request_key"),
           p.operation === "claim" ? "claim_collector" : "finish_session",
           { sid: p.sid, expected_revision: p.revision, court: p.court || "0" },
         );
@@ -166,18 +175,23 @@ export async function addExpense(
   if (!parsed.success)
     return { message: "Kiểm tra lại khoản chi và các phần chia." };
   const p = parsed.data;
-  const { error } = await db.rpc("add_expense", {
-    sid: p.sid,
-    expected_revision: p.revision,
-    title_text: p.title,
-    raw_amount: p.amount,
-    payer: p.payer,
-    beneficiaries: p.beneficiaries,
-    mode: p.mode,
-    split: p.split,
-    values_text: p.values,
-    reason: p.reason,
-  });
+  const { error } = await runFinancialCommand(
+    db,
+    form.get("request_key"),
+    "add_expense",
+    {
+      sid: p.sid,
+      expected_revision: p.revision,
+      title_text: p.title,
+      raw_amount: p.amount,
+      payer: p.payer,
+      beneficiaries: p.beneficiaries,
+      mode: p.mode,
+      split: p.split,
+      values_text: p.values,
+      reason: p.reason,
+    },
+  );
   if (error)
     return {
       message:
@@ -201,10 +215,15 @@ export async function changePayment(
     .object({ id: z.uuid(), operation: z.enum(["mark", "confirm"]) })
     .safeParse(Object.fromEntries(form));
   if (!input.success) return { message: "Khoản thanh toán không hợp lệ." };
-  const { error } = await db.rpc("payment_action", {
-    target: input.data.id,
-    operation: input.data.operation,
-  });
+  const { error } = await runFinancialCommand(
+    db,
+    form.get("request_key"),
+    "payment_action",
+    {
+      target: input.data.id,
+      operation: input.data.operation,
+    },
+  );
   if (error)
     return { message: "Khoản đã thay đổi hoặc bạn không có quyền thực hiện." };
   revalidatePath("/sessions", "layout");
@@ -281,12 +300,17 @@ export async function applyChange(
   const input = parseChange(form);
   if (!input.success) return { message: "Thông tin thay đổi không hợp lệ." };
   const p = input.data;
-  const { error } = await db.rpc("apply_financial_change", {
-    sid: p.sid,
-    expected_revision: p.revision,
-    action_name: p.action,
-    body: p.body,
-  });
+  const { error } = await runFinancialCommand(
+    db,
+    form.get("request_key"),
+    "apply_financial_change",
+    {
+      sid: p.sid,
+      expected_revision: p.revision,
+      action_name: p.action,
+      body: p.body,
+    },
+  );
   if (error)
     return {
       message:

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { supabase } from "@/lib/supabase";
 import { detailSchema } from "@/lib/session-data";
 import type { FormResult } from "@/components/action-form";
+import { runFinancialCommand } from "@/lib/financial-command";
 async function identity() {
   const db = await supabase();
   const {
@@ -92,11 +93,16 @@ export async function decideApproval(
   const { error } =
     p.decision === "cancel"
       ? await db.rpc("cancel_session_request", { request_id: p.id })
-      : await db.rpc("decide_session_request", {
-          request_id: p.id,
-          approve: p.decision === "approve",
-          expected_hash: p.hash,
-        });
+      : await runFinancialCommand(
+          db,
+          form.get("request_key"),
+          "decide_session_request",
+          {
+            request_id: p.id,
+            approve: p.decision === "approve",
+            expected_hash: p.hash,
+          },
+        );
   if (error)
     return {
       message:

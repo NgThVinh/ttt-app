@@ -1,5 +1,5 @@
 "use client";
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 export type FormResult = { message: string; ok?: boolean; link?: string };
 export default function ActionForm({
@@ -13,7 +13,20 @@ export default function ActionForm({
   label?: string;
   disabled?: boolean;
 }) {
-  const [state, submit, pending] = useActionState(action, { message: "" });
+  const request = useRef<{ fingerprint: string; key: string } | null>(null);
+  async function submitIntent(state: FormResult, form: FormData) {
+    if (!form.has("request_key")) {
+      const fingerprint = JSON.stringify([...form.entries()]);
+      if (request.current?.fingerprint !== fingerprint) {
+        request.current = { fingerprint, key: crypto.randomUUID() };
+      }
+      form.set("request_key", request.current!.key);
+    }
+    return action(state, form);
+  }
+  const [state, submit, pending] = useActionState(submitIntent, {
+    message: "",
+  });
   const router = useRouter();
   useEffect(() => {
     if (state.ok) router.refresh();

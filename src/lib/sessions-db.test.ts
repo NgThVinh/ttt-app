@@ -467,12 +467,13 @@ it("shared expense proposals have no money effect before a collector approves th
       )
     ).rows[0].status,
   ).toBe("active");
-  await expect(
-    db.query("select public.decide_session_request($1,true,$2)", [
-      r.id,
-      r.payload_hash,
-    ]),
-  ).rejects.toThrow(/hết hạn/);
+  const approvedRevision = (await sessionState(id)).revision;
+  await db.query("select public.decide_session_request($1,true,$2)", [
+    r.id,
+    r.payload_hash,
+  ]);
+  expect((await sessionState(id)).revision).toBe(approvedRevision);
+  expect((await sessionState(id)).expenses).toHaveLength(2);
   await actor(b);
   await expect(
     db.query(

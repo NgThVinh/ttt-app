@@ -64,11 +64,16 @@ async function counts() {
     "payment_evidence",
     "expense_receipts",
     "storage_cleanup_jobs",
+    "session_recalculations",
   ])
     result[table] = (
       await db.query(`select count(*)::text n from public.${table}`)
     ).rows[0].n;
-  for (const table of ["super_admin_allowlist", "group_creation_requests"])
+  for (const table of [
+    "super_admin_allowlist",
+    "group_creation_requests",
+    "financial_command_results",
+  ])
     result[`private:${table}`] = (
       await db.query(`select count(*)::text n from app_private.${table}`)
     ).rows[0].n;
@@ -220,9 +225,57 @@ try {
     "hosted allocation totals conserved",
   );
   await actor(b);
+  const initialBatch = (
+    await db.query(
+      "select last_recalculation_id id from public.sessions where id=$1",
+      [sid],
+    )
+  ).rows[0].id;
+  const expenseKey = randomUUID();
+  const expenseBody = {
+    sid,
+    expected_revision: s.revision,
+    title_text: "Shared water",
+    raw_amount: "20000",
+    payer: bm,
+    beneficiaries: [am, bm],
+    mode: "total",
+    split: "equal",
+    values_text: [],
+    reason: "Smoke proposal",
+  };
   await db.query(
-    "select public.add_expense($1,$2,'Shared water','20000',$3,$4,'total','equal','{}','Smoke proposal')",
-    [sid, s.revision, bm, [am, bm]],
+    "select public.execute_financial_command('add_expense',$1,$2)",
+    [expenseKey, expenseBody],
+  );
+  assert(
+    (
+      await db.query(
+        "select public.execute_financial_command('add_expense',$1,$2) r",
+        [expenseKey, expenseBody],
+      )
+    ).rows[0].r.replayed,
+    "hosted shared expense retry acknowledged without duplication",
+  );
+  assert(
+    (
+      await db.query(
+        "select id from public.approval_requests where session_id=$1 and type='expense_proposal'",
+        [sid],
+      )
+    ).rowCount === 1,
+    "hosted retry creates only one expense proposal",
+  );
+  assert(
+    await denied(
+      "select public.execute_financial_command('add_expense',$1,$2)",
+      [expenseKey, { ...expenseBody, raw_amount: "30000" }],
+    ),
+    "hosted financial key rejects changed payload",
+  );
+  assert(
+    await denied("select * from app_private.financial_command_results"),
+    "hosted user cannot read private financial receipts",
   );
   assert(
     (await detail()).expenses.length === 1,
@@ -242,14 +295,66 @@ try {
     "requester cannot self approve",
   );
   await actor(a);
-  await db.query("select public.decide_session_request($1,true,$2)", [
-    r.id,
-    r.payload_hash,
-  ]);
+  const approvalKey = randomUUID();
+  const approvalBody = {
+    request_id: r.id,
+    approve: true,
+    expected_hash: r.payload_hash,
+  };
+  const approval = (
+    await db.query(
+      "select public.execute_financial_command('decide_session_request',$1,$2) r",
+      [approvalKey, approvalBody],
+    )
+  ).rows[0].r;
+  assert(
+    (
+      await db.query(
+        "select public.execute_financial_command('decide_session_request',$1,$2) r",
+        [approvalKey, approvalBody],
+      )
+    ).rows[0].r.replayed,
+    "hosted approval retry does not approve twice",
+  );
+  const batch = (
+    await db.query(
+      "select previous_id from public.session_recalculations where id=$1",
+      [approval.batch_id],
+    )
+  ).rows[0];
+  assert(
+    batch.previous_id === initialBatch,
+    "hosted recalculation links to previous batch",
+  );
+  assert(
+    (
+      await db.query(
+        "select cancelled_by_recalculation_id from public.settlements where session_id=$1 and status='cancelled'",
+        [sid],
+      )
+    ).rows.every((p) => p.cancelled_by_recalculation_id === approval.batch_id),
+    "hosted replaced transfers reference cancelling batch",
+  );
+  assert(
+    await denied(
+      "select public.execute_financial_command('add_expense',$1,$2)",
+      [randomUUID(), expenseBody],
+    ),
+    "hosted new request cannot use stale financial revision",
+  );
   s = await detail();
   assert(s.expenses.length === 2, "collector approval activates proposal");
   const transfer = s.settlements.find((p) => p.status === "pending");
   assert(transfer.amount === "40000", "hosted collector settlement correct");
+  assert(
+    (
+      await db.query(
+        "select recalculation_id from public.settlements where id=$1",
+        [transfer.id],
+      )
+    ).rows[0].recalculation_id === approval.batch_id,
+    "hosted new transfer references issuing batch",
+  );
   await actor(b);
   stage = "receipt permissions";
   const evidence = (
