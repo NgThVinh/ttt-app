@@ -80,6 +80,18 @@ try {
     .filter({ hasText: "3T-" + payment.ref_code });
   await panel.getByText("QR chưa khả dụng.", { exact: false }).waitFor();
   step = "upload";
+  check(
+    !(await panel.locator(".payment-evidence").evaluate((el) => el.open)),
+    "EVIDENCE_COLLAPSED_BY_DEFAULT",
+  );
+  const markButton = panel.getByRole("button", {
+    name: "Tôi đã chuyển",
+    exact: true,
+  });
+  check(await markButton.isVisible(), "PAYMENT_ACTION_VISIBLE_BEFORE_EVIDENCE");
+  await panel
+    .getByText("Bằng chứng thanh toán (tùy chọn)", { exact: true })
+    .click();
   await panel.getByLabel("Chọn ảnh biên lai").setInputFiles({
     name: "proof.png",
     mimeType: "image/png",
@@ -247,13 +259,11 @@ try {
     }),
   });
   async function previewRemoval() {
-    const details = receiver.page
-      .locator("details")
-      .filter({
-        has: receiver.page
-          .locator("summary")
-          .getByText("Điều chỉnh người và phần chia", { exact: true }),
-      });
+    const details = receiver.page.locator("details").filter({
+      has: receiver.page
+        .locator("summary")
+        .getByText("Điều chỉnh người và phần chia", { exact: true }),
+    });
     if (!(await details.getAttribute("open"))) {
       if (await details.evaluate((el) => !el.open))
         await receiver.page

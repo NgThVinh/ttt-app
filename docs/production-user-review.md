@@ -1,5 +1,16 @@
 # Trải nghiệm người dùng trên production — 22/11/2026
 
+## Cập nhật xử lý feedback — 23/11/2026
+
+Đã sửa cả bốn điểm bên dưới (giữ lại quan sát gốc để đối chiếu):
+
+- Thanh toán được đưa trước danh sách người/phần chia; số tiền, người nhận, ngân hàng và CTA xuất hiện trước bằng chứng. Bằng chứng vẫn đủ chức năng nhưng đóng mặc định trong mục tùy chọn.
+- “Mời bạn” đứng đầu trang nhóm; thời hạn/lượt mời, link cũ, quản lý từng thành viên và thêm khách chỉ mở khi cần. Không hiển thị khối xác minh trống.
+- Thao tác đổi quyền không mặc định chọn “Thành viên”; yêu cầu chọn thao tác rõ ràng trước khi gửi.
+- Tạo buổi mặc định chia đều, chỉ chọn người. Hệ số/phụ phí/mẫu gom trong mục tùy chỉnh, ghi rõ “Đã tùy chỉnh” khi có thay đổi; giải thích làm tròn mở khi cần. Đóng mục không xóa dữ liệu và thay đổi vẫn buộc xem lại bảng chia.
+
+`npm run test:minimal-ux` xác nhận vị trí mời bạn, role placeholder, mặc định đóng, giữ hệ số/phụ phí khi đóng và khoản phải trả đúng 40.000đ trong fixture có tùy chỉnh; layout 390/1440px. `test:payment-ui` kiểm tra lại upload, retry, xác nhận, revision, hoàn tiền và quyền bằng chứng. Các lượt này dùng dữ liệu local, không gọi LLM.
+
 Đã thao tác qua Chromium tại https://thichtinhtien.online, hai tài khoản test độc lập, viewport điện thoại 390px và desktop 1440px. Không dùng localhost, không gọi LLM, không gửi email hay chuyển tiền thật.
 
 ## Kết quả chức năng

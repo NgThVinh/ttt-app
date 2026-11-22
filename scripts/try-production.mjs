@@ -160,6 +160,7 @@ try {
     .getByRole("heading", { name: groupName, exact: true })
     .waitFor();
   await screenshot("02-group-admin");
+  await activePage.getByText("Tùy chỉnh link mời", { exact: true }).click();
   await activePage.getByLabel("Số lượt dùng", { exact: true }).fill("1");
   await activePage
     .getByRole("button", { name: "Tạo link mời", exact: true })

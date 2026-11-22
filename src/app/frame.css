@@ -11,6 +11,21 @@
   background: var(--bg);
   color-scheme: light;
 }
+.payment-evidence {
+  margin-top: 20px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+.payment-evidence > summary,
+.split-customization > summary {
+  color: var(--muted);
+  font-size: 13px;
+}
+.split-customization {
+  margin-block: 20px;
+  padding: 12px 0;
+  border-block: 1px solid var(--line);
+}
 .welcome-page {
   min-height: 100dvh;
   max-width: 480px;

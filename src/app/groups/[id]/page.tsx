@@ -66,6 +66,59 @@ export default async function Group({
       <Link href="/groups">Các nhóm</Link>
       <h1>{group.name}</h1>
       <p>{group.sport}</p>
+      {admin && (
+        <section className="panel">
+          <h2>Mời bạn</h2>
+          <ActionForm action={createInvite} label="Tạo link mời">
+            <input type="hidden" name="groupId" value={id} />
+            <details>
+              <summary>Tùy chỉnh link mời</summary>
+              <label htmlFor="days">Có hiệu lực trong (ngày)</label>
+              <input
+                id="days"
+                name="days"
+                type="number"
+                min="1"
+                max="30"
+                defaultValue="7"
+                required
+              />
+              <label htmlFor="uses">Số lượt dùng</label>
+              <input
+                id="uses"
+                name="uses"
+                type="number"
+                min="1"
+                max="100"
+                defaultValue="30"
+                required
+              />
+            </details>
+          </ActionForm>
+          <details>
+            <summary>Link đã tạo</summary>
+            {invites?.map((i) => (
+              <div className="session-row" key={i.id}>
+                <div>
+                  <p>
+                    {i.uses}/{i.max_uses} lượt · Hết hạn{" "}
+                    {new Date(i.expires_at).toLocaleString("vi-VN", {
+                      timeZone: "Asia/Ho_Chi_Minh",
+                    })}
+                  </p>
+                  {i.revoked_at ? (
+                    <p>Đã thu hồi</p>
+                  ) : (
+                    <ActionForm action={revokeInvite} label="Thu hồi">
+                      <input type="hidden" name="id" value={i.id} />
+                    </ActionForm>
+                  )}
+                </div>
+              </div>
+            ))}
+          </details>
+        </section>
+      )}
       {admin && expenseTools.success && (
         <ExpenseCatalogManager groupId={id} tools={expenseTools.data} />
       )}
@@ -150,18 +203,28 @@ export default async function Group({
                 </>
               )}
               {admin && m.status === "active" && (
-                <ActionForm action={manageMember} label="Cập nhật">
-                  <input type="hidden" name="groupId" value={id} />
-                  <input type="hidden" name="target" value={m.id} />
-                  <select
-                    name="operation"
-                    aria-label={`Thao tác với ${m.display_name}`}
-                  >
-                    <option value="member">Thành viên</option>
-                    {m.user_id && <option value="admin">Admin nhóm</option>}
-                    <option value="remove">Gỡ khỏi nhóm, giữ lịch sử</option>
-                  </select>
-                </ActionForm>
+                <details>
+                  <summary>Quản lý {m.display_name}</summary>
+                  <ActionForm action={manageMember} label="Cập nhật">
+                    <input type="hidden" name="groupId" value={id} />
+                    <input type="hidden" name="target" value={m.id} />
+                    <select
+                      name="operation"
+                      aria-label={`Thao tác với ${m.display_name}`}
+                      required
+                      defaultValue=""
+                    >
+                      <option value="" disabled>
+                        Chọn thao tác
+                      </option>
+                      <option value="member">Đặt làm thành viên</option>
+                      {m.user_id && (
+                        <option value="admin">Đặt làm admin nhóm</option>
+                      )}
+                      <option value="remove">Gỡ khỏi nhóm, giữ lịch sử</option>
+                    </select>
+                  </ActionForm>
+                </details>
               )}
             </div>
           </article>
@@ -169,87 +232,44 @@ export default async function Group({
       </section>
       {admin && (
         <>
-          <section className="panel">
-            <h2>Chờ admin xác minh thành viên</h2>
-            {!claims?.length && <p>Không có yêu cầu đang chờ.</p>}
-            {claims?.map((r) => (
-              <div className="session-row" key={r.id}>
-                <div>
-                  <p>
-                    {members?.find((m) => m.user_id === r.requested_by)
-                      ?.display_name || "Thành viên"}{" "}
-                    muốn nhận lại{" "}
-                    {members?.find((m) => m.id === r.payload.member_id)
-                      ?.display_name || "thành viên cũ"}
-                    . Hãy xác minh đúng người trước khi duyệt.
-                  </p>
-                  <ActionForm action={decideClaim} label="Xử lý yêu cầu">
-                    <input type="hidden" name="id" value={r.id} />
-                    <select name="decision" aria-label="Quyết định xác minh">
-                      <option value="reject">Từ chối</option>
-                      <option value="approve">
-                        Đã xác minh — đồng ý liên kết
-                      </option>
-                    </select>
-                  </ActionForm>
+          {!!claims?.length && (
+            <section className="panel">
+              <h2>Chờ admin xác minh thành viên</h2>
+              {!claims?.length && <p>Không có yêu cầu đang chờ.</p>}
+              {claims?.map((r) => (
+                <div className="session-row" key={r.id}>
+                  <div>
+                    <p>
+                      {members?.find((m) => m.user_id === r.requested_by)
+                        ?.display_name || "Thành viên"}{" "}
+                      muốn nhận lại{" "}
+                      {members?.find((m) => m.id === r.payload.member_id)
+                        ?.display_name || "thành viên cũ"}
+                      . Hãy xác minh đúng người trước khi duyệt.
+                    </p>
+                    <ActionForm action={decideClaim} label="Xử lý yêu cầu">
+                      <input type="hidden" name="id" value={r.id} />
+                      <select name="decision" aria-label="Quyết định xác minh">
+                        <option value="reject">Từ chối</option>
+                        <option value="approve">
+                          Đã xác minh — đồng ý liên kết
+                        </option>
+                      </select>
+                    </ActionForm>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </section>
-          <section className="panel">
-            <h2>Thêm người chưa có tài khoản</h2>
+              ))}
+            </section>
+          )}
+          <details className="panel">
+            <summary>Thêm người chưa có tài khoản</summary>
             <ActionForm action={manageMember} label="Thêm thành viên">
               <input type="hidden" name="groupId" value={id} />
               <input type="hidden" name="operation" value="add" />
               <label htmlFor="member-name">Tên thành viên</label>
               <input id="member-name" name="label" required maxLength={100} />
             </ActionForm>
-          </section>
-          <section className="panel">
-            <h2>Link mời</h2>
-            <ActionForm action={createInvite} label="Tạo link mời">
-              <input type="hidden" name="groupId" value={id} />
-              <label htmlFor="days">Có hiệu lực trong (ngày)</label>
-              <input
-                id="days"
-                name="days"
-                type="number"
-                min="1"
-                max="30"
-                defaultValue="7"
-                required
-              />
-              <label htmlFor="uses">Số lượt dùng</label>
-              <input
-                id="uses"
-                name="uses"
-                type="number"
-                min="1"
-                max="100"
-                defaultValue="30"
-                required
-              />
-            </ActionForm>
-            {invites?.map((i) => (
-              <div className="session-row" key={i.id}>
-                <div>
-                  <p>
-                    {i.uses}/{i.max_uses} lượt · Hết hạn{" "}
-                    {new Date(i.expires_at).toLocaleString("vi-VN", {
-                      timeZone: "Asia/Ho_Chi_Minh",
-                    })}
-                  </p>
-                  {i.revoked_at ? (
-                    <p>Đã thu hồi</p>
-                  ) : (
-                    <ActionForm action={revokeInvite} label="Thu hồi">
-                      <input type="hidden" name="id" value={i.id} />
-                    </ActionForm>
-                  )}
-                </div>
-              </div>
-            ))}
-          </section>
+          </details>
         </>
       )}
     </main>

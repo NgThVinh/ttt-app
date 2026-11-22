@@ -240,7 +240,7 @@ export default function SessionForm({
               />
             </label>
             <fieldset>
-              <legend>Ai đã tham gia? Hệ số mặc định 1</legend>
+              <legend>Ai đã tham gia?</legend>
               <button
                 type="button"
                 className="secondary"
@@ -273,181 +273,203 @@ export default function SessionForm({
                     />
                     {m.display_name}
                   </label>
-                  {selected.includes(m.id) && (
-                    <label>
-                      Hệ số của {m.display_name}
-                      <input
-                        inputMode="decimal"
-                        value={weights[m.id] || "1"}
-                        onChange={(e) =>
-                          setWeights((old) => ({
-                            ...old,
-                            [m.id]: e.target.value,
-                          }))
-                        }
-                      />
-                    </label>
-                  )}
                 </div>
               ))}
             </fieldset>
-            <h2>Phụ phí và giảm giá</h2>
             <p>
-              Thêm cùng buổi, xem toàn bộ phần chia trước khi lưu. Số âm dùng
-              cho giảm giá.
+              {selected.some((id) => (weights[id] || "1") !== "1")
+                ? "Đang chia tiền sân theo hệ số đã tùy chỉnh."
+                : "Chia đều tiền sân cho những người đã chọn."}
             </p>
-            {extras.length < 199 && (
-              <div className="actions">
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() => addExtra()}
-                >
-                  Thêm khoản chi
-                </button>
-                {tools?.templates
-                  .filter((t) => t.active)
-                  .map((t) => (
-                    <button
-                      type="button"
-                      className="secondary"
-                      key={t.id}
-                      onClick={() => addExtra(t)}
-                    >
-                      + {t.title}
-                    </button>
-                  ))}
-              </div>
-            )}
-            {extras.map((e, i) => (
-              <fieldset key={i}>
-                <legend>Khoản {i + 1}</legend>
-                <label>
-                  Tên khoản
-                  <input
-                    required
-                    maxLength={160}
-                    value={e.title}
-                    onChange={(v) => updateExtra(i, { title: v.target.value })}
-                  />
-                </label>
-                <label>
-                  Số tiền (đ)
-                  <input
-                    required
-                    inputMode="numeric"
-                    value={e.amount}
-                    onChange={(v) => updateExtra(i, { amount: v.target.value })}
-                  />
-                </label>
-                <label>
-                  Loại số tiền
-                  <select
-                    value={e.mode}
-                    onChange={(v) =>
-                      updateExtra(i, { mode: v.target.value as Extra["mode"] })
-                    }
+            <details className="split-customization">
+              <summary>
+                Tùy chỉnh cách chia và phụ phí
+                {extras.length > 0 ||
+                selected.some((id) => (weights[id] || "1") !== "1")
+                  ? " · Đã tùy chỉnh"
+                  : ""}
+              </summary>
+              <fieldset>
+                <legend>Hệ số tham gia</legend>
+                {selected.map((id) => (
+                  <label key={id}>
+                    Hệ số của {name(id)}
+                    <input
+                      inputMode="decimal"
+                      value={weights[id] || "1"}
+                      onChange={(e) =>
+                        setWeights((old) => ({ ...old, [id]: e.target.value }))
+                      }
+                    />
+                  </label>
+                ))}
+              </fieldset>
+              <h2>Phụ phí và giảm giá</h2>
+              <p>
+                Thêm cùng buổi, xem toàn bộ phần chia trước khi lưu. Số âm dùng
+                cho giảm giá.
+              </p>
+              {extras.length < 199 && (
+                <div className="actions">
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => addExtra()}
                   >
-                    <option value="total">Tổng khoản</option>
-                    <option value="per_person">Đơn giá mỗi người</option>
-                  </select>
-                </label>
-                <label>
-                  Cách chia
-                  <select
-                    value={e.split}
-                    onChange={(v) =>
-                      updateExtra(i, {
-                        split: v.target.value as Extra["split"],
-                      })
-                    }
-                  >
-                    <option value="equal">Chia đều</option>
-                    <option value="weighted">Theo hệ số tham gia</option>
-                  </select>
-                </label>
-                <label>
-                  Người ứng
-                  <select
-                    value={e.payer}
-                    onChange={(v) => updateExtra(i, { payer: v.target.value })}
-                  >
-                    {inGroup.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.display_name}
-                      </option>
+                    Thêm khoản chi
+                  </button>
+                  {tools?.templates
+                    .filter((t) => t.active)
+                    .map((t) => (
+                      <button
+                        type="button"
+                        className="secondary"
+                        key={t.id}
+                        onClick={() => addExtra(t)}
+                      >
+                        + {t.title}
+                      </button>
                     ))}
-                  </select>
-                </label>
-                <label>
-                  Người chịu
-                  <select
-                    value={e.beneficiaries === null ? "all" : "custom"}
-                    onChange={(v) =>
-                      updateExtra(i, {
-                        beneficiaries:
-                          v.target.value === "all" ? null : [...selected],
-                      })
-                    }
-                  >
-                    <option value="all">Tất cả người tham gia</option>
-                    <option value="custom">Chọn riêng</option>
-                  </select>
-                </label>
-                {e.beneficiaries !== null &&
-                  selected.map((id) => (
-                    <label key={id}>
-                      <input
-                        type="checkbox"
-                        checked={e.beneficiaries!.includes(id)}
-                        onChange={(v) =>
-                          updateExtra(i, {
-                            beneficiaries: v.target.checked
-                              ? [...e.beneficiaries!, id]
-                              : e.beneficiaries!.filter((p) => p !== id),
-                          })
-                        }
-                      />
-                      {name(id)}
-                    </label>
-                  ))}
-                <label>
-                  Danh mục
-                  <select
-                    value={e.category_id}
-                    onChange={(v) =>
-                      updateExtra(i, { category_id: v.target.value })
-                    }
-                  >
-                    <option value="">Khác</option>
-                    {tools?.categories
-                      .filter((c) => c.active)
-                      .map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
+                </div>
+              )}
+              {extras.map((e, i) => (
+                <fieldset key={i}>
+                  <legend>Khoản {i + 1}</legend>
+                  <label>
+                    Tên khoản
+                    <input
+                      required
+                      maxLength={160}
+                      value={e.title}
+                      onChange={(v) =>
+                        updateExtra(i, { title: v.target.value })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Số tiền (đ)
+                    <input
+                      required
+                      inputMode="numeric"
+                      value={e.amount}
+                      onChange={(v) =>
+                        updateExtra(i, { amount: v.target.value })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Loại số tiền
+                    <select
+                      value={e.mode}
+                      onChange={(v) =>
+                        updateExtra(i, {
+                          mode: v.target.value as Extra["mode"],
+                        })
+                      }
+                    >
+                      <option value="total">Tổng khoản</option>
+                      <option value="per_person">Đơn giá mỗi người</option>
+                    </select>
+                  </label>
+                  <label>
+                    Cách chia
+                    <select
+                      value={e.split}
+                      onChange={(v) =>
+                        updateExtra(i, {
+                          split: v.target.value as Extra["split"],
+                        })
+                      }
+                    >
+                      <option value="equal">Chia đều</option>
+                      <option value="weighted">Theo hệ số tham gia</option>
+                    </select>
+                  </label>
+                  <label>
+                    Người ứng
+                    <select
+                      value={e.payer}
+                      onChange={(v) =>
+                        updateExtra(i, { payer: v.target.value })
+                      }
+                    >
+                      {inGroup.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.display_name}
                         </option>
                       ))}
-                  </select>
-                </label>
-                <label>
-                  Ghi chú
-                  <input
-                    maxLength={2000}
-                    value={e.note}
-                    onChange={(v) => updateExtra(i, { note: v.target.value })}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() =>
-                    setExtras((old) => old.filter((_, n) => n !== i))
-                  }
-                >
-                  Bỏ khoản {i + 1}
-                </button>
-              </fieldset>
-            ))}
+                    </select>
+                  </label>
+                  <label>
+                    Người chịu
+                    <select
+                      value={e.beneficiaries === null ? "all" : "custom"}
+                      onChange={(v) =>
+                        updateExtra(i, {
+                          beneficiaries:
+                            v.target.value === "all" ? null : [...selected],
+                        })
+                      }
+                    >
+                      <option value="all">Tất cả người tham gia</option>
+                      <option value="custom">Chọn riêng</option>
+                    </select>
+                  </label>
+                  {e.beneficiaries !== null &&
+                    selected.map((id) => (
+                      <label key={id}>
+                        <input
+                          type="checkbox"
+                          checked={e.beneficiaries!.includes(id)}
+                          onChange={(v) =>
+                            updateExtra(i, {
+                              beneficiaries: v.target.checked
+                                ? [...e.beneficiaries!, id]
+                                : e.beneficiaries!.filter((p) => p !== id),
+                            })
+                          }
+                        />
+                        {name(id)}
+                      </label>
+                    ))}
+                  <label>
+                    Danh mục
+                    <select
+                      value={e.category_id}
+                      onChange={(v) =>
+                        updateExtra(i, { category_id: v.target.value })
+                      }
+                    >
+                      <option value="">Khác</option>
+                      {tools?.categories
+                        .filter((c) => c.active)
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label>
+                    Ghi chú
+                    <input
+                      maxLength={2000}
+                      value={e.note}
+                      onChange={(v) => updateExtra(i, { note: v.target.value })}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() =>
+                      setExtras((old) => old.filter((_, n) => n !== i))
+                    }
+                  >
+                    Bỏ khoản {i + 1}
+                  </button>
+                </fieldset>
+              ))}
+            </details>
             <h2>Xem trước tổng phần chịu</h2>
             {error ? (
               <p role="status">{error}</p>
@@ -472,10 +494,13 @@ export default function SessionForm({
                 ) : (
                   <p>Không có khoản cần chuyển.</p>
                 )}
-                <p>
-                  Phần lẻ dưới 1.000đ thuộc người ứng nếu cùng chịu khoản chi;
-                  nếu không, thuộc người có phần lý thuyết lớn nhất.
-                </p>
+                <details>
+                  <summary>Cách làm tròn</summary>{" "}
+                  <p>
+                    Phần lẻ dưới 1.000đ thuộc người ứng nếu cùng chịu khoản chi;
+                    nếu không, thuộc người có phần lý thuyết lớn nhất.
+                  </p>
+                </details>
                 <button
                   type="button"
                   className="secondary"

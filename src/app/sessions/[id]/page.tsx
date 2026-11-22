@@ -164,6 +164,90 @@ export default async function Session({
           canCancel={canCancel}
         />
       )}
+      {s.settlements.length > 0 && (
+        <section className="panel">
+          <h2>Thanh toán</h2>
+          {!s.settlements.length && <p>Chưa có khoản cần chuyển.</p>}
+          {s.settlements.map((p) => (
+            <article className="session-row" key={p.id}>
+              <div>
+                <strong>
+                  {p.from_name} trả {p.to_name}: {formatMoney(p.amount)}
+                </strong>
+                <p>
+                  {p.status === "confirmed"
+                    ? "Đã nhận"
+                    : p.status === "marked_paid"
+                      ? "Người chuyển đã báo chuyển, chờ xác nhận"
+                      : "Chưa trả"}
+                  {p.kind === "adjustment" ? " · Khoản điều chỉnh" : ""}
+                </p>
+                <p>
+                  Mã tham chiếu: <b>3T-{p.ref_code}</b>
+                </p>
+
+                {collector &&
+                  p.to_member === s.my_member_id &&
+                  p.status === "pending" && (
+                    <ActionForm action={remindPayment} label="Nhắc thanh toán">
+                      <input type="hidden" name="target" value={p.id} />
+                    </ActionForm>
+                  )}
+                {p.status !== "confirmed" &&
+                  p.from_member === s.my_member_id && (
+                    <>
+                      {p.bank_account_no ? (
+                        <p>
+                          Ngân hàng BIN {p.bank_bin} · Tài khoản{" "}
+                          {p.bank_account_no} · {p.bank_account_name}
+                        </p>
+                      ) : (
+                        <p>Người nhận chưa lưu tài khoản ngân hàng.</p>
+                      )}
+                      {p.bank_account_no && p.bank_bin && (
+                        <PaymentQr
+                          bin={p.bank_bin}
+                          account={p.bank_account_no}
+                          amount={p.amount}
+                          reference={p.ref_code}
+                          name={p.bank_account_name || p.to_name}
+                        />
+                      )}
+                      <ActionForm
+                        action={changePayment}
+                        disabled={p.status !== "pending"}
+                        label="Tôi đã chuyển"
+                      >
+                        <input type="hidden" name="id" value={p.id} />
+                        <input type="hidden" name="operation" value="mark" />
+                      </ActionForm>
+                    </>
+                  )}
+                {p.status !== "confirmed" && p.to_member === s.my_member_id && (
+                  <>
+                    <p>
+                      Tìm mã này và đúng số tiền trong sao kê trước khi xác
+                      nhận.
+                    </p>
+                    <ActionForm action={changePayment} label="Đã nhận">
+                      <input type="hidden" name="id" value={p.id} />
+                      <input type="hidden" name="operation" value="confirm" />
+                    </ActionForm>
+                  </>
+                )}
+                <details className="payment-evidence">
+                  <summary>Bằng chứng thanh toán (tùy chọn)</summary>{" "}
+                  <ReceiptPanel
+                    bucket="3t-payment-evidence"
+                    target={p.id}
+                    canUpload={p.from_member === s.my_member_id}
+                  />
+                </details>
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
       <section className="panel">
         <h2>Người tham gia</h2>
         {s.attendees.map((a) => (
@@ -253,82 +337,6 @@ export default async function Session({
                 )}
             </div>
           </div>
-        ))}
-      </section>
-      <section className="panel">
-        <h2>Thanh toán</h2>
-        {!s.settlements.length && <p>Chưa có khoản cần chuyển.</p>}
-        {s.settlements.map((p) => (
-          <article className="session-row" key={p.id}>
-            <div>
-              <strong>
-                {p.from_name} trả {p.to_name}: {formatMoney(p.amount)}
-              </strong>
-              <p>
-                {p.status === "confirmed"
-                  ? "Đã nhận"
-                  : p.status === "marked_paid"
-                    ? "Người chuyển đã báo chuyển, chờ xác nhận"
-                    : "Chưa trả"}
-                {p.kind === "adjustment" ? " · Khoản điều chỉnh" : ""}
-              </p>
-              <p>
-                Mã tham chiếu: <b>3T-{p.ref_code}</b>
-              </p>
-              <ReceiptPanel
-                bucket="3t-payment-evidence"
-                target={p.id}
-                canUpload={p.from_member === s.my_member_id}
-              />
-              {collector &&
-                p.to_member === s.my_member_id &&
-                p.status === "pending" && (
-                  <ActionForm action={remindPayment} label="Nhắc thanh toán">
-                    <input type="hidden" name="target" value={p.id} />
-                  </ActionForm>
-                )}
-              {p.status !== "confirmed" && p.from_member === s.my_member_id && (
-                <>
-                  {p.bank_account_no ? (
-                    <p>
-                      Ngân hàng BIN {p.bank_bin} · Tài khoản {p.bank_account_no}{" "}
-                      · {p.bank_account_name}
-                    </p>
-                  ) : (
-                    <p>Người nhận chưa lưu tài khoản ngân hàng.</p>
-                  )}
-                  {p.bank_account_no && p.bank_bin && (
-                    <PaymentQr
-                      bin={p.bank_bin}
-                      account={p.bank_account_no}
-                      amount={p.amount}
-                      reference={p.ref_code}
-                      name={p.bank_account_name || p.to_name}
-                    />
-                  )}
-                  <ActionForm
-                    action={changePayment}
-                    disabled={p.status !== "pending"}
-                    label="Tôi đã chuyển"
-                  >
-                    <input type="hidden" name="id" value={p.id} />
-                    <input type="hidden" name="operation" value="mark" />
-                  </ActionForm>
-                </>
-              )}
-              {p.status !== "confirmed" && p.to_member === s.my_member_id && (
-                <>
-                  <p>
-                    Tìm mã này và đúng số tiền trong sao kê trước khi xác nhận.
-                  </p>
-                  <ActionForm action={changePayment} label="Đã nhận">
-                    <input type="hidden" name="id" value={p.id} />
-                    <input type="hidden" name="operation" value="confirm" />
-                  </ActionForm>
-                </>
-              )}
-            </div>
-          </article>
         ))}
       </section>
       {replaced.success && replaced.data.length > 0 && (
