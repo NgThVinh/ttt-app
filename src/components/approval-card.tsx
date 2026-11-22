@@ -1,6 +1,7 @@
 "use client";
 import { useActionState } from "react";
 import Link from "next/link";
+import ReceiptPanel from "./receipt-panel";
 import ActionForm from "./action-form";
 import { previewApproval, decideApproval } from "@/app/approvals/actions";
 import type { SessionDetail } from "@/lib/session-data";
@@ -49,6 +50,14 @@ export default function ApprovalCard({
     <section className="panel">
       <h2>{labels[r.type] || "Yêu cầu"}</h2>
       <p>{summary}</p>
+      {r.type === "expense_proposal" &&
+        typeof r.payload.expense_id === "string" && (
+          <ReceiptPanel
+            bucket="3t-expense-receipts"
+            target={r.payload.expense_id}
+            canUpload={canCancel}
+          />
+        )}
       <p>{typeof r.payload.reason === "string" ? r.payload.reason : ""}</p>
       {typeof r.payload.title === "string" && (
         <p>

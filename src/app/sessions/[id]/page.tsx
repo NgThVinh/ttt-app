@@ -1,5 +1,6 @@
 ﻿import FinishSessionForm from "@/components/finish-session-form";
 import PaymentQr from "@/components/payment-qr";
+import ReceiptPanel from "@/components/receipt-panel";
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { z } from "zod";
@@ -49,6 +50,12 @@ export default async function Session({
     .select("created_by,weekly_series_id")
     .eq("id", id)
     .maybeSingle();
+  const { data: authoredExpenses } = await db
+    .from("expenses")
+    .select("id")
+    .eq("session_id", id)
+    .eq("created_by", user.id);
+  const authoredExpenseIds = new Set(authoredExpenses?.map((e) => e.id));
   return (
     <main>
       <Link href="/sessions">Các buổi chơi</Link>
@@ -146,6 +153,11 @@ export default async function Session({
                   : {formatMoney(a.amount)}
                 </small>
               ))}
+              <ReceiptPanel
+                bucket="3t-expense-receipts"
+                target={e.id}
+                canUpload={collector || authoredExpenseIds.has(e.id)}
+              />
             </div>
           </div>
         ))}
@@ -170,6 +182,11 @@ export default async function Session({
               <p>
                 Mã tham chiếu: <b>3T-{p.ref_code}</b>
               </p>
+              <ReceiptPanel
+                bucket="3t-payment-evidence"
+                target={p.id}
+                canUpload={p.from_member === s.my_member_id}
+              />
               {p.status !== "confirmed" && p.from_member === s.my_member_id && (
                 <>
                   {p.bank_account_no ? (

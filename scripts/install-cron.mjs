@@ -65,14 +65,14 @@ try {
       jobs: installed
         ? (
             await db.query(
-              "select jobname,schedule,active from cron.job where jobname='3t-minute-maintenance'",
+              "select jobname,schedule,active from cron.job where jobname in ('3t-minute-maintenance','3t-storage-cleanup') order by jobname",
             )
           ).rows
         : [],
       lastRuns: installed
         ? (
             await db.query(
-              "select d.status,d.start_time,d.end_time from cron.job_run_details d join cron.job j on j.jobid=d.jobid where j.jobname='3t-minute-maintenance' order by d.start_time desc limit 3",
+              "select j.jobname,d.status,d.start_time,d.end_time from cron.job_run_details d join cron.job j on j.jobid=d.jobid where j.jobname in ('3t-minute-maintenance','3t-storage-cleanup') order by d.start_time desc limit 6",
             )
           ).rows
         : [],

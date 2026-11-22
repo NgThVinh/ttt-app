@@ -60,6 +60,9 @@ async function counts() {
     "poll_votes",
     "notifications",
     "weekly_series",
+    "payment_evidence",
+    "expense_receipts",
+    "storage_cleanup_jobs",
   ])
     result[table] = (
       await db.query(`select count(*)::text n from public.${table}`)
@@ -166,6 +169,73 @@ try {
   const transfer = s.settlements.find((p) => p.status === "pending");
   assert(transfer.amount === "40000", "hosted collector settlement correct");
   await actor(b);
+  stage = "receipt permissions";
+  const evidence = (
+    await db.query("select public.add_payment_evidence($1,'screenshot') id", [
+      transfer.id,
+    ])
+  ).rows[0].id;
+  const path = (
+    await db.query(
+      "select storage_path from public.payment_evidence where id=$1",
+      [evidence],
+    )
+  ).rows[0].storage_path;
+  assert(
+    await denied(
+      "insert into storage.objects(bucket_id,name,metadata) values('3t-payment-evidence','unreserved-smoke.jpg','{}')",
+    ),
+    "hosted Storage rejects unreserved upload",
+  );
+  await db.query(
+    "insert into storage.objects(bucket_id,name,metadata) values('3t-payment-evidence',$1,$2::jsonb)",
+    [path, JSON.stringify({ size: 100, mimetype: "image/jpeg" })],
+  );
+  await db.query("select public.finalize_receipt('3t-payment-evidence',$1)", [
+    evidence,
+  ]);
+  assert(
+    (
+      await db.query("select status from public.settlements where id=$1", [
+        transfer.id,
+      ])
+    ).rows[0].status === "pending",
+    "evidence never confirms a payment",
+  );
+  await actor(a);
+  assert(
+    (
+      await db.query(
+        "select id from storage.objects where bucket_id='3t-payment-evidence' and name=$1",
+        [path],
+      )
+    ).rowCount === 1,
+    "hosted receiver can read proof",
+  );
+  assert(
+    await denied(
+      "select public.add_payment_evidence($1,'note',null,'Forbidden')",
+      [transfer.id],
+    ),
+    "hosted receiver cannot impersonate sender",
+  );
+  assert(
+    await denied("select public.cleanup_storage_files()"),
+    "hosted user cannot execute service cleanup",
+  );
+  await db.query("reset role");
+  await db.query("set local role anon");
+  assert(
+    (
+      await db.query(
+        "select id from storage.objects where bucket_id='3t-payment-evidence' and name=$1",
+        [path],
+      )
+    ).rowCount === 0,
+    "hosted anonymous proof read blocked",
+  );
+  await actor(b);
+  stage = "accounting";
   await db.query("select public.payment_action($1,'mark')", [transfer.id]);
   await actor(a);
   await db.query("select public.payment_action($1,'confirm')", [transfer.id]);
@@ -276,6 +346,62 @@ try {
       )
     ).rows[0].n === notificationCount,
     "hosted reminder retry deduplicated",
+  );
+  stage = "receipt expiry";
+  assert(
+    await denied(
+      "update public.settlements set confirmed_at=now()-interval '31 days' where id=$1",
+      [transfer.id],
+    ),
+    "confirmed payment timestamp is immutable",
+  );
+  const expiredPayment = (
+    await db.query(
+      "insert into public.settlements(session_id,from_member,to_member,amount,ref_code,status,confirmed_at) values($1,$2,$3,1000,public.next_payment_ref(),'confirmed',now()-interval '31 days') returning id",
+      [sid, bm, am],
+    )
+  ).rows[0].id;
+  const expired = (
+    await db.query(
+      "insert into public.payment_evidence(settlement_id,group_id,uploaded_by,kind,storage_path,status) values($1,$2::uuid,$3,'screenshot',$2::uuid::text||'/'||gen_random_uuid()||'.jpg','ready') returning id,storage_path",
+      [expiredPayment, g, b],
+    )
+  ).rows[0];
+  await db.query(
+    "insert into storage.objects(bucket_id,name,metadata) values('3t-payment-evidence',$1,$2::jsonb)",
+    [
+      expired.storage_path,
+      JSON.stringify({ size: 100, mimetype: "image/jpeg" }),
+    ],
+  );
+  await actor(b);
+  assert(
+    (
+      await db.query(
+        "select id from storage.objects where bucket_id='3t-payment-evidence' and name=$1",
+        [expired.storage_path],
+      )
+    ).rowCount === 0,
+    "hosted expired proof inaccessible before cleanup",
+  );
+  await db.query("reset role");
+  await db.query("select public.expire_receipt_files()");
+  assert(
+    (
+      await db.query("select status from public.payment_evidence where id=$1", [
+        expired.id,
+      ])
+    ).rows[0].status === "expired",
+    "hosted expired proof retains metadata",
+  );
+  assert(
+    (
+      await db.query(
+        "select id from public.storage_cleanup_jobs where bucket='3t-payment-evidence' and path=$1",
+        [expired.storage_path],
+      )
+    ).rowCount === 1,
+    "hosted expiry queues physical deletion",
   );
   stage = "rollback";
   await db.query("rollback");
