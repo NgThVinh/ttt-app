@@ -1,0 +1,9 @@
+.env*
+.secrets/
+.tools/
+.git/
+.next/
+node_modules/
+coverage/
+supabase/
+scripts/
