@@ -86,59 +86,16 @@ try {
     "APPLE_ICON_LINK",
   );
   await page.goto(origin);
-  await page.getByRole("heading", { name: /Chào bạn/ }).waitFor();
-  check(
-    (await page
-      .getByRole("navigation", { name: "Điều hướng điện thoại" })
-      .getByRole("link")
-      .count()) === 5,
-    "FIVE_MOBILE_NAV_ITEMS",
-  );
-  await page.getByRole("button", { name: /Chia thử một khoản/ }).click();
-  const dialog = page.getByRole("dialog", { name: "Chia thử một khoản" });
-  await dialog.waitFor();
-  await page.getByLabel("Tổng tiền (đ)").fill("85000");
-  await page.getByLabel("Số người", { exact: true }).fill("2");
-  check(
-    (await dialog.innerText()).includes("43.000đ") &&
-      (await dialog.innerText()).includes("42.000đ"),
-    "PREVIEW_MONEY_ROUNDING",
-  );
-  await page.keyboard.press("Escape");
-  await dialog.waitFor({ state: "hidden" });
-  check(
-    await page
-      .getByRole("button", { name: /Chia thử một khoản/ })
-      .evaluate((el) => el === document.activeElement),
-    "DIALOG_RESTORES_FOCUS",
-  );
-  await page.getByRole("button", { name: "Bật giao diện tối" }).click();
-  await page.waitForFunction(
-    () => document.documentElement.dataset.theme === "dark",
-  );
-  await page.reload();
-  await page.waitForFunction(
-    () => document.documentElement.dataset.theme === "dark",
-  );
-  await page.screenshot({
-    path: ".tools/pwa/home-dark-mobile.png",
-    fullPage: true,
-  });
-  await page.getByRole("button", { name: "Bật giao diện sáng" }).click();
+  await page.waitForURL(/\/login$/);
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    await page.screenshot({
-      path: `.tools/pwa/home-${width}.png`,
-      fullPage: true,
-    });
     check(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
-      "HOME_OVERFLOW_" + width,
+      "LOGIN_OVERFLOW_" + width,
     );
   }
-  await page.setViewportSize({ width: 390, height: 844 });
   const cachePaths = await page.evaluate(async () => {
     const paths = [];
     for (const name of await caches.keys())
@@ -183,9 +140,7 @@ try {
     offlineFallback: true,
     privatePageNotCached: true,
     onlineRecovery: true,
-    responsiveHome: [320, 390, 768, 1440],
-    nativeDialogKeyboard: true,
-    darkModePersists: true,
+    responsiveLogin: [320, 390, 768, 1440],
     devicePushDeliveryTested: false,
   };
   writeFileSync(".tools/pwa/report.json", JSON.stringify(report, null, 2));

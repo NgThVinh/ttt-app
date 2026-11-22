@@ -14,7 +14,6 @@ import {
   ChartNoAxesColumn,
   Moon,
   Sun,
-  Plus,
 } from "lucide-react";
 const mainLinks = [
   { href: "/", label: "Trang chủ", icon: Home },
@@ -66,7 +65,8 @@ export default function AppFrame({ children }: { children: React.ReactNode }) {
     }
     window.dispatchEvent(new Event("3t-theme"));
   }
-  if (path === "/login" || path.startsWith("/join/")) return <>{children}</>;
+  if (path === "/login" || path === "/welcome" || path.startsWith("/join/"))
+    return <>{children}</>;
   const active = (href: string) =>
     href === "/" ? path === "/" : path === href || path.startsWith(href + "/");
   const title =
@@ -96,28 +96,21 @@ export default function AppFrame({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
-        <div className="nav-divider" />
-        <nav aria-label="Tiện ích nhóm">
-          {otherLinks.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              aria-current={active(href) ? "page" : undefined}
-            >
-              <Icon size={20} />
-              {label}
-            </Link>
-          ))}
-        </nav>
-        <div className="app-sidebar-note">
-          <span>HẸN NHAU RA SÂN</span>
-          <strong>
-            Chơi hết mình.
-            <br />
-            Chia tiền nhẹ tênh.
-          </strong>
-          <p>Lịch chơi, tiền sân và những khoản cần nhớ, ở cùng một chỗ.</p>
-        </div>
+        <details className="more-navigation">
+          <summary>Thêm</summary>
+          <nav aria-label="Tiện ích nhóm">
+            {otherLinks.map(({ href, label, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                aria-current={active(href) ? "page" : undefined}
+              >
+                <Icon size={20} />
+                {label}
+              </Link>
+            ))}
+          </nav>
+        </details>
       </aside>
       <div className="app-content">
         <header className="app-header">
@@ -128,9 +121,6 @@ export default function AppFrame({ children }: { children: React.ReactNode }) {
             Không gian của bạn <span>/</span> <strong>{title}</strong>
           </span>
           <div className="app-header-actions">
-            <Link href="/ai" aria-label="Trợ lý 3T">
-              <Sparkles size={20} />
-            </Link>
             <button
               type="button"
               aria-label={
@@ -142,10 +132,6 @@ export default function AppFrame({ children }: { children: React.ReactNode }) {
             </button>
             <Link href="/notifications" aria-label="Thông báo">
               <Bell size={20} />
-            </Link>
-            <Link href="/sessions/new" className="header-create">
-              <Plus size={18} />
-              <span>Tạo buổi</span>
             </Link>
           </div>
         </header>

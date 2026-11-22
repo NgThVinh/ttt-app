@@ -247,6 +247,19 @@ try {
     }),
   });
   async function previewRemoval() {
+    const details = receiver.page
+      .locator("details")
+      .filter({
+        has: receiver.page
+          .locator("summary")
+          .getByText("Điều chỉnh người và phần chia", { exact: true }),
+      });
+    if (!(await details.getAttribute("open"))) {
+      if (await details.evaluate((el) => !el.open))
+        await receiver.page
+          .getByText("Điều chỉnh người và phần chia", { exact: true })
+          .click();
+    }
     await receiver.page.screenshot({
       path: ".tools/payment-ui/before-adjustment.png",
       fullPage: true,

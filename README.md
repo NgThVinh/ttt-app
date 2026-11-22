@@ -2,6 +2,8 @@
 
 Vietnamese sports group expense tracker. **Implementation in progress; not ready for real financial records.**
 
+New accounts see one waiting-for-invitation page until they join a group through a valid link. Feature URLs/APIs remain unavailable without active membership; removal from the last group restores this page. The member home focuses on balances, the next session and creating a session, with secondary tools/forms disclosed when needed. `npm run test:invite-gate` verifies this flow locally.
+
 ## Local development
 
 Use Node.js 24 LTS. Run `npm ci`, `npm run dev`, then visit http://localhost:3000. Copy `.env.example` to `.env` only when an environment file does not already exist. Never commit credentials.

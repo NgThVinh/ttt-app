@@ -1,5 +1,8 @@
 # Decisions
 
+- New owner direction: invite-first onboarding and minimal UI. Authenticated users without any active group membership see only `/welcome`, with invitation guidance and logout. Protected page URLs redirect there and feature POST/API calls return 403; failed membership checks fail closed with 503. Login, OAuth callback, invitation acceptance and secret-protected cron routes remain available. The first valid invitation unlocks features, and removal from the last group restores the waiting page. This gate supplements the existing per-group RPC/RLS authority checks. There is no non-member super-admin UI exception.
+- Home prioritizes two personal balances, the next session and one create-session CTA. Secondary utilities live under “Thêm” on desktop and in the profile on mobile; recent history and session editing/proposal forms expand on demand. The anonymous demo dashboard and quick calculator are removed from the entry flow. Newcomers see no sidebar, bottom tabs or feature links.
+
 - Application identity defaults to `NEXT_PUBLIC_APP_NAME=3T`. UI language is Vietnamese; calendar display uses Asia/Ho_Chi_Minh.
 - Money uses bigint internally. API monetary fields must be decimal strings. Live money queries must use text projections, not JSON numbers.
 - Hamilton allocation rounds absolute amounts in 1,000 VND units and reapplies the sign. Member IDs break ties deterministically. The payer receives the sub-unit remainder when included.

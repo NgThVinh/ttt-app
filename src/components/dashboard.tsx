@@ -1,1 +1,1 @@
-export { default } from "./dashboard-content";
+export { default } from "./home-overview";

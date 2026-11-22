@@ -2,12 +2,13 @@ import { supabase } from "@/lib/supabase";
 import Dashboard from "@/components/dashboard";
 import { z } from "zod";
 import { moneySchema } from "@/lib/schemas";
+import { redirect } from "next/navigation";
 export default async function Home() {
   const db = await supabase();
   const {
     data: { user },
   } = await db.auth.getUser();
-  if (!user) return <Dashboard demo />;
+  if (!user) redirect("/login");
   const [groups, sessions, wallet] = await Promise.all([
     db.from("groups").select("id,name,sport"),
     db

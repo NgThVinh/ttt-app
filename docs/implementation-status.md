@@ -1,5 +1,8 @@
 # Tiến độ theo tám mốc
 
+- Theo yêu cầu UI tối giản/invite-first: tài khoản chưa thuộc nhóm hoạt động chỉ thấy `/welcome` với hướng dẫn mở link mời và đăng xuất. Proxy chặn URL tính năng trực tiếp và POST/API; lỗi kiểm tra membership không mở quyền. Login/callback/link mời vẫn hoạt động; link hợp lệ mở app, bị gỡ khỏi nhóm cuối cùng quay lại trang chờ. Không có ngoại lệ UI cho super admin chưa thuộc nhóm. RLS/RPC quyền theo nhóm vẫn giữ nguyên.
+- Trang chủ rút còn công nợ, buổi tiếp theo và một CTA tạo buổi; bỏ dashboard demo/calculator khỏi luồng vào app, gom tiện ích phụ và thu gọn lịch sử/form điều chỉnh/thêm chi phí/đề nghị. Browser `test:invite-gate` qua 11 URL, API, link sai/đúng, bị gỡ, logout, mobile/desktop và dark mode; auth UI/payment/poll/PWA regression qua. 160 test thường/typecheck/lint/build qua. Không gọi thêm LLM, không cần migration.
+
 - Mốc 5: `npm run test:poll-ui` dùng hai phiên Chromium/Supabase Auth local, chặn chốt khi chưa đủ ngưỡng, nhận frame postgres_changes thật và cập nhật kết quả sau 321ms. Chốt rồi gọi lại trả đúng cùng session; buổi mới planned/chưa có collector, phiếu chỉ điền sẵn ý định với committed_at rỗng. Chỉ sau thao tác tự chốt ở UI mới ghi một cam kết. Không gọi LLM/ghi hosted. Đây là kiểm tra realtime cục bộ, chưa thay thế production/push trên thiết bị thật.
 
 - Nghiệm thu mốc 1/3/4/7 bằng `npm run test:payment-ui` trên Supabase local và Chromium: tạo buổi qua financial RPC bằng JWT, upload/nén ảnh trong browser, RLS file/metadata cho người chuyển/người nhận và chặn thành viên thường/ẩn danh. Ảnh không tự báo chuyển/xác nhận. Mô phỏng server commit rồi mất phản hồi, gửi lại cùng form chỉ có một financial receipt. Xác nhận nhận tiền chờ server và khóa nút khi pending.

@@ -19,12 +19,51 @@ export async function proxy(request: NextRequest) {
       },
     },
   );
-  await db.auth.getClaims();
+  const { data: identity } = await db.auth.getClaims();
+  const path = request.nextUrl.pathname;
+  const open =
+    path === "/login" ||
+    path === "/welcome" ||
+    path.startsWith("/join/") ||
+    path.startsWith("/auth/") ||
+    path.startsWith("/api/cron/");
+  function redirect(path: string) {
+    const result = NextResponse.redirect(new URL(path, request.url));
+    for (const cookie of response.cookies.getAll()) result.cookies.set(cookie);
+    result.headers.set("Cache-Control", "private, no-store");
+    return result;
+  }
+  if (!open) {
+    if (!identity?.claims?.sub) {
+      if (path.startsWith("/api/"))
+        return NextResponse.json({ error: "Cần đăng nhập." }, { status: 401 });
+      return redirect("/login");
+    }
+    const membership = await db
+      .from("group_members")
+      .select("id")
+      .eq("user_id", identity.claims.sub)
+      .eq("status", "active")
+      .limit(1);
+    if (membership.error)
+      return new NextResponse("Chưa kiểm tra được nhóm. Vui lòng thử lại.", {
+        status: 503,
+        headers: { "Cache-Control": "private, no-store" },
+      });
+    if (!membership.data?.length) {
+      if (request.method !== "GET" || path.startsWith("/api/"))
+        return NextResponse.json(
+          { error: "Bạn cần tham gia nhóm qua link mời trước." },
+          { status: 403, headers: { "Cache-Control": "private, no-store" } },
+        );
+      return redirect("/welcome");
+    }
+  }
   response.headers.set("Cache-Control", "private, no-store");
   return response;
 }
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icon.svg|icon-192.png|icon-512.png|icon-maskable.png|apple-touch-icon.png|offline.html|sw.js|manifest.webmanifest).*)",
+    "/((?!_next/|favicon.ico|icon.svg|icon-192.png|icon-512.png|icon-maskable.png|apple-touch-icon.png|offline.html|sw.js|manifest.webmanifest).*)",
   ],
 };

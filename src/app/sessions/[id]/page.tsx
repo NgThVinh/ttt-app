@@ -364,21 +364,30 @@ export default async function Session({
               !a.removed_at,
           )) && (
           <>
-            <ExpenseForm
-              session={s}
-              tools={tools.success ? tools.data : undefined}
-            />
+            <details className="panel">
+              <summary>Thêm khoản chi hoặc giảm giá</summary>
+              <ExpenseForm
+                session={s}
+                tools={tools.success ? tools.data : undefined}
+              />
+            </details>
             {collector && (
-              <FinancialChangeForm session={s} members={members || []} />
+              <details className="panel">
+                <summary>Điều chỉnh người và phần chia</summary>
+                <FinancialChangeForm session={s} members={members || []} />
+              </details>
             )}
           </>
         )}
       {s.status !== "cancelled" && (
-        <SessionRequestForm
-          session={s}
-          members={members || []}
-          canNominate={collector || metadata?.created_by === user.id}
-        />
+        <details className="panel">
+          <summary>Gửi đề nghị thay đổi</summary>
+          <SessionRequestForm
+            session={s}
+            members={members || []}
+            canNominate={collector || metadata?.created_by === user.id}
+          />
+        </details>
       )}
       <p>
         <Link href="/approvals">Chờ tôi duyệt và các yêu cầu đã gửi</Link>

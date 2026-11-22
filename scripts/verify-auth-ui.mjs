@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { execFileSync, spawn } from "node:child_process";
 import { mkdirSync, openSync, closeSync } from "node:fs";
+import pg from "pg";
 const origin = "http://127.0.0.1:3219";
 let browser, server, log;
 function check(ok, code) {
@@ -67,6 +68,25 @@ try {
     ).error,
     "LOCAL_AUTH_FAILED",
   );
+  check(new URL(status.DB_URL).hostname === "127.0.0.1", "LOCAL_DB_REQUIRED");
+  const fixtureDb = new pg.Client({ connectionString: status.DB_URL });
+  await fixtureDb.connect();
+  try {
+    const {
+      data: { user },
+    } = await client.auth.getUser();
+    const g = "55555555-1111-4555-8555-555555555555";
+    await fixtureDb.query(
+      "insert into public.groups(id,name,sport,created_by) values($1,'Profile UI fixture','Test',$2) on conflict(id) do nothing",
+      [g, user.id],
+    );
+    await fixtureDb.query(
+      "insert into public.group_members(group_id,user_id,display_name,role) values($1,$2,'UI fixture','admin') on conflict(group_id,user_id) do nothing",
+      [g, user.id],
+    );
+  } finally {
+    await fixtureDb.end();
+  }
   mkdirSync(".tools/auth-ui", { recursive: true });
   log = openSync(".tools/auth-ui/server.log", "w");
   const env = {
