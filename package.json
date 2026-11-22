@@ -22,7 +22,9 @@
     "db:verify:group-retry": "node --env-file=.env scripts/verify-group-retry.mjs",
     "ai:setup:openrouter": "node --env-file=.env scripts/setup-openrouter-test-group.mjs",
     "ai:check": "node --env-file=.env scripts/check-ai-test-provider.mjs",
-    "test:ai:provider": "node scripts/run-ai-provider-eval.mjs"
+    "test:ai:provider": "node scripts/run-ai-provider-eval.mjs",
+    "ai:check:decisions": "node --env-file=.env scripts/check-decision-model.mjs",
+    "ai:eval:decisions": "node --env-file=.env scripts/check-decision-model.mjs --batch"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.107",
