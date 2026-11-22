@@ -13,7 +13,8 @@ export function groupModel(
   if (settings.provider === "openai-compatible" && settings.base_url) {
     const url = new URL(settings.base_url),
       allowed = (
-        process.env.AI_ALLOWED_COMPATIBLE_HOSTS || "api.openai.com"
+        process.env.AI_ALLOWED_COMPATIBLE_HOSTS ||
+        "api.openai.com,openrouter.ai"
       ).split(",");
     if (
       url.protocol !== "https:" ||

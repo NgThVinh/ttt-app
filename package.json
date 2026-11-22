@@ -19,7 +19,10 @@
     "db:storage:verify": "node --env-file=.env scripts/verify-storage.mjs",
     "db:admins": "node --env-file=.env scripts/sync-super-admins.mjs",
     "db:admins:sync": "node --env-file=.env scripts/sync-super-admins.mjs --apply",
-    "db:verify:group-retry": "node --env-file=.env scripts/verify-group-retry.mjs"
+    "db:verify:group-retry": "node --env-file=.env scripts/verify-group-retry.mjs",
+    "ai:setup:openrouter": "node --env-file=.env scripts/setup-openrouter-test-group.mjs",
+    "ai:check": "node --env-file=.env scripts/check-ai-test-provider.mjs",
+    "test:ai:provider": "node scripts/run-ai-provider-eval.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.107",

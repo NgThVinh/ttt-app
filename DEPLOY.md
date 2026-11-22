@@ -1,5 +1,7 @@
 # Deployment status and prerequisites
 
+OpenRouter test setup: `npm run ai:setup:openrouter` imports `OPENROUTER_API_KEY` from the ignored local `.env` into the existing dedicated AI test group's encrypted credential. Runtime uses the group's credential only. Base URL is `https://openrouter.ai/api/v1`; allow `openrouter.ai` in `AI_ALLOWED_COMPATIBLE_HOSTS`. Default test model is the tool-capable free `nvidia/nemotron-3.5-lightning:free`, verified against OpenRouter's model API at setup; override using `OPENROUTER_TEST_MODEL` when deliberately selecting another model. `npm run ai:check` checks a real tool call. `npm run test:ai:provider` runs 40 Vietnamese cases against the actual production tool schemas, removing execution so no business writes occur. Results are saved under ignored `.tools/ai-provider-eval.json`. Ordinary unit tests skip this network suite; a skipped live suite does not constitute AI acceptance.
+
 Production domain selected by the owner: `https://thichtinhtien.online`. Local development keeps `http://localhost:3000`; set `NEXT_PUBLIC_APP_URL=https://thichtinhtien.online` in the Vercel production environment when deploying.
 
 Domain-specific Auth setup:

@@ -65,7 +65,10 @@ export async function configureAI(
         u.username ||
         u.password ||
         u.port ||
-        !(process.env.AI_ALLOWED_COMPATIBLE_HOSTS || "api.openai.com")
+        !(
+          process.env.AI_ALLOWED_COMPATIBLE_HOSTS ||
+          "api.openai.com,openrouter.ai"
+        )
           .split(",")
           .includes(u.hostname)
       )

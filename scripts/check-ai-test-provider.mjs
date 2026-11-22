@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 import { databaseUrlForProject } from "./migration-utils.mjs";
 import { decryptGroupKey } from "../src/lib/ai/crypto.ts";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { generateText } from "ai";
+import { generateText, tool } from "ai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { z } from "zod";
 delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
 const db = new pg.Client({
   connectionString: databaseUrlForProject(
@@ -26,13 +29,13 @@ try {
   await db.connect();
   const settings = (
     await db.query(
-      "select s.model,c.envelope from public.group_ai_settings s join app_private.ai_credentials c on c.group_id=s.group_id where s.group_id=$1 and s.status='approved' and s.enabled",
+      "select s.provider,s.model,s.base_url,c.envelope from public.group_ai_settings s join app_private.ai_credentials c on c.group_id=s.group_id where s.group_id=$1 and s.status='approved' and s.enabled",
       [groupId],
     )
   ).rows[0];
   if (!settings)
     throw Object.assign(new Error(), { code: "TEST_GROUP_NOT_ENABLED" });
-  if (process.argv[2]) {
+  if (process.argv[2] && settings.provider === "google") {
     const r = await fetch(
       "https://generativelanguage.googleapis.com/v1beta/models/" +
         encodeURIComponent(process.argv[2]),
@@ -58,21 +61,65 @@ try {
     settings.envelope,
     process.env.AI_KEY_ENCRYPTION_SECRET,
   );
+  let model;
+  if (settings.provider === "google")
+    model = createGoogleGenerativeAI({ apiKey })(settings.model);
+  else if (settings.provider === "anthropic")
+    model = createAnthropic({ apiKey })(settings.model);
+  else {
+    const url = new URL(settings.base_url);
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      url.port ||
+      !(
+        process.env.AI_ALLOWED_COMPATIBLE_HOSTS ||
+        "api.openai.com,openrouter.ai"
+      )
+        .split(",")
+        .includes(url.hostname)
+    )
+      throw Object.assign(new Error(), { code: "HOST_NOT_ALLOWED" });
+    model = createOpenAICompatible({
+      name: "group-provider",
+      apiKey,
+      baseURL: url.href,
+    })(settings.model);
+  }
   const result = await generateText({
-    model: createGoogleGenerativeAI({ apiKey })(settings.model),
-    prompt: "Trả lời đúng một từ: sẵn-sàng",
-    maxOutputTokens: 256,
+    model,
+    prompt: "Call connection_probe with message exactly san-sang.",
+    tools: {
+      connection_probe: tool({
+        description: "Connection test, no business writes.",
+        inputSchema: z.object({ message: z.literal("san-sang") }),
+      }),
+    },
+    toolChoice: { type: "tool", toolName: "connection_probe" },
+    maxOutputTokens: 1000,
     maxRetries: 0,
     abortSignal: AbortSignal.timeout(90000),
   });
   console.log(
     JSON.stringify({
-      connected: !!result.text,
+      connected: result.toolCalls.some(
+        (t) =>
+          t.toolName === "connection_probe" && t.input.message === "san-sang",
+      ),
+      provider: settings.provider,
       model: settings.model,
       groupCredential: true,
       tokens: result.totalUsage.totalTokens,
     }),
   );
+  if (
+    !result.toolCalls.some(
+      (t) =>
+        t.toolName === "connection_probe" && t.input.message === "san-sang",
+    )
+  )
+    process.exitCode = 1;
 } catch (error) {
   console.error(
     JSON.stringify({
