@@ -9,6 +9,7 @@ import {
   manageMember,
   requestClaim,
   decideClaim,
+  saveGuestBank,
 } from "../actions";
 export default async function Group({
   params,
@@ -35,6 +36,10 @@ export default async function Group({
   const admin = members?.some(
     (m) => m.user_id === user.id && m.status === "active" && m.role === "admin",
   );
+  const { data: guestBanks } = await db
+    .from("guest_bank_accounts")
+    .select("member_id,bank_bin,bank_account_no,bank_account_name")
+    .eq("group_id", id);
   const { data: invites } = admin
     ? await db
         .from("invites")
@@ -71,12 +76,70 @@ export default async function Group({
                 {!m.user_id ? " · Chưa có tài khoản" : ""}
               </small>
               {!m.user_id && m.status === "active" && (
-                <ActionForm
-                  action={requestClaim}
-                  label="Đây là tôi — gửi yêu cầu xác minh"
-                >
-                  <input type="hidden" name="target" value={m.id} />
-                </ActionForm>
+                <>
+                  <ActionForm
+                    action={requestClaim}
+                    label="Đây là tôi — gửi yêu cầu xác minh"
+                  >
+                    <input type="hidden" name="target" value={m.id} />
+                  </ActionForm>
+                  {admin && (
+                    <details>
+                      <summary>Ngân hàng của {m.display_name}</summary>
+                      <p>
+                        Chỉ nhập hộ khi người này chưa có tài khoản. Khi liên
+                        kết tài khoản, họ cần tự kiểm tra và lưu ngân hàng trong
+                        hồ sơ.
+                      </p>
+                      <ActionForm
+                        action={saveGuestBank}
+                        label="Lưu ngân hàng thành viên khách"
+                      >
+                        <input type="hidden" name="target" value={m.id} />
+                        <label>
+                          Mã BIN ngân hàng
+                          <input
+                            name="bank_bin"
+                            pattern="[0-9]{6}"
+                            required
+                            defaultValue={
+                              guestBanks?.find((x) => x.member_id === m.id)
+                                ?.bank_bin || ""
+                            }
+                          />
+                        </label>
+                        <label>
+                          Số tài khoản
+                          <input
+                            name="bank_account_no"
+                            pattern="[A-Za-z0-9]{4,30}"
+                            required
+                            defaultValue={
+                              guestBanks?.find((x) => x.member_id === m.id)
+                                ?.bank_account_no || ""
+                            }
+                          />
+                        </label>
+                        <label>
+                          Tên chủ tài khoản
+                          <input
+                            name="bank_account_name"
+                            required
+                            maxLength={100}
+                            defaultValue={
+                              guestBanks?.find((x) => x.member_id === m.id)
+                                ?.bank_account_name || ""
+                            }
+                          />
+                        </label>
+                        <label>
+                          Lý do nhập hoặc sửa
+                          <input name="reason" required maxLength={500} />
+                        </label>
+                      </ActionForm>
+                    </details>
+                  )}
+                </>
               )}
               {admin && m.status === "active" && (
                 <ActionForm action={manageMember} label="Cập nhật">

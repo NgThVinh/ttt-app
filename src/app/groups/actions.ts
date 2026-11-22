@@ -151,6 +151,42 @@ export async function saveProfile(
     ? { message: "Chưa lưu được hồ sơ. Kiểm tra migration và thử lại." }
     : { ok: true, message: "Đã lưu hồ sơ." };
 }
+export async function saveGuestBank(
+  _state: FormResult,
+  form: FormData,
+): Promise<FormResult> {
+  const { db } = await identity();
+  const input = z
+    .object({
+      target: z.uuid(),
+      bank_bin: z.string().regex(/^\d{6}$/),
+      bank_account_no: z.string().regex(/^[A-Za-z0-9]{4,30}$/),
+      bank_account_name: z.string().trim().min(1).max(100),
+      reason: z.string().trim().min(1).max(500),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!input.success)
+    return {
+      message: "Điền đủ ngân hàng, số tài khoản, tên chủ tài khoản và lý do.",
+    };
+  const p = input.data;
+  const { error } = await db.rpc("set_guest_bank", {
+    target: p.target,
+    bank_bin_text: p.bank_bin,
+    account_text: p.bank_account_no,
+    name_text: p.bank_account_name,
+    reason: p.reason,
+  });
+  return error
+    ? {
+        message:
+          "Không lưu được. Kiểm tra quyền admin và trạng thái liên kết tài khoản.",
+      }
+    : {
+        ok: true,
+        message: "Đã lưu ngân hàng thành viên khách và thông báo cho nhóm.",
+      };
+}
 
 export async function requestClaim(
   _state: FormResult,

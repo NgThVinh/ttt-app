@@ -23,8 +23,9 @@ Nguồn yêu cầu: [handoff_prompt.md](handoff_prompt.md) và kế hoạch tám
 - Migration 021–022 đã áp dụng; tổng **23 migration, 22 bảng public có RLS** và ba bảng riêng tư. Bảy lệnh được bảo vệ bằng mã yêu cầu: tạo buổi, nhận vai trò, chốt tiền sân, thêm khoản chi/đề xuất, sửa người/xóa khoản chi, báo chuyển/xác nhận và quyết định yêu cầu duyệt. Gửi lại cùng mã/nội dung trả kết quả đã lưu; mã mới với revision cũ vẫn bị chặn. Đề xuất giống nhau có chủ đích dùng các mã riêng.
 - Mỗi lần tính lại lưu snapshot trước/sau bất biến, liên kết đợt trước và revision. Khoản mới/bị thay thế tham chiếu đợt phát hành/hủy tương ứng. Bản xem trước rollback cả batch và liên kết; khoản đã xác nhận được giữ nguyên, kể cả dữ liệu cũ trước migration không có liên kết batch.
 - Kiểm tra hosted đã xác nhận retry không tạo thêm đề xuất/duyệt, payload đổi bị từ chối, revision cũ không dùng cho lệnh mới và liên kết batch đúng. Toàn bộ fixture nghiệp vụ được rollback.
-- **87 test** tự động, typecheck, lint và production build đã qua ở máy làm việc. Chưa nghiệm thu luồng trình duyệt hoặc production.
+- **90 test** tự động, typecheck, lint và production build đã qua ở máy làm việc. Chưa nghiệm thu luồng trình duyệt hoặc production.
 - `npm run test:concurrency` đã qua 9 kịch bản trên PostgreSQL 17 trong container riêng: tranh vai trò thu tiền, lượt mời cuối, chốt thăm dò, duyệt trùng cùng/khác mã, retry tiền sau commit/rollback và xác nhận tiền trước/sau tính lại. Runner đợi khóa thật để bảo đảm hai giao dịch chồng nhau, rồi xóa container của mình; không đụng Supabase hosted. CI đã thêm bước này. Migration 023 sửa retry của người vừa dùng lượt mời cuối, vẫn chặn token bị thu hồi/hết hạn và người mới khi hết lượt.
+- Mốc 2, migration 024: admin nhập ngân hàng thành viên khách kèm lý do, có audit và thông báo. RLS chỉ cho thành viên cùng nhóm xem khi người nhận còn là khách hoạt động. Sau claim, không dùng ngân hàng khách làm fallback; tài khoản đã liên kết tự quản lý hồ sơ. Embedded/hosted checks đã qua; bank fixture hosted được rollback.
 
 ## Thứ tự tiếp theo
 

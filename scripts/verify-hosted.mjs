@@ -65,6 +65,7 @@ async function counts() {
     "expense_receipts",
     "storage_cleanup_jobs",
     "session_recalculations",
+    "guest_bank_accounts",
   ])
     result[table] = (
       await db.query(`select count(*)::text n from public.${table}`)
@@ -199,6 +200,60 @@ try {
       inviteHash,
     ]),
     "hosted invitation retry cannot bypass revocation",
+  );
+  await db.query("reset role");
+  const guestMember = (
+    await db.query(
+      "insert into public.group_members(group_id,display_name) values($1,'Rollback guest') returning id",
+      [createdGroup],
+    )
+  ).rows[0].id;
+  await actor(a);
+  await db.query(
+    "select public.set_guest_bank($1,'970415','12345678','TEST GUEST','Rollback bank fixture')",
+    [guestMember],
+  );
+  await actor(b);
+  assert(
+    (
+      await db.query(
+        "select member_id from public.guest_bank_accounts where member_id=$1",
+        [guestMember],
+      )
+    ).rowCount === 1,
+    "hosted group member can read guest bank",
+  );
+  assert(
+    await denied(
+      "select public.set_guest_bank($1,'970415','99999999','FORBIDDEN','Must deny')",
+      [guestMember],
+    ),
+    "hosted ordinary member cannot change guest bank",
+  );
+  await db.query("select public.request_member_claim($1)", [guestMember]);
+  const guestClaim = (
+    await db.query(
+      "select id from public.approval_requests where group_id=$1 and type='member_claim' and status='pending'",
+      [createdGroup],
+    )
+  ).rows[0].id;
+  await actor(a);
+  await db.query("select public.decide_member_claim($1,true)", [guestClaim]);
+  assert(
+    (
+      await db.query(
+        "select member_id from public.guest_bank_accounts where member_id=$1",
+        [guestMember],
+      )
+    ).rowCount === 0,
+    "hosted linked member no longer exposes guest bank fallback",
+  );
+  assert(
+    await denied(
+      "select public.set_guest_bank($1,'970415','99999999','FORBIDDEN','Linked user owns bank')",
+      [guestMember],
+    ),
+    "hosted admin cannot override linked member bank",
   );
   await db.query("reset role");
   await db.query("set local role service_role");
