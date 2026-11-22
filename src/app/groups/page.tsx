@@ -25,6 +25,7 @@ export default async function Groups() {
     <main>
       <Link href="/">Về trang chủ</Link>
       <h1>Nhóm của bạn</h1>
+      <Link href="/ai/settings">Cấu hình và yêu cầu bật AI</Link>
       {error && (
         <p role="alert">
           Chưa tải được dữ liệu. Kiểm tra kết nối và migration.
