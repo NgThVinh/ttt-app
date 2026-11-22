@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import SessionForm from "@/components/session-form";
+import { expenseToolsSchema, type ExpenseTools } from "@/lib/expense-tools";
 export default async function NewSession() {
   const db = await supabase();
   const {
@@ -15,6 +16,14 @@ export default async function NewSession() {
       .select("id,group_id,display_name,user_id")
       .eq("status", "active"),
   ]);
+  const toolsByGroup: Record<string, ExpenseTools> = {};
+  await Promise.all(
+    (groups || []).map(async (g) => {
+      const { data } = await db.rpc("expense_tools", { g: g.id });
+      const parsed = expenseToolsSchema.safeParse(data);
+      if (parsed.success) toolsByGroup[g.id] = parsed.data;
+    }),
+  );
   return (
     <main>
       <Link href="/sessions">Buổi chơi</Link>
@@ -26,7 +35,13 @@ export default async function NewSession() {
           Bạn cần tham gia nhóm trước. <Link href="/groups">Xem nhóm</Link>
         </p>
       ) : (
-        <SessionForm userId={user.id} groups={groups} members={members || []} />
+        <SessionForm
+          userId={user.id}
+          groups={groups}
+          members={members || []}
+          toolsByGroup={toolsByGroup}
+          initialTime={new Date().toISOString()}
+        />
       )}
     </main>
   );

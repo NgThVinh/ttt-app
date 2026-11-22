@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
-import { expenseInputSchema } from "@/lib/session-data";
+import { expenseInputSchema, expenseDraftSchema } from "@/lib/session-data";
 import { moneySchema } from "@/lib/schemas";
 import type { FormResult } from "@/components/action-form";
 import { detailSchema } from "@/lib/session-data";
@@ -88,11 +88,31 @@ export async function createSession(
         .optional(),
       flow: z.enum(["played", "planned"]),
       court: moneySchema,
+      collectorMode: z.enum(["self", "unknown", "nominee"]).default("self"),
+      nominee: z.uuid().or(z.literal("")).default(""),
     })
     .safeParse(Object.fromEntries(form));
   const ids = z.array(z.uuid()).max(100).safeParse(form.getAll("people"));
   if (!input.success || !ids.success)
     return { message: "Kiểm tra thông tin và số tiền của buổi." };
+  let extras, weights;
+  try {
+    extras = z
+      .array(expenseDraftSchema)
+      .max(199)
+      .parse(JSON.parse(String(form.get("extras") || "[]")));
+    weights = z
+      .record(z.uuid(), z.string().regex(/^\d+(\.\d{1,6})?$/))
+      .parse(JSON.parse(String(form.get("weights") || "{}")));
+  } catch {
+    return { message: "Kiểm tra phụ phí và hệ số tham gia." };
+  }
+  if (
+    input.data.flow === "planned" &&
+    input.data.collectorMode === "nominee" &&
+    !input.data.nominee
+  )
+    return { message: "Chọn người được đề cử tính tiền." };
   if (input.data.flow === "played" && form.get("reviewed") !== "yes")
     return { message: "Vui lòng xem trước bảng chia trước khi lưu." };
   const start = new Date(input.data.starts + ":00+07:00");
@@ -106,7 +126,7 @@ export async function createSession(
   const { data, error } = await runFinancialCommand(
     db,
     form.get("request_key"),
-    "create_session",
+    "create_session_bundle",
     {
       g: input.data.groupId,
       title_text: input.data.title,
@@ -116,7 +136,29 @@ export async function createSession(
       already_played: input.data.flow === "played",
       people: input.data.flow === "played" ? ids.data : [],
       court: input.data.court,
-      be_collector: input.data.flow === "played" || form.has("collector"),
+      be_collector:
+        input.data.flow === "played" || input.data.collectorMode === "self",
+      nominee:
+        input.data.flow === "planned" && input.data.collectorMode === "nominee"
+          ? input.data.nominee
+          : "",
+      weights: input.data.flow === "played" ? weights : {},
+      extras:
+        input.data.flow === "played"
+          ? extras.map((e) => ({
+              expense_id: "",
+              category_id: e.category_id,
+              note_text: e.note,
+              title_text: e.title,
+              raw_amount: e.amount,
+              payer: e.payer,
+              beneficiaries: e.beneficiaries,
+              mode: e.mode,
+              split: e.split,
+              values_text: e.values,
+              reason: e.reason,
+            }))
+          : [],
     },
   );
   const created = z.object({ id: z.uuid() }).safeParse(data);

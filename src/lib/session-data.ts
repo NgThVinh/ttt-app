@@ -66,20 +66,22 @@ export const detailSchema = z.object({
   ),
 });
 export type SessionDetail = z.infer<typeof detailSchema>;
-export const expenseInputSchema = z
-  .object({
+export const expenseDraftSchema = z.object({
+  title: z.string().trim().min(1).max(160),
+  amount: moneySchema,
+  mode: z.enum(["total", "per_person"]),
+  split: z.enum(["equal", "weighted", "exact", "percent"]),
+  payer: z.uuid(),
+  beneficiaries: z.array(z.uuid()).min(1).max(100),
+  values: z.array(z.string().regex(/^\d+(\.\d{1,6})?$/)).max(100),
+  reason: z.string().trim().min(1).max(500),
+  expense_id: z.uuid().or(z.literal("")).default(""),
+  category_id: z.uuid().or(z.literal("")).default(""),
+  note: z.string().trim().max(2000).default(""),
+});
+export const expenseInputSchema = expenseDraftSchema
+  .extend({
     sid: z.uuid(),
     revision: z.string().regex(/^\d+$/),
-    title: z.string().trim().min(1).max(160),
-    amount: moneySchema,
-    mode: z.enum(["total", "per_person"]),
-    split: z.enum(["equal", "weighted", "exact", "percent"]),
-    payer: z.uuid(),
-    beneficiaries: z.array(z.uuid()).min(1).max(100),
-    values: z.array(z.string().regex(/^\d+(\.\d{1,6})?$/)).max(100),
-    reason: z.string().trim().min(1).max(500),
-    expense_id: z.uuid().or(z.literal("")).default(""),
-    category_id: z.uuid().or(z.literal("")).default(""),
-    note: z.string().trim().max(2000).default(""),
   })
   .refine((v) => new Set(v.beneficiaries).size === v.beneficiaries.length);

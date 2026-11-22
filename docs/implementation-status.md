@@ -5,8 +5,8 @@ Nguồn yêu cầu: [handoff_prompt.md](handoff_prompt.md) và kế hoạch tám
 | Mốc | Đã triển khai/kiểm chứng | Còn thiếu để khép mốc |
 | --- | --- | --- |
 | 1. Nền tảng/database | Next.js, TypeScript strict, tiền bigint, RPC/RLS, log bất biến, kiểm thử SQL/TypeScript, allowlist super admin trong DB, pin phiên bản, chống trùng tạo nhóm và các lệnh tiền, chuỗi đợt tính lại | Toàn bộ ma trận quyền, các tình huống đồng thời và nghiệm thu gửi lại yêu cầu trên trình duyệt |
-| 2. Đăng nhập/nhóm | Google/email callback, link mời hash/hạn/lượt, quản lý nhóm, nhận lại thành viên có admin duyệt; tạo nhóm bằng JWT người dùng | Ngân hàng cho thành viên chưa có tài khoản; nghiệm thu OAuth/SMTP và luồng trình duyệt |
-| 3. Buổi chơi/tiền | Hai luồng tạo buổi, RSVP/hạn chốt, nhận/đề cử/đổi người tính tiền, xem trước, phê duyệt, điều chỉnh và lịch sử; sửa lịch/hủy/mở lại an toàn | Quyền admin dự phòng, mở khóa 30 ngày, sửa khoản chi/đề xuất, danh mục và mẫu |
+| 2. Đăng nhập/nhóm | Google/email callback, link mời hash/hạn/lượt, quản lý nhóm, nhận lại thành viên có admin duyệt; ngân hàng khách và bàn giao; tạo nhóm bằng JWT người dùng | Nghiệm thu OAuth/SMTP và luồng trình duyệt |
+| 3. Buổi chơi/tiền | Hai luồng tạo buổi, hệ số/phụ phí ban đầu trong một transaction, RSVP/hạn chốt, nhận/đề cử/đổi người tính tiền, xem trước, phê duyệt, điều chỉnh và lịch sử; admin dự phòng, mở khóa, sửa khoản chi, danh mục/mẫu | Nghiệm thu luồng trình duyệt, thời gian tạo buổi và ma trận quyền đầy đủ |
 | 4. Thanh toán | Công nợ, chi tiết phần chia, QR/fallback, báo chuyển/xác nhận thủ công, bằng chứng riêng tư, cleanup đã kiểm tra qua Storage API, interface PaymentVerifier | Nghiệm thu trình duyệt, QR với cấu hình production và truy xuất bằng chứng sau đổi người thu |
 | 5. Hẹn lịch/thông báo | Thăm dò, ngưỡng chốt, lịch tuần, cron, in-app và chia sẻ Messenger | Web Push, nhắc thủ công, kiểm tra Realtime/delivery trên trình duyệt và thiết bị |
 | 6. AI | Chưa triển khai | Cấu hình/duyệt theo nhóm, mã hóa key, provider, streaming, tools, drafts/HITL, quota, policy/eval, adapter Messenger khi đủ cấu hình |
@@ -35,3 +35,5 @@ Nguồn yêu cầu: [handoff_prompt.md](handoff_prompt.md) và kế hoạch tám
 Khép các khoảng thiếu nền tảng ở mốc 1, rồi ngân hàng thành viên chưa có tài khoản ở mốc 2 và các quyền/luồng còn thiếu của mốc 3. Sau đó hoàn tất mốc 4–5, triển khai AI ở mốc 6, redesign/PWA ở mốc 7 và nghiệm thu triển khai ở mốc 8. Chỉ chỉnh UI trong các mốc trước khi cần để thao tác nghiệp vụ mới sử dụng được.
 
 Mỗi đợt thay đổi cần ghi rõ mốc, kiểm tra đã chạy, migration đã áp dụng, điều kiện còn thiếu và commit. Số test qua không thay thế nghiệm thu trình duyệt, thiết bị hoặc production.
+
+- Mốc 3, migration 030: tạo buổi đã chơi cùng hệ số và phụ phí qua một giao dịch, chỉ tính lại công nợ một lần. Hẹn trước có ba lựa chọn người tính tiền, đề cử cần nhận riêng. Bản xem trước dùng cùng thuật toán tiền TypeScript, thay đổi phần chia buộc xem lại. Tổng 31 migration, 25 bảng public có RLS; 112 test và 11 race đã qua, typecheck/lint/build đã qua.

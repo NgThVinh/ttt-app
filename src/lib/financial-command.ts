@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { supabase } from "./supabase";
 export type FinancialCommand =
   | "create_session"
+  | "create_session_bundle"
   | "add_expense"
   | "save_expense"
   | "apply_financial_change"
