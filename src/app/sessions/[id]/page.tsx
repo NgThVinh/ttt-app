@@ -1,6 +1,7 @@
 ﻿import FinishSessionForm from "@/components/finish-session-form";
 import PaymentQr from "@/components/payment-qr";
 import ReceiptPanel from "@/components/receipt-panel";
+import SessionCalendarForm from "@/components/session-calendar-form";
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { z } from "zod";
@@ -42,20 +43,36 @@ export default async function Session({
   const due = s.deadline_passed;
   const { data: members } = await db
     .from("group_members")
-    .select("id,display_name,user_id")
+    .select("id,display_name,user_id,role")
     .eq("group_id", s.group_id)
     .eq("status", "active");
   const { data: metadata } = await db
     .from("sessions")
-    .select("created_by,weekly_series_id")
+    .select("created_by,weekly_series_id,note")
     .eq("id", id)
     .maybeSingle();
-  const { data: authoredExpenses } = await db
+  const { data: allExpenses } = await db
     .from("expenses")
+    .select("id,created_by,amount")
+    .eq("session_id", id);
+  const { data: paymentHistory } = await db
+    .from("settlements")
     .select("id")
     .eq("session_id", id)
-    .eq("created_by", user.id);
-  const authoredExpenseIds = new Set(authoredExpenses?.map((e) => e.id));
+    .limit(1);
+  const authoredExpenseIds = new Set(
+    allExpenses?.filter((e) => e.created_by === user.id).map((e) => e.id),
+  );
+  const canManage =
+    collector ||
+    metadata?.created_by === user.id ||
+    members?.some((m) => m.user_id === user.id && m.role === "admin");
+  const locked = s.calendar_locked;
+  const canCancel =
+    !!allExpenses &&
+    !!paymentHistory &&
+    !allExpenses.some((e) => BigInt(e.amount) !== 0n) &&
+    paymentHistory.length === 0;
   return (
     <main>
       <Link href="/sessions">Các buổi chơi</Link>
@@ -76,12 +93,25 @@ export default async function Session({
           ? "Đã thu đủ"
           : s.status === "planned"
             ? "Sắp tới"
-            : "Đang thu tiền"}{" "}
+            : s.status === "cancelled"
+              ? "Đã hủy"
+              : "Đang thu tiền"}{" "}
         ·{" "}
         {s.collector_member_id
           ? "Đã có người tính tiền"
           : "Chờ người thanh toán"}
       </p>
+      {metadata?.note && (
+        <p style={{ whiteSpace: "pre-wrap" }}>{metadata.note}</p>
+      )}
+      {canManage && !locked && (
+        <SessionCalendarForm
+          key={s.revision}
+          session={s}
+          note={metadata?.note || null}
+          canCancel={canCancel}
+        />
+      )}
       <section className="panel">
         <h2>Người tham gia</h2>
         {s.attendees.map((a) => (
@@ -109,7 +139,7 @@ export default async function Session({
           <p>Đã qua hạn chốt; thay đổi cần người tính tiền duyệt.</p>
         )}
       </section>
-      {!s.collector_member_id && (
+      {!s.collector_member_id && s.status !== "cancelled" && (
         <section className="panel">
           <h2>Tôi là người trả</h2>
           <p>
@@ -299,39 +329,47 @@ export default async function Session({
               timeZone: "Asia/Ho_Chi_Minh",
             })}{" "}
             · {h.actor_name || "Thành viên"} ·{" "}
-            {h.action === "approval_requested"
-              ? "Gửi yêu cầu duyệt"
-              : h.action === "approval_approved"
-                ? "Duyệt yêu cầu"
-                : h.action === "approval_rejected"
-                  ? "Từ chối yêu cầu"
-                  : h.action === "collector_transfer_consented"
-                    ? "Đồng ý chuyển người tính tiền"
-                    : h.action === "committed_going"
-                      ? "Chốt đi"
-                      : h.action === "committed_not_going"
-                        ? "Chốt không đi"
-                        : h.action === "added_by_collector" ||
-                            h.action === "added" ||
-                            h.action === "join_approved"
-                          ? "Thêm người tham gia"
-                          : h.action === "removed" ||
-                              h.action === "leave_approved"
-                            ? "Rút khỏi buổi"
-                            : h.action === "weight_changed" ||
-                                h.action === "weight_approved"
-                              ? "Đổi hệ số"
-                              : h.action === "money_recalculated"
-                                ? "Tính lại tiền"
-                                : h.action === "session_created"
-                                  ? "Tạo buổi"
-                                  : h.action === "confirm"
-                                    ? "Xác nhận đã nhận"
-                                    : h.action === "mark"
-                                      ? "Báo đã chuyển"
-                                      : h.action === "collector_claimed"
-                                        ? "Nhận vai trò tính tiền"
-                                        : "Cập nhật buổi"}
+            {h.action === "session_metadata_updated"
+              ? "Sửa thông tin buổi"
+              : h.action === "session_cancelled"
+                ? "Hủy buổi"
+                : h.action === "session_reopened"
+                  ? "Mở lại buổi"
+                  : h.action === "rsvp_reset"
+                    ? "Mời tự chốt lại sau khi đổi lịch"
+                    : h.action === "approval_requested"
+                      ? "Gửi yêu cầu duyệt"
+                      : h.action === "approval_approved"
+                        ? "Duyệt yêu cầu"
+                        : h.action === "approval_rejected"
+                          ? "Từ chối yêu cầu"
+                          : h.action === "collector_transfer_consented"
+                            ? "Đồng ý chuyển người tính tiền"
+                            : h.action === "committed_going"
+                              ? "Chốt đi"
+                              : h.action === "committed_not_going"
+                                ? "Chốt không đi"
+                                : h.action === "added_by_collector" ||
+                                    h.action === "added" ||
+                                    h.action === "join_approved"
+                                  ? "Thêm người tham gia"
+                                  : h.action === "removed" ||
+                                      h.action === "leave_approved"
+                                    ? "Rút khỏi buổi"
+                                    : h.action === "weight_changed" ||
+                                        h.action === "weight_approved"
+                                      ? "Đổi hệ số"
+                                      : h.action === "money_recalculated"
+                                        ? "Tính lại tiền"
+                                        : h.action === "session_created"
+                                          ? "Tạo buổi"
+                                          : h.action === "confirm"
+                                            ? "Xác nhận đã nhận"
+                                            : h.action === "mark"
+                                              ? "Báo đã chuyển"
+                                              : h.action === "collector_claimed"
+                                                ? "Nhận vai trò tính tiền"
+                                                : "Cập nhật buổi"}
             {h.reason ? ` · ${h.reason}` : ""}
           </p>
         ))}

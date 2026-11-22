@@ -7,6 +7,10 @@ import { expenseInputSchema } from "@/lib/session-data";
 import { moneySchema } from "@/lib/schemas";
 import type { FormResult } from "@/components/action-form";
 import { detailSchema } from "@/lib/session-data";
+import {
+  sessionCalendarFormSchema,
+  sessionCalendarSchema,
+} from "@/lib/session-calendar";
 async function identity() {
   const db = await supabase();
   const {
@@ -14,6 +18,55 @@ async function identity() {
   } = await db.auth.getUser();
   if (!user) redirect("/login");
   return db;
+}
+export async function manageSession(
+  _state: FormResult,
+  form: FormData,
+): Promise<FormResult> {
+  const db = await identity();
+  const base = sessionCalendarFormSchema.safeParse(Object.fromEntries(form));
+  const operation = form.get("operation");
+  const body =
+    operation === "cancel"
+      ? { reason: form.get("reason") }
+      : {
+          title: form.get("title"),
+          venue: form.get("venue"),
+          note: form.get("note"),
+          starts_at: form.get("starts_at"),
+          commit_deadline: form.get("commit_deadline"),
+          reason: form.get("reason"),
+        };
+  const input = sessionCalendarSchema.safeParse({ operation, body });
+  if (!base.success || !input.success)
+    return { message: "Kiểm tra tên, địa điểm, ngày giờ, hạn chốt và lý do." };
+  if (operation === "cancel" && form.get("reviewed") !== "yes")
+    return { message: "Vui lòng xác nhận hủy riêng buổi này." };
+  const { error } = await db.rpc("manage_session", {
+    sid: base.data.sid,
+    expected_revision: base.data.revision,
+    operation_name: input.data.operation,
+    body: input.data.body,
+  });
+  if (error)
+    return {
+      message:
+        "Chưa lưu được. Kiểm tra quyền, hạn chốt và lịch sử tiền; tải lại nếu buổi đã thay đổi.",
+    };
+  revalidatePath(`/sessions/${base.data.sid}`);
+  revalidatePath("/sessions");
+  revalidatePath("/notifications");
+  revalidatePath("/");
+  revalidatePath("/approvals");
+  return {
+    ok: true,
+    message:
+      operation === "cancel"
+        ? "Đã hủy buổi, giữ nguyên lịch sử."
+        : operation === "reopen"
+          ? "Đã mở lại. Mọi người cần tự chốt tham gia."
+          : "Đã cập nhật thông tin buổi và báo cho nhóm.",
+  };
 }
 export async function createSession(
   _state: FormResult,

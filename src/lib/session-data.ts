@@ -10,6 +10,7 @@ export const detailSchema = z.object({
   status: z.enum(["planned", "played", "settled", "cancelled"]),
   revision: z.string(),
   deadline_passed: z.boolean(),
+  calendar_locked: z.boolean().default(false),
   collector_member_id: z.uuid().nullable(),
   my_member_id: z.uuid(),
   attendees: z.array(

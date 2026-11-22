@@ -325,6 +325,98 @@ try {
     ).rowCount === 3,
     "hosted weekly instances generated",
   );
+  stage = "session calendar";
+  const calendarRow = async () =>
+    (
+      await db.query(
+        "select to_jsonb(s) s from public.sessions s where id=$1",
+        [scheduled],
+      )
+    ).rows[0].s;
+  const calendarBody = (row) => ({
+    title: row.title,
+    venue: row.venue,
+    note: row.note,
+    starts_at: row.starts_at,
+    commit_deadline: row.commit_deadline,
+    reason: "Rollback calendar test",
+  });
+  let calendar = await calendarRow();
+  await actor(b);
+  assert(
+    await denied("select public.manage_session($1,$2,'edit',$3)", [
+      scheduled,
+      calendar.revision,
+      { ...calendarBody(calendar), title: "Forbidden" },
+    ]),
+    "hosted member cannot edit someone else's calendar",
+  );
+  await db.query("select public.set_rsvp($1,true)", [scheduled]);
+  await actor(a);
+  calendar = await calendarRow();
+  const moved = {
+    ...calendarBody(calendar),
+    commit_deadline: new Date(
+      Date.parse(calendar.starts_at) - 30 * 60 * 1000,
+    ).toISOString(),
+  };
+  await db.query("select public.manage_session($1,$2,'edit',$3)", [
+    scheduled,
+    calendar.revision,
+    moved,
+  ]);
+  assert(
+    (
+      await db.query(
+        "select committed_at from public.session_attendees where session_id=$1 and member_id=$2",
+        [scheduled, bm],
+      )
+    ).rows[0].committed_at === null,
+    "hosted reschedule resets commitments for self reconfirmation",
+  );
+  assert(
+    await denied("select public.manage_session($1,$2,'edit',$3)", [
+      scheduled,
+      calendar.revision,
+      moved,
+    ]),
+    "hosted stale calendar edit rejected",
+  );
+  calendar = await calendarRow();
+  await db.query("select public.manage_session($1,$2,'cancel',$3)", [
+    scheduled,
+    calendar.revision,
+    { reason: "Rollback cancellation" },
+  ]);
+  assert(
+    (await calendarRow()).status === "cancelled",
+    "hosted money-free session can be cancelled",
+  );
+  calendar = await calendarRow();
+  await actor(b);
+  assert(
+    await denied("select public.set_rsvp($1,true)", [scheduled]),
+    "hosted cancelled session cannot accept RSVP",
+  );
+  await actor(a);
+  await db.query("select public.manage_session($1,$2,'reopen',$3)", [
+    scheduled,
+    calendar.revision,
+    calendarBody(calendar),
+  ]);
+  assert(
+    (await calendarRow()).status === "planned",
+    "hosted cancelled session reopens with future deadline",
+  );
+  assert(
+    await denied("select public.manage_session($1,$2,'cancel',$3)", [
+      sid,
+      (await detail()).revision,
+      { reason: "Must retain money" },
+    ]),
+    "hosted calendar cancellation cannot bypass financial history",
+  );
+  stage = "scheduling";
   assert(
     await denied("select public.run_scheduled_jobs()"),
     "users cannot call scheduled maintenance",
