@@ -1,6 +1,19 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 export async function proxy(request: NextRequest) {
+  // Supabase falls back to Site URL when an OAuth redirect isn't allowlisted.
+  // Exchange at the callback before the membership/authentication gate.
+  if (
+    request.nextUrl.pathname === "/" &&
+    request.nextUrl.searchParams.has("code")
+  ) {
+    const target = request.nextUrl.clone();
+    target.pathname = "/auth/callback";
+    const redirected = NextResponse.redirect(target);
+    redirected.headers.set("Cache-Control", "private, no-store");
+    redirected.headers.set("Referrer-Policy", "no-referrer");
+    return redirected;
+  }
   let response = NextResponse.next({ request });
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return response;
   const db = createServerClient(
