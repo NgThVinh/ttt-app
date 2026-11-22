@@ -1,8 +1,45 @@
-/* No authenticated pages, API responses, or payment data are cached. */
-self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (event) =>
-  event.waitUntil(self.clients.claim()),
-);
+/* Only these public fallback assets are cached. Never cache an authenticated
+ * navigation, API response, RSC payload or payment request. */
+const CACHE = "3t-public-v1";
+const PUBLIC_ASSETS = ["/offline.html", "/icon-192.png"];
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches
+      .open(CACHE)
+      .then((cache) => cache.addAll(PUBLIC_ASSETS))
+      .then(() => self.skipWaiting()),
+  );
+});
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => key.startsWith("3t-public-") && key !== CACHE)
+            .map((key) => caches.delete(key)),
+        ),
+      )
+      .then(() => self.clients.claim()),
+  );
+});
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+  const url = new URL(request.url);
+  if (request.method !== "GET" || url.origin !== self.location.origin) return;
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request).catch(
+        async () => (await caches.match("/offline.html")) || Response.error(),
+      ),
+    );
+  } else if (PUBLIC_ASSETS.includes(url.pathname) && !url.search) {
+    event.respondWith(
+      caches.match(request).then((cached) => cached || fetch(request)),
+    );
+  }
+});
 self.addEventListener("push", (event) => {
   let payload = {};
   try {

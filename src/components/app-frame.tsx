@@ -1,0 +1,170 @@
+"use client";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useSyncExternalStore } from "react";
+import {
+  Home,
+  CalendarDays,
+  Wallet,
+  Users,
+  User,
+  Bell,
+  Sparkles,
+  CheckCheck,
+  ChartNoAxesColumn,
+  Moon,
+  Sun,
+  Plus,
+} from "lucide-react";
+const mainLinks = [
+  { href: "/", label: "Trang chủ", icon: Home },
+  { href: "/sessions", label: "Buổi chơi", icon: CalendarDays },
+  { href: "/debts", label: "Công nợ", icon: Wallet },
+  { href: "/groups", label: "Nhóm", icon: Users },
+  { href: "/me", label: "Tôi", icon: User },
+];
+const otherLinks = [
+  { href: "/approvals", label: "Chờ tôi duyệt", icon: CheckCheck },
+  { href: "/polls", label: "Hẹn lịch", icon: ChartNoAxesColumn },
+  { href: "/ai", label: "Trợ lý 3T", icon: Sparkles },
+];
+function subscribeTheme(listener: () => void) {
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  window.addEventListener("3t-theme", listener);
+  window.addEventListener("storage", listener);
+  media.addEventListener("change", listener);
+  return () => {
+    window.removeEventListener("3t-theme", listener);
+    window.removeEventListener("storage", listener);
+    media.removeEventListener("change", listener);
+  };
+}
+function currentTheme() {
+  try {
+    const saved = localStorage.getItem("3t-theme");
+    if (saved === "dark" || saved === "light") return saved;
+  } catch {}
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+}
+export default function AppFrame({ children }: { children: React.ReactNode }) {
+  const path = usePathname();
+  const theme = useSyncExternalStore(
+    subscribeTheme,
+    currentTheme,
+    () => "light",
+  );
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+  function toggleTheme() {
+    try {
+      localStorage.setItem("3t-theme", theme === "dark" ? "light" : "dark");
+    } catch {
+      return;
+    }
+    window.dispatchEvent(new Event("3t-theme"));
+  }
+  if (path === "/login" || path.startsWith("/join/")) return <>{children}</>;
+  const active = (href: string) =>
+    href === "/" ? path === "/" : path === href || path.startsWith(href + "/");
+  const title =
+    [...mainLinks, ...otherLinks].find((link) => active(link.href))?.label ||
+    "Không gian của bạn";
+  return (
+    <div className="app-frame">
+      <a className="skip-link" href="#main-content">
+        Đến nội dung chính
+      </a>
+      <aside className="app-sidebar">
+        <Link href="/" className="app-brand" aria-label="3T · Trang chủ">
+          <span>3T</span>
+          <div>
+            Thích Tính Tiền<small>CHƠI VUI, CHIA GỌN.</small>
+          </div>
+        </Link>
+        <nav aria-label="Điều hướng chính">
+          {mainLinks.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active(href) ? "page" : undefined}
+            >
+              <Icon size={20} />
+              {label}
+            </Link>
+          ))}
+        </nav>
+        <div className="nav-divider" />
+        <nav aria-label="Tiện ích nhóm">
+          {otherLinks.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active(href) ? "page" : undefined}
+            >
+              <Icon size={20} />
+              {label}
+            </Link>
+          ))}
+        </nav>
+        <div className="app-sidebar-note">
+          <span>HẸN NHAU RA SÂN</span>
+          <strong>
+            Chơi hết mình.
+            <br />
+            Chia tiền nhẹ tênh.
+          </strong>
+          <p>Lịch chơi, tiền sân và những khoản cần nhớ, ở cùng một chỗ.</p>
+        </div>
+      </aside>
+      <div className="app-content">
+        <header className="app-header">
+          <Link href="/" className="mobile-brand" aria-label="3T · Trang chủ">
+            3T
+          </Link>
+          <span className="app-breadcrumb">
+            Không gian của bạn <span>/</span> <strong>{title}</strong>
+          </span>
+          <div className="app-header-actions">
+            <Link href="/ai" aria-label="Trợ lý 3T">
+              <Sparkles size={20} />
+            </Link>
+            <button
+              type="button"
+              aria-label={
+                theme === "dark" ? "Bật giao diện sáng" : "Bật giao diện tối"
+              }
+              onClick={toggleTheme}
+            >
+              {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            <Link href="/notifications" aria-label="Thông báo">
+              <Bell size={20} />
+            </Link>
+            <Link href="/sessions/new" className="header-create">
+              <Plus size={18} />
+              <span>Tạo buổi</span>
+            </Link>
+          </div>
+        </header>
+        <div id="main-content" tabIndex={-1}>
+          {children}
+        </div>
+      </div>
+      <nav className="app-bottom-nav" aria-label="Điều hướng điện thoại">
+        {mainLinks.map(({ href, label, icon: Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            aria-current={active(href) ? "page" : undefined}
+          >
+            <Icon size={21} />
+            <span>{label}</span>
+          </Link>
+        ))}
+      </nav>
+    </div>
+  );
+}

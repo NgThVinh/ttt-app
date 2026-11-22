@@ -1,0 +1,2 @@
+Source: https://github.com/google/fonts/tree/c13390277dfb1fcc7415d84ef7ef9cfc1e52f8c1/ofl/bevietnampro
+License: SIL Open Font License; see OFL.txt

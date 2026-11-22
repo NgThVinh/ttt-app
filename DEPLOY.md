@@ -66,3 +66,13 @@ For confidence >= 0.9, debt requests execute the shared read tools with the user
 ### Kiểm thử decision model
 
 `npm run ai:eval:decisions:full` chạy 40 câu tổng hợp theo 4 batch, chỉ gọi endpoint Decisions của model được kiểm tra miễn phí. Report ở `.tools/ai-decision-full.json`, không chứa credential. Kết quả hiện tại 39/40 phân loại, cost API báo 0 USD; đây không phải nghiệm thu bộ tool/parameters. Prompt injection thất bại trong benchmark được chặn thêm bằng code tại runtime, trước provider/quota; `npm run ai:verify:runtime` kiểm tra điều này qua HTTP/Auth cục bộ. Các câu phủ định/tương lai/trích dẫn không tạo nháp thanh toán.
+
+### PWA và kiểm tra trình duyệt
+
+Chạy `npx playwright install chromium`, `npm run build`, rồi `npm run test:pwa`. Suite tự khởi động production server ở 127.0.0.1:3218 và đóng khi xong; chỉ GET ẩn danh cục bộ. Report/screenshot ở `.tools/pwa`. Kiểm tra manifest/icon, worker không bị cache cũ, màn offline, khôi phục mạng, cache chỉ chứa tài nguyên công khai, layout 320–1440px, dark mode và focus dialog. Không coi Chromium là nghiệm thu iOS/Android thật.
+
+Với Supabase local đang chạy và nhóm test AI đã thiết lập: `npm run ai:verify:runtime -- --browser` kiểm tra 12 trang có Auth và tạo buổi 10 người bằng dữ liệu local. Script dùng port 3217; không ghi dữ liệu nghiệp vụ hosted. Hồ sơ ngân hàng fixture chỉ tồn tại local. Browser ở `.tools/browsers` cần `PLAYWRIGHT_BROWSERS_PATH` trỏ tới thư mục này.
+
+Trên production, mở `/me` để xem cách cài 3T; iPhone/iPad mở từ biểu tượng Màn hình chính rồi bật push. Kiểm tra quyền thông báo và giao một thông báo thật sau khi nối cron push. Worker không cache dữ liệu cá nhân hay xếp hàng gửi tiền khi offline; người dùng kiểm tra trạng thái trong app rồi thử lại với cùng nội dung.
+
+`npm run security:check` kiểm tra file riêng tư bị track và giá trị secret thực trong Git/client bundle; không in giá trị. CI chạy thêm secret scan và kiểm tra PWA sau build. CI dùng cấu hình Supabase placeholder cho các trang ẩn danh, không cần production credentials.

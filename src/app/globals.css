@@ -1,4 +1,20 @@
 @import "tailwindcss";
+.connection-banner {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 12px 20px;
+  background: #fff0c7;
+  color: #684500;
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+}
+summary { cursor: pointer; padding-block: 12px; min-height: 44px; }
+textarea:focus-visible, select:focus-visible, summary:focus-visible {
+  outline: 3px solid #e6a938;
+  outline-offset: 4px;
+}
 .ai-review-table {
   width: 100%;
   border-collapse: collapse;

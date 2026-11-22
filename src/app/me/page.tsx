@@ -5,6 +5,7 @@ import { logout } from "@/app/actions";
 import ActionForm from "@/components/action-form";
 import { saveProfile } from "@/app/groups/actions";
 import PushSettings from "@/components/push-settings";
+import InstallApp from "@/components/install-app";
 export default async function Me() {
   const db = await supabase();
   const {
@@ -61,6 +62,7 @@ export default async function Me() {
           />
         </ActionForm>
       </section>
+      <InstallApp />
       <PushSettings />
       <form action={logout}>
         <button className="secondary">Đăng xuất</button>

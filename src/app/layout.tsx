@@ -1,16 +1,47 @@
 ﻿import { appName } from "@/lib/config";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import PWARuntime from "@/components/pwa-runtime";
+import AppFrame from "@/components/app-frame";
+import localFont from "next/font/local";
+const beVietnam = localFont({
+  src: [
+    {
+      path: "./fonts/BeVietnamPro-Regular.ttf",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "./fonts/BeVietnamPro-SemiBold.ttf",
+      weight: "600",
+      style: "normal",
+    },
+  ],
+  variable: "--font-be-vietnam",
+  display: "swap",
+});
 import "./globals.css";
+import "./frame.css";
 export const metadata: Metadata = {
   title: appName,
   description: "Thích Tính Tiền — Chơi hết mình, chia tiền nhẹ tênh",
   manifest: "/manifest.webmanifest",
   referrer: "no-referrer",
+  icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "3T", statusBarStyle: "default" },
+};
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#087f66",
 };
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="vi">
-      <body>{children}</body>
+    <html lang="vi" className={beVietnam.variable}>
+      <body>
+        <PWARuntime />
+        <AppFrame>{children}</AppFrame>
+      </body>
     </html>
   );
 }

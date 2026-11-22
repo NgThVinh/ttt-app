@@ -3,6 +3,10 @@ on: [push, pull_request]
 jobs:
   checks:
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
+      NEXT_PUBLIC_APP_URL: http://127.0.0.1:3218
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -15,3 +19,6 @@ jobs:
       - run: npm test
       - run: npm run test:concurrency
       - run: npm run build
+      - run: npm run security:check
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:pwa

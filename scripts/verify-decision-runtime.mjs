@@ -1,12 +1,13 @@
 import pg from "pg";
-import { readFileSync, openSync, closeSync } from "node:fs";
+import { readFileSync, openSync, closeSync, mkdirSync } from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { databaseUrlForProject } from "./migration-utils.mjs";
 delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
 const origin = "http://127.0.0.1:3217";
-let remote, local, server, log;
+let remote, local, server, log, browser;
+let browserStep;
 function check(ok, code) {
   if (!ok) throw Object.assign(new Error(), { code });
 }
@@ -316,6 +317,126 @@ try {
       paymentState.status === "pending",
     "PAYMENT_MUST_WAIT_FOR_APP_APPROVAL",
   );
+  let browserReport = null;
+  if (process.argv.includes("--browser")) {
+    const { chromium } = await import("@playwright/test");
+    browser = await chromium.launch({ headless: true });
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+    });
+    await context.addCookies(
+      cookies.map(({ name, value }) => ({ name, value, url: origin })),
+    );
+    const page = await context.newPage();
+    page.setDefaultTimeout(10000);
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    mkdirSync(".tools/browser", { recursive: true });
+    for (const path of [
+      "/",
+      "/debts",
+      "/groups",
+      `/groups/${groupId}`,
+      "/sessions",
+      `/sessions/${sid}`,
+      "/approvals",
+      "/polls",
+      "/notifications",
+      "/me",
+      "/ai",
+      `/ai/drafts/${draftId}`,
+    ]) {
+      await page.goto(origin + path);
+      await page.locator("main h1").first().waitFor();
+      check(!page.url().includes("/login"), "AUTHENTICATED_PAGE_REDIRECTED");
+      check(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+        "AUTH_PAGE_OVERFLOW_" + path,
+      );
+      check(
+        (await page
+          .getByRole("heading", { name: "Chưa tải được nội dung" })
+          .count()) === 0,
+        "AUTH_PAGE_ERROR_" + path,
+      );
+      await page.screenshot({
+        path: ".tools/browser/" + path.replace(/[^a-z0-9]/gi, "_") + ".png",
+        fullPage: true,
+        caret: "initial",
+      });
+    }
+    // Keep the ten-member creation fixture separate from the decision debt group.
+    const browserGroup = "77777777-7777-4777-8777-777777777777";
+    await local.query(
+      "update public.profiles set bank_bin='970436',bank_account_no='123456789',bank_account_name='AN TEST' where id=$1",
+      [owner],
+    );
+    await local.query(
+      "insert into public.groups(id,name,sport,created_by) values($1,'Browser creation fixture','Test',$2) on conflict(id) do nothing",
+      [browserGroup, owner],
+    );
+    await local.query(
+      "insert into public.group_members(group_id,user_id,display_name,role) values($1,$2,'An','admin') on conflict(group_id,user_id) do nothing",
+      [browserGroup, owner],
+    );
+    for (let i = 1; i <= 9; i++)
+      await local.query(
+        "insert into public.group_members(id,group_id,display_name,role) values($1,$2,$3,'member') on conflict(id) do nothing",
+        [
+          "66666666-6666-4666-8666-" + String(i).padStart(12, "0"),
+          browserGroup,
+          "Bạn " + i,
+        ],
+      );
+    await page.goto(origin + "/sessions/new");
+    const started = Date.now();
+    browserStep = "select-group";
+    await page.locator("select").first().selectOption(browserGroup);
+    const title = "Browser played " + Date.now();
+    browserStep = "fill-fields";
+    await page.getByLabel("Tên buổi", { exact: true }).fill(title);
+    await page.getByLabel("Địa điểm", { exact: true }).fill("Local court");
+    await page.getByLabel("Tiền sân (đ)", { exact: true }).fill("100000");
+    await page
+      .getByRole("button", { name: "Chọn tất cả", exact: true })
+      .click();
+    browserStep = "review";
+    await page
+      .getByRole("button", { name: "Tôi đã xem bảng chia", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Lưu buổi chơi", exact: true })
+      .click();
+    browserStep = "save-redirect";
+    await page.waitForURL(/\/sessions\/[a-f0-9-]{36}$/, { timeout: 30000 });
+    await page.getByRole("heading", { name: title, exact: true }).waitFor();
+    const creationMs = Date.now() - started;
+    check(creationMs < 60000, "PLAYED_SESSION_MUST_TAKE_UNDER_MINUTE");
+    const createdId = new URL(page.url()).pathname.split("/").pop();
+    const createdMoney = (
+      await local.query(
+        "select (select count(*) from public.session_attendees where session_id=$1) as people, (select sum(a.share_amount) from public.expense_allocations a join public.expenses e on e.id=a.expense_id where e.session_id=$1) as total, (select count(*) from public.settlements where session_id=$1 and amount=10000) as payments",
+        [createdId],
+      )
+    ).rows[0];
+    check(
+      createdMoney.people === "10" &&
+        createdMoney.total === "100000" &&
+        createdMoney.payments === "9",
+      "BROWSER_CREATED_MONEY_MUST_MATCH_PREVIEW",
+    );
+    check(errors.length === 0, "AUTH_BROWSER_RUNTIME_ERROR");
+    browserReport = {
+      authenticatedPages: 12,
+      mobileNoOverflow: true,
+      playedSessionCreationMs: creationMs,
+      participants: 10,
+      allocationsTotal: "100000",
+      localOnly: true,
+    };
+  }
   console.log(
     JSON.stringify({
       passed: true,
@@ -329,12 +450,16 @@ try {
       harnessOverrideBlockedBeforeProvider: true,
       paymentDraftRequiresAppApproval: true,
       hostedBusinessDataWritten: false,
+      browser: browserReport,
     }),
   );
 } catch (error) {
-  console.error(JSON.stringify({ code: error.code || error.name }));
+  console.error(
+    JSON.stringify({ code: error.code || error.name, browserStep }),
+  );
   process.exitCode = 1;
 } finally {
+  await browser?.close();
   if (server) server.kill();
   if (log !== undefined) closeSync(log);
   await remote?.end().catch(() => {});

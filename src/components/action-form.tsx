@@ -1,6 +1,6 @@
 "use client";
 import { useActionState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, unstable_rethrow } from "next/navigation";
 export type FormResult = { message: string; ok?: boolean; link?: string };
 export default function ActionForm({
   action,
@@ -22,7 +22,15 @@ export default function ActionForm({
       }
       form.set("request_key", request.current!.key);
     }
-    return action(state, form);
+    try {
+      return await action(state, form);
+    } catch (error) {
+      unstable_rethrow(error);
+      return {
+        message:
+          "Chưa nhận được kết quả. Kiểm tra kết nối và trạng thái trong app; gửi lại cùng nội dung sẽ dùng lại mã yêu cầu.",
+      };
+    }
   }
   const [state, submit, pending] = useActionState(submitIntent, {
     message: "",
