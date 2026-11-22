@@ -66,6 +66,8 @@ async function counts() {
     "storage_cleanup_jobs",
     "session_recalculations",
     "guest_bank_accounts",
+    "group_expense_categories",
+    "expense_templates",
   ])
     result[table] = (
       await db.query(`select count(*)::text n from public.${table}`)
@@ -329,6 +331,71 @@ try {
       )
     ).rowCount === 1,
     "hosted fallback approves a fresh reviewed request",
+  );
+  const catalog = (
+    await db.query("select public.expense_tools($1) t", [createdGroup])
+  ).rows[0].t;
+  assert(
+    catalog.categories.length === 7 && catalog.templates.length === 2,
+    "hosted new groups receive default categories and templates",
+  );
+  assert(
+    catalog.templates.every((t) => typeof t.amount === "string"),
+    "hosted template amounts are decimal strings",
+  );
+  await actor(b);
+  const editorRevision = (
+    await db.query("select revision::text r from public.sessions where id=$1", [
+      fallbackSession,
+    ])
+  ).rows[0].r;
+  const editBody = {
+    sid: fallbackSession,
+    expected_revision: editorRevision,
+    expense_id: "",
+    category_id: catalog.categories.find((c) => c.icon === "water").id,
+    note_text: "Hosted note",
+    title_text: "Hosted editor expense",
+    raw_amount: "20000",
+    payer: guestMember,
+    beneficiaries: [groupAdminMember, guestMember],
+    mode: "total",
+    split: "equal",
+    values_text: [],
+    reason: "Hosted editor check",
+  };
+  const edited = (
+    await db.query(
+      "select public.execute_financial_command('save_expense',$1,$2) r",
+      [randomUUID(), editBody],
+    )
+  ).rows[0].r;
+  const updateBody = {
+    ...editBody,
+    expense_id: edited.id,
+    expected_revision: edited.revision,
+    raw_amount: "30000",
+    note_text: "Updated hosted note",
+  };
+  await db.query(
+    "select public.execute_financial_command('save_expense',$1,$2)",
+    [randomUUID(), updateBody],
+  );
+  const readEdited = (
+    await db.query("select public.session_details($1) d", [fallbackSession])
+  ).rows[0].d.expenses.find((e) => e.id === edited.id);
+  assert(
+    readEdited.amount === "30000" &&
+      readEdited.note === "Updated hosted note" &&
+      readEdited.category_name,
+    "hosted editor preserves ID and returns category/note metadata",
+  );
+  assert(
+    await denied(
+      "select public.save_expense_category($1,null,'Forbidden','other',10,true,'No authority')",
+      [createdGroup],
+    ),
+    "hosted collector without admin role cannot manage categories",
   );
   await db.query("reset role");
   await db.query(

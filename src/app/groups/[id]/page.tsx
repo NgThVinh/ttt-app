@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import ActionForm from "@/components/action-form";
+import ExpenseCatalogManager from "@/components/expense-catalog-manager";
+import { expenseToolsSchema } from "@/lib/expense-tools";
 import {
   createInvite,
   revokeInvite,
@@ -36,6 +38,9 @@ export default async function Group({
   const admin = members?.some(
     (m) => m.user_id === user.id && m.status === "active" && m.role === "admin",
   );
+  const expenseTools = expenseToolsSchema.safeParse(
+    (await db.rpc("expense_tools", { g: id })).data,
+  );
   const { data: guestBanks } = await db
     .from("guest_bank_accounts")
     .select("member_id,bank_bin,bank_account_no,bank_account_name")
@@ -61,6 +66,9 @@ export default async function Group({
       <Link href="/groups">Các nhóm</Link>
       <h1>{group.name}</h1>
       <p>{group.sport}</p>
+      {admin && expenseTools.success && (
+        <ExpenseCatalogManager groupId={id} tools={expenseTools.data} />
+      )}
       <section className="panel">
         <h2>Thành viên</h2>
         {members?.map((m) => (

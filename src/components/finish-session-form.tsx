@@ -13,7 +13,8 @@ export default function FinishSessionForm({
   const [amount, setAmount] = useState(
       s.expenses.find((e) => e.title === "Tiền sân")?.amount || "",
     ),
-    [review, setReview] = useState(false);
+    [review, setReview] = useState("");
+  const reviewKey = `${s.revision}:${amount}`;
   let shares: { memberId: string; amount: bigint }[] = [];
   try {
     if (/^\d+$/.test(amount))
@@ -39,7 +40,7 @@ export default function FinishSessionForm({
         value={amount}
         onChange={(e) => {
           setAmount(e.target.value);
-          setReview(false);
+          setReview("");
         }}
       />
       <div className="split-preview">
@@ -57,21 +58,25 @@ export default function FinishSessionForm({
         <button
           type="button"
           className="secondary"
-          onClick={() => setReview(true)}
+          onClick={() => setReview(reviewKey)}
         >
           Tôi đã xem bảng chia
         </button>
       )}
       <ActionForm
         action={sessionCommand}
-        disabled={!review || !shares.length}
+        disabled={review !== reviewKey || !shares.length}
         label="Chốt tiền sân và phát hành khoản thu"
       >
         <input type="hidden" name="sid" value={s.id} />
         <input type="hidden" name="revision" value={s.revision} />
         <input type="hidden" name="operation" value="finish" />
         <input type="hidden" name="court" value={amount} />
-        <input type="hidden" name="reviewed" value={review ? "yes" : "no"} />
+        <input
+          type="hidden"
+          name="reviewed"
+          value={review === reviewKey ? "yes" : "no"}
+        />
       </ActionForm>
     </section>
   );

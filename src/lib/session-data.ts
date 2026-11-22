@@ -30,6 +30,11 @@ export const detailSchema = z.object({
       amount: moneySchema,
       paid_by: z.uuid().nullable(),
       split_mode: z.string(),
+      category_name: z.string().nullable().optional(),
+      category_id: z.uuid().nullable().optional(),
+      note: z.string().nullable().optional(),
+      paid_by_name: z.string().nullable().optional(),
+      created_by_name: z.string().nullable().optional(),
       allocations: z.array(
         z.object({ member_id: z.uuid(), amount: moneySchema }),
       ),
@@ -73,5 +78,8 @@ export const expenseInputSchema = z
     beneficiaries: z.array(z.uuid()).min(1).max(100),
     values: z.array(z.string().regex(/^\d+(\.\d{1,6})?$/)).max(100),
     reason: z.string().trim().min(1).max(500),
+    expense_id: z.uuid().or(z.literal("")).default(""),
+    category_id: z.uuid().or(z.literal("")).default(""),
+    note: z.string().trim().max(2000).default(""),
   })
   .refine((v) => new Set(v.beneficiaries).size === v.beneficiaries.length);

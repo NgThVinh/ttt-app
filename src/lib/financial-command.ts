@@ -3,6 +3,7 @@ import type { supabase } from "./supabase";
 export type FinancialCommand =
   | "create_session"
   | "add_expense"
+  | "save_expense"
   | "apply_financial_change"
   | "finish_session"
   | "claim_collector"

@@ -15,6 +15,7 @@ const schema = z.object({
   revision: z.string().regex(/^\d+$/),
   command: z.enum([
     "add_expense",
+    "save_expense",
     "apply_financial_change",
     "finish_session",
     "payment_action",

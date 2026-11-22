@@ -8,6 +8,7 @@ import { moneySchema } from "@/lib/schemas";
 import type { FormResult } from "@/components/action-form";
 import { detailSchema } from "@/lib/session-data";
 import { runFinancialCommand } from "@/lib/financial-command";
+import { expenseToolsSchema, expenseEditorSchema } from "@/lib/expense-tools";
 import {
   sessionCalendarFormSchema,
   sessionCalendarSchema,
@@ -178,7 +179,7 @@ export async function addExpense(
   const { error } = await runFinancialCommand(
     db,
     form.get("request_key"),
-    "add_expense",
+    "save_expense",
     {
       sid: p.sid,
       expected_revision: p.revision,
@@ -190,6 +191,9 @@ export async function addExpense(
       split: p.split,
       values_text: p.values,
       reason: p.reason,
+      expense_id: p.expense_id,
+      category_id: p.category_id,
+      note_text: p.note,
     },
   );
   if (error)
@@ -204,6 +208,43 @@ export async function addExpense(
     ok: true,
     message:
       "Đã tiếp nhận khoản chi. Khoản đề xuất chỉ tính vào công nợ sau khi được duyệt.",
+  };
+}
+export async function loadExpenseEditor(
+  target: unknown,
+  administrative = false,
+) {
+  const db = await identity();
+  const id = z.uuid().safeParse(target);
+  if (!id.success) return { message: "Khoản chi không hợp lệ." };
+  const { data: row, error } = await db
+    .from("expenses")
+    .select("session_id")
+    .eq("id", id.data)
+    .single();
+  if (error) return { message: "Không có quyền xem khoản chi." };
+  const results = await Promise.all([
+    db.rpc("session_details", { sid: row.session_id }),
+    db.rpc("expense_editor_data", { sid: row.session_id }),
+  ]);
+  const session = detailSchema.safeParse(results[0].data);
+  const entries = z.array(expenseEditorSchema).safeParse(results[1].data);
+  if (!session.success || !entries.success)
+    return { message: "Không tải được dữ liệu sửa khoản chi." };
+  const expense = entries.data.find((e) => e.id === id.data);
+  const isAdmin = administrative
+    ? (await db.rpc("is_group_admin", { g: session.data.group_id })).data ===
+      true
+    : false;
+  if (!expense || (!expense.can_edit && !isAdmin))
+    return { message: "Bạn không có quyền sửa khoản này." };
+  const tools = expenseToolsSchema.safeParse(
+    (await db.rpc("expense_tools", { g: session.data.group_id })).data,
+  );
+  return {
+    session: session.data,
+    expense,
+    tools: tools.success ? tools.data : undefined,
   };
 }
 export async function changePayment(

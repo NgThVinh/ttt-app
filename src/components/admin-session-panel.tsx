@@ -6,6 +6,8 @@ import ActionForm from "./action-form";
 import AdminReview from "./admin-review";
 import ExpenseForm from "./expense-form";
 import FinancialChangeForm from "./financial-change-form";
+import ExpenseEditButton from "./expense-edit-button";
+import type { ExpenseTools } from "@/lib/expense-tools";
 type Member = {
   id: string;
   display_name: string;
@@ -16,10 +18,12 @@ export default function AdminSessionPanel({
   session: s,
   members,
   requests,
+  tools,
 }: {
   session: SessionDetail;
   members: Member[];
   requests: { id: string; type: string; created_at: string }[];
+  tools?: ExpenseTools;
 }) {
   const [source, setSource] = useState("");
   const [reason, setReason] = useState("");
@@ -186,7 +190,17 @@ export default function AdminSessionPanel({
           />
           {s.status !== "planned" && s.status !== "cancelled" && (
             <>
-              <ExpenseForm session={s} administrative={{ sourceId }} />
+              <ExpenseForm
+                session={s}
+                tools={tools}
+                administrative={{ sourceId }}
+              />
+              {s.expenses.map((e) => (
+                <div key={e.id}>
+                  <p>{e.title}</p>
+                  <ExpenseEditButton id={e.id} administrative={{ sourceId }} />
+                </div>
+              ))}
               <FinancialChangeForm
                 session={s}
                 members={members}

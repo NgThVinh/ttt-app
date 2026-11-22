@@ -3,6 +3,8 @@ import PaymentQr from "@/components/payment-qr";
 import ReceiptPanel from "@/components/receipt-panel";
 import SessionCalendarForm from "@/components/session-calendar-form";
 import AdminSessionPanel from "@/components/admin-session-panel";
+import ExpenseEditButton from "@/components/expense-edit-button";
+import { expenseToolsSchema, expenseEditorSchema } from "@/lib/expense-tools";
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { z } from "zod";
@@ -69,6 +71,12 @@ export default async function Session({
     metadata?.created_by === user.id ||
     members?.some((m) => m.user_id === user.id && m.role === "admin");
   const locked = s.calendar_locked;
+  const [toolsResult, editorsResult] = await Promise.all([
+    db.rpc("expense_tools", { g: s.group_id }),
+    db.rpc("expense_editor_data", { sid: s.id }),
+  ]);
+  const tools = expenseToolsSchema.safeParse(toolsResult.data);
+  const editors = z.array(expenseEditorSchema).safeParse(editorsResult.data);
   const admin = members?.some(
     (m) => m.user_id === user.id && m.role === "admin",
   );
@@ -129,6 +137,7 @@ export default async function Session({
           session={s}
           members={members || []}
           requests={fallbackRequests || []}
+          tools={tools.success ? tools.data : undefined}
         />
       )}
       {canManage && !locked && (
@@ -197,6 +206,12 @@ export default async function Session({
                 {e.title} · {formatMoney(e.amount)}
               </strong>
               <p>
+                {e.category_name || "Khoản chi"} ·{" "}
+                {e.paid_by_name || "Người tính tiền"} ứng
+                {e.created_by_name ? ` · ${e.created_by_name} thêm` : ""}
+              </p>
+              {e.note && <p style={{ whiteSpace: "pre-wrap" }}>{e.note}</p>}
+              <p>
                 Phần của tôi:{" "}
                 {formatMoney(
                   e.allocations.find((a) => a.member_id === s.my_member_id)
@@ -215,6 +230,11 @@ export default async function Session({
                 target={e.id}
                 canUpload={collector || authoredExpenseIds.has(e.id)}
               />
+              {!locked &&
+                editors.success &&
+                editors.data.find((x) => x.id === e.id)?.can_edit && (
+                  <ExpenseEditButton key={`${e.id}-${s.revision}`} id={e.id} />
+                )}
             </div>
           </div>
         ))}
@@ -298,7 +318,10 @@ export default async function Session({
               !a.removed_at,
           )) && (
           <>
-            <ExpenseForm session={s} />
+            <ExpenseForm
+              session={s}
+              tools={tools.success ? tools.data : undefined}
+            />
             {collector && (
               <FinancialChangeForm session={s} members={members || []} />
             )}
