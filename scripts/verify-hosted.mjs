@@ -171,6 +171,35 @@ try {
     ).rowCount === 1,
     "hosted retry creates only one audit event",
   );
+  const inviteHash = randomUUID().replaceAll("-", "").repeat(2);
+  const finalInvite = (
+    await db.query(
+      "select public.create_invite($1,$2,now()+interval '1 day',1) id",
+      [createdGroup, inviteHash],
+    )
+  ).rows[0].id;
+  await actor(b);
+  await db.query("select public.accept_invite($1,'Rollback B')", [inviteHash]);
+  await db.query("select public.accept_invite($1,'Rollback retry')", [
+    inviteHash,
+  ]);
+  await actor(a);
+  assert(
+    (
+      await db.query("select uses from public.invites where id=$1", [
+        finalInvite,
+      ])
+    ).rows[0].uses === 1,
+    "hosted last-slot invitation retry consumes no extra use",
+  );
+  await db.query("select public.revoke_invite($1)", [finalInvite]);
+  await actor(b);
+  assert(
+    await denied("select public.accept_invite($1,'Revoked retry')", [
+      inviteHash,
+    ]),
+    "hosted invitation retry cannot bypass revocation",
+  );
   await db.query("reset role");
   await db.query("set local role service_role");
   assert(
