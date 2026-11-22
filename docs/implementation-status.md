@@ -1,5 +1,7 @@
 # Tiến độ theo tám mốc
 
+- Đã sửa lỗi Google login về domain Vercel chưa có deployment: production đầu tiên Ready tại https://thichtinhtien.online, deployment `dpl_6H5VkMSu2kTD62qhrtGBVBiF3mpu`. Runtime env đã cấu hình, không upload DB owner/shared provider keys. Production AI tạm tắt cho đến khi nghiệm thu đủ. Owner xác nhận lưu Supabase Site URL/Redirect URLs. Callback xử lý mã ở trang gốc trước gate, giữ link mời hợp lệ và dùng origin cấu hình. 163 test/typecheck/lint/build/secret scan qua; Chromium production xác nhận login 200, nút Google tới accounts.google.com với callback đúng. Cần người dùng thử lại consent thật; SMTP/brand verification/push cron/các cổng nghiệm thu còn thiếu chưa hoàn tất.
+
 - Theo yêu cầu UI tối giản/invite-first: tài khoản chưa thuộc nhóm hoạt động chỉ thấy `/welcome` với hướng dẫn mở link mời và đăng xuất. Proxy chặn URL tính năng trực tiếp và POST/API; lỗi kiểm tra membership không mở quyền. Login/callback/link mời vẫn hoạt động; link hợp lệ mở app, bị gỡ khỏi nhóm cuối cùng quay lại trang chờ. Không có ngoại lệ UI cho super admin chưa thuộc nhóm. RLS/RPC quyền theo nhóm vẫn giữ nguyên.
 - Trang chủ rút còn công nợ, buổi tiếp theo và một CTA tạo buổi; bỏ dashboard demo/calculator khỏi luồng vào app, gom tiện ích phụ và thu gọn lịch sử/form điều chỉnh/thêm chi phí/đề nghị. Browser `test:invite-gate` qua 11 URL, API, link sai/đúng, bị gỡ, logout, mobile/desktop và dark mode; auth UI/payment/poll/PWA regression qua. 160 test thường/typecheck/lint/build qua. Không gọi thêm LLM, không cần migration.
 
@@ -28,7 +30,7 @@ Nguồn yêu cầu: [handoff_prompt.md](handoff_prompt.md) và kế hoạch tám
 | 5. Hẹn lịch/thông báo | Thăm dò, ngưỡng chốt, lịch tuần, cron, in-app, chia sẻ Messenger, hàng đợi Web Push/nhắc từng khoản; browser local xác nhận WebSocket, ngưỡng chốt và tự RSVP | Nối cron push production; nghiệm thu Realtime production/push trên thiết bị |
 | 6. AI | Cấu hình/key mã hóa theo nhóm, provider, streaming, tools/bản nháp/HITL, quota; decision routing đọc công nợ và tạo bản nháp thanh toán đã kiểm tra HTTP thật | Hoàn thiện các tool còn thiếu, eval 40 tool/tham số trên phiên bản mới, prompt injection/cách ly đầy đủ, nghiệm thu UI; adapter Messenger khi đủ cấu hình |
 | 7. PWA/giao diện | Dashboard/layout chung đã redesign, sidebar/5 tab điện thoại, Be Vietnam Pro tự host, dark mode lưu lựa chọn, dialog bàn phím, loading/error; manifest/icon/worker/cài đặt/offline đã kiểm tra Chromium; shadcn/ui cho form/hồ sơ/loading | Hoàn thiện các màn chi tiết, accessibility toàn bộ và thiết bị thật/push |
-| 8. Triển khai | Database hosted đã migrate; Vercel project và domain đã liên kết/DNS hợp lệ; Google OAuth bật; CI typecheck/lint/test/concurrency/build | Deploy website và runtime env, nghiệm thu Auth/SMTP, remote CI, kiểm tra production và các cổng nghiệm thu còn lại |
+| 8. Triển khai | Database hosted đã migrate; website/runtime env đã deploy production; domain hoạt động; Google OAuth tới đúng callback; CI có typecheck/lint/test/concurrency/build | Consent Google thật, SMTP, remote CI, push cron, AI/full permission acceptance và các kiểm tra production còn lại |
 
 ## Các phần đã kiểm chứng ở mốc 1–2
 
