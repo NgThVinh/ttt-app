@@ -1,5 +1,7 @@
 # Tiến độ theo tám mốc
 
+- 22/11/2026: thêm tự đổi model chat miễn phí theo yêu cầu mới: model cấu hình → `openrouter/free`, bắt buộc hỗ trợ tham số và price cap 0 cho input/output/request. Runtime/probe/eval dùng chung; không replay agent/tool sau lỗi. Probe thật có fallback vẫn HTTP 429; không coi đã nghiệm thu 40 câu tool/tham số. 159 test thường, typecheck/lint/build và secret scan qua. Không cần migration cho thay đổi này; Decisions giữ nguyên.
+
 Nguồn yêu cầu: [handoff_prompt.md](handoff_prompt.md) và kế hoạch tám mốc đã thống nhất với người dùng. Cập nhật ngày 22/11/2026. Chưa mốc nào được coi là nghiệm thu toàn bộ chỉ dựa trên số migration hoặc số test.
 
 | Mốc | Đã triển khai/kiểm chứng | Còn thiếu để khép mốc |

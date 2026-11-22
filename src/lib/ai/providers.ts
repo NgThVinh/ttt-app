@@ -2,6 +2,7 @@ import "server-only";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { freeFallbackBody } from "./free-fallback.mjs";
 export function groupModel(
   settings: { provider: string; model: string; base_url: string | null },
   apiKey: string,
@@ -28,6 +29,10 @@ export function groupModel(
       name: "group-provider",
       apiKey,
       baseURL: url.href,
+      ...(url.href === "https://openrouter.ai/api/v1" ||
+      url.href === "https://openrouter.ai/api/v1/"
+        ? { transformRequestBody: freeFallbackBody }
+        : {}),
     })(settings.model);
   }
   throw Error("Unsupported provider");

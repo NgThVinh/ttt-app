@@ -7,6 +7,7 @@ import { generateText, tool } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
+import { freeFallbackBody } from "../src/lib/ai/free-fallback.mjs";
 delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
 const db = new pg.Client({
   connectionString: databaseUrlForProject(
@@ -35,10 +36,13 @@ try {
   ).rows[0];
   if (!settings)
     throw Object.assign(new Error(), { code: "TEST_GROUP_NOT_ENABLED" });
-  if (process.argv[2] && settings.provider === "google") {
+  const requestedModel = process.argv
+    .slice(2)
+    .find((arg) => !arg.startsWith("--"));
+  if (requestedModel && settings.provider === "google") {
     const r = await fetch(
       "https://generativelanguage.googleapis.com/v1beta/models/" +
-        encodeURIComponent(process.argv[2]),
+        encodeURIComponent(requestedModel),
       {
         headers: {
           "x-goog-api-key": decryptGroupKey(
@@ -54,7 +58,7 @@ try {
       throw Object.assign(new Error(), {
         code: "MODEL_UNAVAILABLE_" + r.status,
       });
-    settings.model = process.argv[2];
+    settings.model = requestedModel;
   }
   const apiKey = decryptGroupKey(
     groupId,
@@ -74,7 +78,10 @@ try {
         code: "OPENROUTER_KEY_STATUS_" + response.status,
       });
     const { data } = await response.json();
-    if (data.free_model_daily_requests?.remaining === 0) {
+    if (
+      data.free_model_daily_requests?.remaining === 0 &&
+      !process.argv.includes("--try-fallback")
+    ) {
       console.log(
         JSON.stringify({
           connected: false,
@@ -111,6 +118,9 @@ try {
       name: "group-provider",
       apiKey,
       baseURL: url.href,
+      ...(url.origin === "https://openrouter.ai"
+        ? { transformRequestBody: freeFallbackBody }
+        : {}),
     })(settings.model);
   }
   const result = await generateText({

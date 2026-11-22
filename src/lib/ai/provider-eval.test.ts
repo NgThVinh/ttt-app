@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import pg from "pg";
 import { generateText, stepCountIs } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { freeFallbackBody } from "./free-fallback.mjs";
 import { decryptGroupKey } from "./crypto";
 import { systemPrompt, PROMPT_VERSION } from "./prompts/system";
 import { readTools } from "./harness/read-tools";
@@ -181,6 +182,7 @@ it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
       const model = createOpenAICompatible({
         name: "group-provider",
         baseURL: settings.base_url,
+        transformRequestBody: freeFallbackBody,
         apiKey: decryptGroupKey(
           groupId,
           settings.envelope,
