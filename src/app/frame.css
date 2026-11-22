@@ -46,6 +46,19 @@ textarea {
 button {
   color: inherit;
 }
+button[data-ui="button"][data-variant="default"],
+button[data-ui="button"][data-variant="destructive"] {
+  color: #fff;
+}
+button[data-ui="button"][data-variant="outline"] {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+button[data-ui="button"]:focus-visible {
+  outline: 3px solid #e6a938;
+  outline-offset: 4px;
+}
 button,
 a,
 input,

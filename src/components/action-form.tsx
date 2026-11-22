@@ -1,6 +1,7 @@
 "use client";
 import { useActionState, useEffect, useRef } from "react";
 import { useRouter, unstable_rethrow } from "next/navigation";
+import { Button } from "@/components/ui/button";
 export type FormResult = { message: string; ok?: boolean; link?: string };
 export default function ActionForm({
   action,
@@ -42,13 +43,13 @@ export default function ActionForm({
   return (
     <form action={submit}>
       {children}
-      <button
+      <Button
         disabled={pending || disabled}
-        className="primary"
+        className="rounded-lg"
         style={{ marginTop: 16 }}
       >
         {pending ? "Đang xử lý…" : label}
-      </button>
+      </Button>
       {state.message && (
         <p role={state.ok ? "status" : "alert"}>{state.message}</p>
       )}

@@ -1,5 +1,8 @@
 # Tiến độ theo tám mốc
 
+- Tiếp tục mốc 6 với Gemini: eval hỗ trợ Google, dùng cấu hình thinking/output runtime. Chẩn đoán 1/7/22 đạt (12.666 token), case 29 đạt ở lượt khác (5.464 token). Hai lượt dừng theo ngân sách trước khi đủ tập đã chọn, báo incomplete/fail nghiệm thu; case 40 chưa chạy. Tổng 18.130 token, không retry. Runner có ngân sách mặc định 15.000, biên dự phòng trước case, dừng khi provider lỗi và dừng sau target tool để tránh sinh thêm câu trả lời cho eval. Full 40 câu vẫn chưa nghiệm thu.
+- Mốc 7: thêm button/input/card/skeleton từ registry shadcn/ui chính thức kèm MIT, components.json và palette 3T; pin class-variance-authority 0.7.1 và @radix-ui/react-slot 1.5.0. Form dùng chung/hồ sơ/loading đã dùng component mới, nút tối thiểu 44px. Browser local xác nhận lưu hồ sơ, dark mode, 320/390/1440px và logout chặn trang riêng tư, không gọi LLM. 160 test thường/typecheck/lint/build qua; PWA regression qua. Chưa nghiệm thu thiết bị thật/toàn bộ accessibility.
+
 - Theo yêu cầu quay lại Gemini và dùng tiết kiệm: probe `gemini-2.5-flash-lite` trả 404; `gemini-3.5-flash-lite` gọi tool thành công với 43 input + 18 output = 61 token, reasoning 0. Đã chuyển riêng nhóm test sang Google bằng key mã hóa, tắt decision routing OpenRouter của nhóm này; giới hạn 20 tin/người/ngày, 100.000 token/nhóm/ngày (không tăng mức cũ). Runtime model này dùng thinking minimal, tối đa 512 output/lượt, không retry; probe tối đa 128 output. Không chạy bộ 40 câu provider trong đợt này để tiết kiệm; chưa coi full eval đã đạt.
 - Kiểm tra sau chuyển bằng credential đã mã hóa của nhóm cũng thành công (74 token); hai probe thành công dùng tổng 135 token. 159 test thường/typecheck/lint/build qua.
 
@@ -15,7 +18,7 @@ Nguồn yêu cầu: [handoff_prompt.md](handoff_prompt.md) và kế hoạch tám
 | 4. Thanh toán | Công nợ, chi tiết phần chia, QR/fallback, báo chuyển/xác nhận thủ công, bằng chứng riêng tư, cleanup đã kiểm tra qua Storage API, interface PaymentVerifier | Nghiệm thu trình duyệt, QR với cấu hình production và truy xuất bằng chứng sau đổi người thu |
 | 5. Hẹn lịch/thông báo | Thăm dò, ngưỡng chốt, lịch tuần, cron, in-app, chia sẻ Messenger, hàng đợi Web Push và nhắc từng khoản | Nối cron push production; nghiệm thu Realtime/push trên trình duyệt và thiết bị |
 | 6. AI | Cấu hình/key mã hóa theo nhóm, provider, streaming, tools/bản nháp/HITL, quota; decision routing đọc công nợ và tạo bản nháp thanh toán đã kiểm tra HTTP thật | Hoàn thiện các tool còn thiếu, eval 40 tool/tham số trên phiên bản mới, prompt injection/cách ly đầy đủ, nghiệm thu UI; adapter Messenger khi đủ cấu hình |
-| 7. PWA/giao diện | Dashboard/layout chung đã redesign, sidebar/5 tab điện thoại, Be Vietnam Pro tự host, dark mode lưu lựa chọn, dialog bàn phím, loading/error; manifest/icon/worker/cài đặt/offline đã kiểm tra Chromium | shadcn/ui, hoàn thiện các màn chi tiết, accessibility toàn bộ và thiết bị thật/push |
+| 7. PWA/giao diện | Dashboard/layout chung đã redesign, sidebar/5 tab điện thoại, Be Vietnam Pro tự host, dark mode lưu lựa chọn, dialog bàn phím, loading/error; manifest/icon/worker/cài đặt/offline đã kiểm tra Chromium; shadcn/ui cho form/hồ sơ/loading | Hoàn thiện các màn chi tiết, accessibility toàn bộ và thiết bị thật/push |
 | 8. Triển khai | Database hosted đã migrate; Vercel project và domain đã liên kết/DNS hợp lệ; Google OAuth bật; CI typecheck/lint/test/concurrency/build | Deploy website và runtime env, nghiệm thu Auth/SMTP, remote CI, kiểm tra production và các cổng nghiệm thu còn lại |
 
 ## Các phần đã kiểm chứng ở mốc 1–2
