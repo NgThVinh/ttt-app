@@ -1,8 +1,20 @@
 import { tool } from "ai";
 import { z } from "zod";
 import type { supabase } from "@/lib/supabase";
-import { expenseInputSchema } from "@/lib/session-data";
 import { expenseDraftSchema } from "@/lib/session-data";
+export const aiExpenseInputSchema = expenseDraftSchema
+  .extend({
+    session_id: z
+      .uuid()
+      .describe(
+        "ID buổi chính xác từ sessions[].id hoặc get_session_breakdown.id; không dùng group/member ID và không tự tạo ID.",
+      ),
+    revision: z
+      .string()
+      .regex(/^\d+$/)
+      .describe("Revision hiện tại của đúng buổi đã chọn."),
+  })
+  .refine((v) => new Set(v.beneficiaries).size === v.beneficiaries.length);
 export function draftTools(
   db: Awaited<ReturnType<typeof supabase>>,
   group: string,
@@ -146,10 +158,10 @@ export function draftTools(
     draft_expense: tool({
       description:
         "Tạo bản nháp khoản chi theo schema của app. Không tự lưu. Khoản có thu tiền hoặc do người tham gia đề xuất sẽ đi qua T3 trong app.",
-      inputSchema: expenseInputSchema,
+      inputSchema: aiExpenseInputSchema,
       execute: (e) =>
         draft("expense", {
-          sid: e.sid,
+          sid: e.session_id,
           expected_revision: e.revision,
           expense_id: e.expense_id,
           category_id: e.category_id,

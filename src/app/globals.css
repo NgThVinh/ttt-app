@@ -1,4 +1,23 @@
 @import "tailwindcss";
+.ai-review-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ai-review-table th,
+.ai-review-table td {
+  padding: 12px 8px;
+  border-bottom: 1px solid #81988a30;
+}
+.ai-review-table th:first-child,
+.ai-review-table td:first-child {
+  text-align: left;
+}
+.ai-review-table th:not(:first-child),
+.ai-review-table td:not(:first-child) {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 main > .panel {
   margin-block: 20px;
 }

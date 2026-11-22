@@ -1,7 +1,8 @@
 import { it, expect } from "vitest";
+import { z } from "zod";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import pg from "pg";
-import { generateText } from "ai";
+import { generateText, stepCountIs } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { decryptGroupKey } from "./crypto";
 import { systemPrompt, PROMPT_VERSION } from "./prompts/system";
@@ -127,13 +128,20 @@ add(
     "Thêm phụ phí Nước 50 nghìn vào buổi Cầu lông tối thứ Năm: tôi ứng, chỉ tôi chịu, tổng tiền chia đều, lý do mua nước.",
     "Thêm phụ phí Nước 50000đ vào buổi Cầu lông tối thứ Năm: tôi ứng, chỉ tôi chịu, tổng tiền chia đều, lý do mua nước.",
   ],
-  { sid, amount: "50000", mode: "total", split: "equal" },
+  { session_id: sid, amount: "50000", mode: "total", split: "equal" },
 );
 it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
   "passes 40 Vietnamese tool/parameter cases with the encrypted test-group provider",
   async () => {
     delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
     expect(cases).toHaveLength(40);
+    const selected = process.env.AI_EVAL_CASES
+      ? new Set(
+          process.env.AI_EVAL_CASES.split(",").map((v) =>
+            z.coerce.number().int().min(1).max(cases.length).parse(v),
+          ),
+        )
+      : null;
     const db = new pg.Client({
       connectionString: databaseUrlForProject(
         process.env.SUPABASE_DB_URL,
@@ -178,7 +186,7 @@ it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
           process.env.AI_KEY_ENCRYPTION_SECRET || "",
         ),
       })(settings.model);
-      // Reuse actual production tool schemas, removing execution: evals never write business data.
+      // Reuse production schemas with synthetic results. No business RPC executes.
       const fake = {} as Awaited<ReturnType<typeof supabase>>;
       const definitions = {
         ...readTools(fake, groupId, "00000000-0000-4000-8000-000000000001"),
@@ -187,15 +195,55 @@ it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
       const tools = Object.fromEntries(
         Object.entries(definitions).map(([name, definition]) => [
           name,
-          { ...definition, execute: undefined },
+          {
+            ...definition,
+            execute: async () =>
+              name === "get_session_breakdown"
+                ? {
+                    id: sid,
+                    group_id: groupId,
+                    title: "Cầu lông tối thứ Năm",
+                    revision: "3",
+                    status: "played",
+                    my_member_id: "55555555-5555-4555-8555-555555555555",
+                    collector_member_id: "55555555-5555-4555-8555-555555555555",
+                    attendees: [
+                      {
+                        member_id: "55555555-5555-4555-8555-555555555555",
+                        name: "An",
+                        rsvp: "going",
+                        weight: "1",
+                        removed_at: null,
+                      },
+                    ],
+                    expenses: [],
+                    settlements: [],
+                    href: `/sessions/${sid}`,
+                  }
+                : name.startsWith("get_") || name === "list_sessions"
+                  ? {
+                      group: { id: groupId, name: "Nhóm kiểm thử" },
+                      total: "0",
+                      rows: [],
+                      sessions: [
+                        {
+                          id: sid,
+                          title: "Cầu lông tối thứ Năm",
+                          revision: "3",
+                        },
+                      ],
+                      href: "/sessions",
+                    }
+                  : {
+                      status: "pending",
+                      id: "66666666-6666-4666-8666-666666666666",
+                      href: "/ai/drafts/66666666-6666-4666-8666-666666666666",
+                    },
+          },
         ]),
       );
       for (const [index, c] of cases.entries()) {
-        if (
-          process.env.AI_EVAL_CASES &&
-          !process.env.AI_EVAL_CASES.split(",").includes(String(index + 1))
-        )
-          continue;
+        if (selected && !selected.has(index + 1)) continue;
         if (index) await new Promise((resolve) => setTimeout(resolve, 3200));
         try {
           const context = `Actor: An, user_id 00000000-0000-4000-8000-000000000001, member_id 55555555-5555-4555-8555-555555555555, role admin. ${c.tool === "draft_rsvp" ? "Session status planned, starts_at 2026-11-26T12:00:00Z, commit_deadline 2026-11-26T10:00:00Z, own RSVP none." : "Session status played, revision 3, collector_member_id 55555555-5555-4555-8555-555555555555; actor is the collector and a going attendee with weight 1; no confirmed payments; no lock. Expense categories and templates empty."} Nhóm kiểm thử. Tôi là An, member_id 55555555-5555-4555-8555-555555555555. Buổi Cầu lông tối thứ Năm có id ${sid}, revision 3. Thăm dò Cuối tuần id ${pid}, khung 19 giờ option_id ${option}. Khoản thanh toán duy nhất id ${payment}, 85000đ: nếu tôi nói đã chuyển thì tôi là người chuyển; nếu xác nhận nhận hoặc nhắc Bình thì tôi là người nhận. Khi thêm phụ phí không có danh mục: category_id rỗng, expense_id rỗng, note rỗng, values [].`;
@@ -204,11 +252,13 @@ it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
             system: systemPrompt("2026-11-22T09:00:00Z"),
             prompt: context + "\n" + c.text,
             tools,
+            stopWhen: stepCountIs(3),
             maxOutputTokens: 2000,
             maxRetries: 0,
             abortSignal: AbortSignal.timeout(30000),
           });
-          const call = r.toolCalls.find((t) => t.toolName === c.tool);
+          const calls = r.steps.flatMap((step) => step.toolCalls);
+          const call = calls.find((t) => t.toolName === c.tool);
           const passed =
             !!call &&
             Object.entries(c.input).every(
@@ -218,7 +268,7 @@ it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
             case: index + 1,
             passed,
             tokens: r.totalUsage.totalTokens || 0,
-            calls: r.toolCalls.map((t) => ({
+            calls: calls.map((t) => ({
               tool: t.toolName,
               input: t.input,
             })),
@@ -238,8 +288,26 @@ it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
         console.log(
           `AI eval ${index + 1}/40: ${results.at(-1)!.passed ? "PASS" : "FAIL"}`,
         );
+        if (results.at(-1)?.error === "429") break;
       }
       mkdirSync(".tools", { recursive: true });
+      const at = new Date().toISOString();
+      writeFileSync(
+        `.tools/ai-provider-eval-${at.replace(/[:.]/g, "-")}.json`,
+        JSON.stringify(
+          {
+            promptVersion: PROMPT_VERSION,
+            model: settings.model,
+            at,
+            results,
+            diagnostic: !!selected,
+            expectedCases: selected?.size || cases.length,
+            complete: results.length === (selected?.size || cases.length),
+          },
+          null,
+          2,
+        ),
+      );
       writeFileSync(
         process.env.AI_EVAL_CASES
           ? ".tools/ai-provider-eval-diagnostic.json"
@@ -250,11 +318,15 @@ it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
             model: settings.model,
             at: new Date().toISOString(),
             results,
+            diagnostic: !!selected,
+            expectedCases: selected?.size || cases.length,
+            complete: results.length === (selected?.size || cases.length),
           },
           null,
           2,
         ),
       );
+      expect(results).toHaveLength(selected?.size || cases.length);
       expect(results.filter((r) => !r.passed).map((r) => r.case)).toEqual([]);
     } finally {
       await db.end().catch(() => {});
