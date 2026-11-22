@@ -1,11 +1,11 @@
 "use server";
-import { createClient } from "@supabase/supabase-js";
 import { randomBytes, createHash } from "node:crypto";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { groupSchema, inviteSchema, bankSchema } from "@/lib/group-schemas";
 import type { FormResult } from "@/components/action-form";
+import { envAllowsSuperAdmin } from "@/lib/super-admin-config.mjs";
 async function identity() {
   const db = await supabase();
   const {
@@ -18,30 +18,24 @@ export async function createGroup(
   _state: FormResult,
   form: FormData,
 ): Promise<FormResult> {
-  const { user } = await identity();
-  const allowed = (process.env.SUPER_ADMIN_EMAILS || "")
-    .split(",")
-    .map((v) => v.trim().toLowerCase());
+  const { db, user } = await identity();
   if (
-    !user.email_confirmed_at ||
-    !user.email ||
-    !allowed.includes(user.email.toLowerCase())
+    !envAllowsSuperAdmin(
+      user.email,
+      user.email_confirmed_at,
+      process.env.SUPER_ADMIN_EMAILS,
+    )
   )
     return { message: "Chỉ chủ ứng dụng được tạo nhóm." };
-  const parsed = groupSchema.safeParse(Object.fromEntries(form));
+  const parsed = groupSchema
+    .extend({ request_key: z.uuid() })
+    .safeParse(Object.fromEntries(form));
   if (!parsed.success)
     return { message: "Nhập tên nhóm và môn thể thao hợp lệ." };
-  if (!process.env.SUPABASE_SECRET_KEY)
-    return { message: "Cần cấu hình khóa server Supabase để tạo nhóm." };
-  const internal = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
-  const { data, error } = await internal.rpc("provision_group", {
-    owner_id: user.id,
+  const { data, error } = await db.rpc("create_group", {
     group_name: parsed.data.name,
     group_sport: parsed.data.sport,
+    request_key: parsed.data.request_key,
   });
   if (error)
     return {

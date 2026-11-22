@@ -1,6 +1,7 @@
 import pg from "pg";
 import { databaseUrlForProject } from "./migration-utils.mjs";
 import { readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
 const connectionString = databaseUrlForProject(
   process.env.SUPABASE_DB_URL,
@@ -67,11 +68,22 @@ async function counts() {
     result[table] = (
       await db.query(`select count(*)::text n from public.${table}`)
     ).rows[0].n;
+  for (const table of ["super_admin_allowlist", "group_creation_requests"])
+    result[`private:${table}`] = (
+      await db.query(`select count(*)::text n from app_private.${table}`)
+    ).rows[0].n;
   return result;
 }
 try {
   await db.connect();
   const before = await counts();
+  const adminFingerprint = async () =>
+    (
+      await db.query(
+        "select md5(coalesce(string_agg(email||':'||active::text,',' order by email),'')) state from app_private.super_admin_allowlist",
+      )
+    ).rows[0].state;
+  const adminsBefore = await adminFingerprint();
   const authBefore = (await db.query("select count(*)::text n from auth.users"))
     .rows[0].n;
   const users = (
@@ -94,6 +106,76 @@ try {
       [a],
     )
   ).rows[0].id;
+  stage = "super admin";
+  await db.query(
+    "insert into app_private.super_admin_allowlist(email,active) select lower(trim(email)),true from auth.users where id=$1 on conflict(email) do update set active=true",
+    [a],
+  );
+  await db.query(
+    "update app_private.super_admin_allowlist set active=false where email=(select lower(trim(email)) from auth.users where id=$1)",
+    [b],
+  );
+  await actor(b);
+  assert(
+    !(await db.query("select public.is_super_admin() ok")).rows[0].ok,
+    "hosted ordinary identity is not super admin",
+  );
+  assert(
+    await denied("select public.create_group('Forbidden','Sport',$1)", [
+      randomUUID(),
+    ]),
+    "hosted allowlist blocks normal group creation",
+  );
+  assert(
+    await denied("select email from app_private.super_admin_allowlist"),
+    "hosted client cannot read admin allowlist",
+  );
+  await actor(a);
+  assert(
+    (await db.query("select public.is_super_admin() ok")).rows[0].ok,
+    "hosted verified allowlisted identity recognized",
+  );
+  const creationKey = randomUUID();
+  const createdGroup = (
+    await db.query(
+      "select public.create_group('Rollback retry group','Sport',$1) id",
+      [creationKey],
+    )
+  ).rows[0].id;
+  assert(
+    (
+      await db.query(
+        "select public.create_group('Rollback retry group','Sport',$1) id",
+        [creationKey],
+      )
+    ).rows[0].id === createdGroup,
+    "hosted group creation retries return original group",
+  );
+  assert(
+    await denied("select public.create_group('Changed retry','Sport',$1)", [
+      creationKey,
+    ]),
+    "hosted changed idempotent payload rejected",
+  );
+  assert(
+    (
+      await db.query(
+        "select id from public.audit_log where group_id=$1 and action='group_created'",
+        [createdGroup],
+      )
+    ).rowCount === 1,
+    "hosted retry creates only one audit event",
+  );
+  await db.query("reset role");
+  await db.query("set local role service_role");
+  assert(
+    await denied(
+      "select public.provision_group($1,'Forbidden service bypass','Sport')",
+      [a],
+    ),
+    "hosted service role cannot provision arbitrary owners",
+  );
+  stage = "roles";
   await actor(b);
   assert(
     (await db.query("select id from public.groups where id=$1", [g]))
@@ -501,6 +583,10 @@ try {
   assert(
     JSON.stringify(await counts()) === JSON.stringify(before),
     "all temporary business data rolled back",
+  );
+  assert(
+    (await adminFingerprint()) === adminsBefore,
+    "hosted admin allowlist preserved after rollback",
   );
   assert(
     (await db.query("select count(*)::text n from auth.users")).rows[0].n ===
