@@ -5,6 +5,8 @@ import { createSession } from "@/app/sessions/actions";
 import { formatMoney, reconcile } from "@/lib/money";
 import { splitExpense, balances } from "@/lib/expense-calculation";
 import type { ExpenseTools } from "@/lib/expense-tools";
+import DateTimeField from "./ui/date-time-field";
+import { Table, TableHead, TableCell } from "./ui/table";
 import SuggestedSessionDetails, {
   type SessionSuggestion,
 } from "./suggested-session-details";
@@ -272,16 +274,14 @@ export default function SessionForm({
             date={starts}
             suggestion={suggestions[group]}
           />
-          <label>
-            Ngày giờ (Việt Nam)
-            <input
-              name="starts"
-              type="datetime-local"
-              required
-              value={starts}
-              onChange={(e) => setStarts(e.target.value)}
-            />
-          </label>
+          <DateTimeField
+            id={`${fieldId}-starts`}
+            name="starts"
+            label="Ngày giờ (Việt Nam)"
+            required
+            value={starts}
+            onChange={setStarts}
+          />
         </div>
         {flow === "played" ? (
           <>
@@ -596,14 +596,25 @@ export default function SessionForm({
                 <p role="status">{error}</p>
               ) : (
                 <>
-                  <div className="split-preview">
-                    {shares.map((p) => (
-                      <div key={p.memberId}>
-                        <span>{name(p.memberId)}</span>
-                        <strong>{formatMoney(p.amount)}</strong>
-                      </div>
-                    ))}
-                  </div>
+                  <Table aria-label="Bảng chia tiền xem trước">
+                    <caption>Phần mỗi người chịu</caption>
+                    <thead>
+                      <tr>
+                        <TableHead>Người chơi</TableHead>
+                        <TableHead className="money">Số tiền</TableHead>
+                      </tr>
+                    </thead>
+                    <tbody className="split-preview">
+                      {shares.map((p) => (
+                        <tr key={p.memberId}>
+                          <TableCell>{name(p.memberId)}</TableCell>
+                          <TableCell className="money">
+                            <strong>{formatMoney(p.amount)}</strong>
+                          </TableCell>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
                   <h3>Cần thanh toán</h3>
                   {transfers.length ? (
                     transfers.map((t) => (

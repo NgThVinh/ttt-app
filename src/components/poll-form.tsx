@@ -2,6 +2,7 @@
 import { useState } from "react";
 import ActionForm from "./action-form";
 import { createPoll } from "@/app/polls/actions";
+import DateTimeField from "./ui/date-time-field";
 import SuggestedSessionDetails, {
   type SessionSuggestion,
 } from "./suggested-session-details";
@@ -51,11 +52,10 @@ export default function PollForm({
             />
           </div>
           <div>
-            <label htmlFor="poll-deadline">Hạn trả lời (giờ Việt Nam)</label>
-            <input
+            <DateTimeField
               id="poll-deadline"
               name="deadline"
-              type="datetime-local"
+              label="Hạn trả lời (giờ Việt Nam)"
               required
             />
           </div>
@@ -67,20 +67,18 @@ export default function PollForm({
               <legend>Khung giờ {i + 1}</legend>
               <div className="compact-fields">
                 <div>
-                  <label htmlFor={`starts-${r}`}>Bắt đầu</label>
-                  <input
+                  <DateTimeField
                     id={`starts-${r}`}
                     name="starts"
-                    type="datetime-local"
+                    label="Bắt đầu"
                     required
                   />
                 </div>
                 <div>
-                  <label htmlFor={`ends-${r}`}>Kết thúc</label>
-                  <input
+                  <DateTimeField
                     id={`ends-${r}`}
                     name="ends"
-                    type="datetime-local"
+                    label="Kết thúc"
                     required
                   />
                 </div>

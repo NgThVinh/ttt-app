@@ -4,6 +4,8 @@ import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { moneySchema } from "@/lib/schemas";
 import { formatMoney } from "@/lib/money";
+import { Table, TableHead, TableCell } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 const schema = z.array(
   z.object({
     id: z.uuid(),
@@ -49,24 +51,54 @@ export default async function Debts() {
         <h2>Tôi cần thu: {formatMoney(owed)}</h2>
       </section>
       {!rows.length && <p>Bạn chưa có khoản thanh toán.</p>}
-      {rows.map((r) => (
-        <section className="panel" key={r.id}>
-          <Link href={`/sessions/${r.session_id}`}>
-            <h2>{r.session_title}</h2>
-            <p>
-              {r.from_name} trả {r.to_name} ·{" "}
-              <strong>{formatMoney(r.amount)}</strong>
-            </p>
-            <p>
-              {r.status === "confirmed"
-                ? "Đã nhận"
-                : r.status === "marked_paid"
-                  ? "Chờ người nhận xác nhận"
-                  : "Chưa trả"}
-            </p>
-          </Link>
-        </section>
-      ))}
+      {!!rows.length && (
+        <Table aria-label="Bảng công nợ">
+          <caption>
+            Các khoản thanh toán · bấm tên buổi để xem và thanh toán
+          </caption>
+          <thead>
+            <tr>
+              <TableHead>Buổi / Người chuyển → nhận</TableHead>
+              <TableHead className="money">Số tiền</TableHead>
+              <TableHead>Trạng thái</TableHead>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id}>
+                <TableCell>
+                  <Link href={`/sessions/${r.session_id}`}>
+                    {r.session_title}
+                  </Link>
+                  <small className="table-description">
+                    {r.from_name} → {r.to_name}
+                  </small>
+                </TableCell>
+                <TableCell className="money">
+                  <strong>{formatMoney(r.amount)}</strong>
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    tone={
+                      r.status === "confirmed"
+                        ? "success"
+                        : r.status === "marked_paid"
+                          ? "warning"
+                          : "neutral"
+                    }
+                  >
+                    {r.status === "confirmed"
+                      ? "Đã nhận"
+                      : r.status === "marked_paid"
+                        ? "Chờ xác nhận"
+                        : "Chưa trả"}
+                  </Badge>
+                </TableCell>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
     </main>
   );
 }

@@ -87,6 +87,60 @@ try {
   await page.getByLabel("Địa điểm", { exact: true }).fill("Court");
   await page.locator(".suggested-details > summary").click();
   const courtInput = page.getByLabel("Tiền sân (đ)", { exact: true });
+  const dateInput = page.getByLabel("Ngày giờ (Việt Nam)", { exact: true });
+  const originalTime = await dateInput.inputValue();
+  const originalDate = originalTime.slice(0, 10);
+  await page.locator(".date-picker > summary").first().click();
+  const calendarDay = page.locator(
+    `.date-picker [data-date="${originalDate}"]`,
+  );
+  await calendarDay.focus();
+  await calendarDay.press("ArrowRight");
+  const nextDate = new Date(
+    new Date(originalDate + "T12:00:00Z").getTime() + 86400000,
+  )
+    .toISOString()
+    .slice(0, 10);
+  await expect(
+    page.locator(`.date-picker [data-date="${nextDate}"]`),
+  ).toBeFocused();
+  await page
+    .locator(`.date-picker [data-date="${nextDate}"]`)
+    .press("ArrowLeft");
+  await expect(calendarDay).toBeFocused();
+  const monthEnd = new Date(
+    Date.UTC(
+      Number(originalDate.slice(0, 4)),
+      Number(originalDate.slice(5, 7)),
+      0,
+    ),
+  )
+    .toISOString()
+    .slice(0, 10);
+  const firstNextMonth = new Date(
+    new Date(monthEnd + "T12:00:00Z").getTime() + 86400000,
+  )
+    .toISOString()
+    .slice(0, 10);
+  await page.locator(`.date-picker [data-date="${monthEnd}"]`).focus();
+  await page
+    .locator(`.date-picker [data-date="${monthEnd}"]`)
+    .press("ArrowRight");
+  await expect(
+    page.locator(`.date-picker [data-date="${firstNextMonth}"]`),
+  ).toBeFocused();
+  await page
+    .locator(`.date-picker [data-date="${firstNextMonth}"]`)
+    .press("ArrowLeft");
+  await expect(
+    page.locator(`.date-picker [data-date="${monthEnd}"]`),
+  ).toBeFocused();
+  await calendarDay.focus();
+  await calendarDay.press("Enter");
+  check(
+    (await dateInput.inputValue()) === originalTime,
+    "CALENDAR_PRESERVES_TIME",
+  );
   check((await courtInput.inputValue()) === "", "NO_ASSUMED_COURT_PRICE");
   await page
     .getByRole("button", { name: "2. Người chơi", exact: true })
@@ -201,6 +255,39 @@ try {
     )
   ).rows[0];
   check(payment.amount === "40000", "HIDDEN_WEIGHTS_AND_EXTRAS_PRESERVED");
+  await page.goto(origin + "/debts");
+  await expect(
+    page.getByRole("table", { name: "Bảng công nợ", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("table")
+      .locator("tr")
+      .filter({ has: page.locator(`a[href="/sessions/${sid}"]`) })
+      .getByText("40.000đ", { exact: true }),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 360, height: 900 });
+  check(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+    "DEBT_TABLE_NO_PAGE_OVERFLOW",
+  );
+  await page.screenshot({ path: ".tools/minimal-ux/debt-table-360.png" });
+  await page.goto(origin + "/sessions");
+  await page.getByRole("button", { name: "Lịch tháng", exact: true }).waitFor();
+  await page.locator(`.calendar [data-date="${originalDate}"]`).click();
+  check(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+    "CALENDAR_NO_PAGE_OVERFLOW",
+  );
+  await page.screenshot({ path: ".tools/minimal-ux/calendar-360.png" });
+  await expect(page.locator(`a[href="/sessions/${sid}"]`)).toBeVisible();
+  await page.getByRole("button", { name: "Danh sách", exact: true }).click();
+  await expect(page.locator(".calendar")).toHaveCount(0);
+  await page.goto(origin + "/sessions/" + sid);
   await expect(page).toHaveTitle("Chi tiết buổi chơi · 3T");
   await page.goto(origin + "/sessions/new");
   await page.locator("select").first().selectOption(group);
@@ -377,7 +464,13 @@ try {
     }),
   );
 } catch (error) {
-  console.error(JSON.stringify({ code: error.code || error.name, step }));
+  console.error(
+    JSON.stringify({
+      code: error.code || error.name,
+      step,
+      assertion: error.matcherResult?.message?.slice(0, 800),
+    }),
+  );
   process.exitCode = 1;
 } finally {
   await app?.close();

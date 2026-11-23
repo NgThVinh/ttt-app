@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import SessionBrowser from "@/components/session-browser";
+import { vietnamToday } from "@/lib/calendar";
 export default async function Sessions() {
   const db = await supabase();
   const {
@@ -26,27 +28,9 @@ export default async function Sessions() {
       {!data?.length && !error && (
         <p>Chưa có buổi chơi. Cùng nhóm tạo buổi đầu tiên nhé.</p>
       )}
-      {data?.map((s) => (
-        <section className="panel" key={s.id}>
-          <Link href={`/sessions/${s.id}`}>
-            <h2>{s.title}</h2>
-            <p>
-              {s.venue} ·{" "}
-              {new Date(s.starts_at).toLocaleString("vi-VN", {
-                timeZone: "Asia/Ho_Chi_Minh",
-              })}{" "}
-              ·{" "}
-              {s.status === "planned"
-                ? "Sắp tới"
-                : s.status === "settled"
-                  ? "Đã thu đủ"
-                  : s.status === "cancelled"
-                    ? "Đã hủy"
-                    : "Đang thu tiền"}
-            </p>
-          </Link>
-        </section>
-      ))}
+      {!!data?.length && (
+        <SessionBrowser sessions={data} today={vietnamToday()} />
+      )}
     </main>
   );
 }
