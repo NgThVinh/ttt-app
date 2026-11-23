@@ -9,12 +9,16 @@ export default function ActionForm({
   label = "Lưu",
   disabled = false,
   disabledReason,
+  hideSubmit = false,
+  onInvalidCapture,
 }: {
   action: (state: FormResult, form: FormData) => Promise<FormResult>;
   children: React.ReactNode;
   label?: string;
   disabled?: boolean;
   disabledReason?: string;
+  hideSubmit?: boolean;
+  onInvalidCapture?: React.FormEventHandler<HTMLFormElement>;
 }) {
   const reasonId = useId();
   const request = useRef<{ fingerprint: string; key: string } | null>(null);
@@ -44,17 +48,19 @@ export default function ActionForm({
     if (state.ok) router.refresh();
   }, [state, router]);
   return (
-    <form action={submit}>
+    <form action={submit} onInvalidCapture={onInvalidCapture}>
       {children}
-      <Button
-        disabled={pending || disabled}
-        aria-describedby={disabled && disabledReason ? reasonId : undefined}
-        className="rounded-lg"
-        style={{ marginTop: 16 }}
-      >
-        {pending ? "Đang xử lý…" : label}
-      </Button>
-      {disabled && disabledReason && (
+      {!hideSubmit && (
+        <Button
+          disabled={pending || disabled}
+          aria-describedby={disabled && disabledReason ? reasonId : undefined}
+          className="rounded-lg"
+          style={{ marginTop: 16 }}
+        >
+          {pending ? "Đang xử lý…" : label}
+        </Button>
+      )}
+      {!hideSubmit && disabled && disabledReason && (
         <p id={reasonId} className="field-hint">
           {disabledReason}
         </p>

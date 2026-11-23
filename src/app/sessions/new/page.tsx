@@ -9,13 +9,28 @@ export default async function NewSession() {
     data: { user },
   } = await db.auth.getUser();
   if (!user) redirect("/login");
-  const [{ data: groups, error }, { data: members }] = await Promise.all([
-    db.from("groups").select("id,name"),
-    db
-      .from("group_members")
-      .select("id,group_id,display_name,user_id")
-      .eq("status", "active"),
-  ]);
+  const [{ data: groups, error }, { data: members }, { data: recent }] =
+    await Promise.all([
+      db.from("groups").select("id,name"),
+      db
+        .from("group_members")
+        .select("id,group_id,display_name,user_id")
+        .eq("status", "active"),
+      db
+        .from("sessions")
+        .select("group_id,venue")
+        .order("created_at", { ascending: false })
+        .limit(100),
+    ]);
+  const suggestions: Record<string, { venue: string }> = {};
+  for (const session of recent || []) {
+    if (
+      !suggestions[session.group_id] &&
+      session.venue &&
+      session.venue !== "Chưa chọn sân"
+    )
+      suggestions[session.group_id] = { venue: session.venue };
+  }
   const toolsByGroup: Record<string, ExpenseTools> = {};
   await Promise.all(
     (groups || []).map(async (g) => {
@@ -41,6 +56,7 @@ export default async function NewSession() {
           members={members || []}
           toolsByGroup={toolsByGroup}
           initialTime={new Date().toISOString()}
+          suggestions={suggestions}
         />
       )}
     </main>

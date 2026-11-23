@@ -396,13 +396,18 @@ try {
     await page.locator("select").first().selectOption(browserGroup);
     const title = "Browser played " + Date.now();
     browserStep = "fill-fields";
+    await page.locator(".suggested-details > summary").click();
     await page.getByLabel("Tên buổi", { exact: true }).fill(title);
     await page.getByLabel("Địa điểm", { exact: true }).fill("Local court");
     await page.getByLabel("Tiền sân (đ)", { exact: true }).fill("100000");
     await page
+      .getByRole("button", { name: "2. Người chơi", exact: true })
+      .click();
+    await page
       .getByRole("button", { name: "Chọn tất cả", exact: true })
       .click();
     browserStep = "review";
+    await page.getByRole("button", { name: "3. Xem lại", exact: true }).click();
     await page
       .getByRole("button", { name: "Tôi đã xem bảng chia", exact: true })
       .click();

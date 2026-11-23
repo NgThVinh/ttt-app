@@ -46,6 +46,7 @@ try {
     step = "create-session";
     await owner.page.goto(origin + "/sessions/new");
     await owner.page.locator("select").first().selectOption(group);
+    await owner.page.locator(".suggested-details > summary").click();
     await owner.page
       .getByLabel("Tên buổi", { exact: true })
       .fill("Buổi giả lập · Không chuyển tiền thật");
@@ -56,7 +57,13 @@ try {
       .getByLabel("Tiền sân (đ)", { exact: true })
       .fill("100.000");
     await owner.page
+      .getByRole("button", { name: "2. Người chơi", exact: true })
+      .click();
+    await owner.page
       .getByRole("button", { name: "Chọn tất cả", exact: true })
+      .click();
+    await owner.page
+      .getByRole("button", { name: "3. Xem lại", exact: true })
       .click();
     await owner.page
       .getByRole("button", { name: "Tôi đã xem bảng chia", exact: true })

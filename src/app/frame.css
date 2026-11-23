@@ -25,6 +25,120 @@
 .session-form label {
   font-size: 14px;
 }
+.compact-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.session-form [hidden] {
+  display: none !important;
+}
+.form-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.form-steps button {
+  font-size: 13px;
+  min-height: 44px;
+  padding: 8px 4px;
+  background: var(--bg);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.form-steps button[aria-current="step"] {
+  background: var(--accent);
+  color: #fff;
+}
+.form-overview {
+  padding: 12px 0;
+  font-size: 14px;
+  border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.form-step-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 16px;
+}
+.compact-fields > * {
+  min-width: 0;
+}
+.compact-fields label {
+  margin-top: 10px;
+}
+.suggested-details {
+  margin-block: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--soft);
+}
+.suggested-details summary {
+  color: var(--ink);
+  font-size: 14px;
+}
+.suggested-details summary small {
+  display: block;
+  padding-top: 4px;
+  color: var(--muted);
+}
+.participant-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 10px;
+  max-height: 264px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+}
+.participant-list label {
+  overflow-wrap: anywhere;
+}
+.poll-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.poll-options-grid fieldset {
+  margin-block: 0 12px;
+}
+.poll-options-grid .compact-fields {
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+.poll-form label {
+  font-size: 14px;
+}
+.poll-form input,
+.poll-form select {
+  max-width: 100%;
+  min-width: 0;
+}
+@media (max-width: 600px) {
+  .session-form > .compact-fields,
+  .suggested-details .compact-fields,
+  .poll-form .compact-fields {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .poll-options-grid {
+    grid-template-columns: 1fr;
+  }
+  .poll-options-grid .compact-fields {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .poll-options-grid fieldset {
+    padding: 10px;
+  }
+  .poll-options-grid input {
+    font-size: 14px;
+    padding-inline: 10px;
+  }
+}
 .session-form label > select {
   display: block;
   width: 100%;

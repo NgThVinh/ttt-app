@@ -70,13 +70,31 @@ try {
   step = "create";
   await page.goto(origin + "/sessions/new");
   await page.locator("select").first().selectOption(group);
+  check(
+    !(await page.getByLabel("Tên buổi", { exact: true }).isVisible()),
+    "DETAILS_COLLAPSED",
+  );
+  check(
+    (await page.getByLabel("Tên buổi", { exact: true }).inputValue()).includes(
+      "UX minimal fixture",
+    ),
+    "TITLE_SUGGESTED",
+  );
+  await page.locator(".suggested-details > summary").click();
   await page
     .getByLabel("Tên buổi", { exact: true })
     .fill("UX preserved customization");
   await page.getByLabel("Địa điểm", { exact: true }).fill("Court");
+  await page.locator(".suggested-details > summary").click();
   const courtInput = page.getByLabel("Tiền sân (đ)", { exact: true });
   check((await courtInput.inputValue()) === "", "NO_ASSUMED_COURT_PRICE");
+  await page
+    .getByRole("button", { name: "2. Người chơi", exact: true })
+    .click();
   await page.getByRole("button", { name: "Chọn tất cả", exact: true }).click();
+  await page
+    .getByRole("button", { name: "1. Lịch & tiền", exact: true })
+    .click();
   await courtInput.fill("400000.5");
   await courtInput.press("Tab");
   check(
@@ -103,6 +121,9 @@ try {
       "LOCALE_AMOUNT_FORMATTED_ON_BLUR",
     );
   }
+  await page
+    .getByRole("button", { name: "2. Người chơi", exact: true })
+    .click();
   check(
     await page
       .locator(".member-choice > label")
@@ -120,6 +141,9 @@ try {
       .isVisible()),
     "EXTRAS_HIDDEN_BY_DEFAULT",
   );
+  await page
+    .getByRole("button", { name: "1. Lịch & tiền", exact: true })
+    .click();
   await page.screenshot({
     path: ".tools/minimal-ux/create-simple.png",
     fullPage: true,
@@ -135,17 +159,19 @@ try {
     );
   }
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "3. Xem lại", exact: true }).click();
   await page
     .getByRole("button", { name: "Tôi đã xem bảng chia", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "2. Người chơi", exact: true })
     .click();
   await page
     .getByText("Tùy chỉnh cách chia và phụ phí", { exact: true })
     .click();
   await page.getByLabel("Hệ số của UX B", { exact: true }).fill("0,5");
   check(
-    await page
-      .getByRole("button", { name: "Lưu buổi chơi", exact: true })
-      .isDisabled(),
+    (await page.locator('input[name="reviewed"]').inputValue()) === "no",
     "CHANGE_INVALIDATES_PREVIEW",
   );
   await page
@@ -159,6 +185,7 @@ try {
     ),
     "COLLAPSED_CUSTOMIZATION_STAYS_EXPLICIT",
   );
+  await page.getByRole("button", { name: "3. Xem lại", exact: true }).click();
   await page
     .getByRole("button", { name: "Tôi đã xem bảng chia", exact: true })
     .click();
@@ -175,6 +202,63 @@ try {
   ).rows[0];
   check(payment.amount === "40000", "HIDDEN_WEIGHTS_AND_EXTRAS_PRESERVED");
   await expect(page).toHaveTitle("Chi tiết buổi chơi · 3T");
+  await page.goto(origin + "/sessions/new");
+  await page.locator("select").first().selectOption(group);
+  check(
+    (await page.getByLabel("Địa điểm", { exact: true }).inputValue()) ===
+      "Court",
+    "RECENT_VENUE_SUGGESTED",
+  );
+  await page.goto(origin + "/polls");
+  await page.locator("#poll-group").selectOption(group);
+  check(
+    (await page.getByLabel("Địa điểm", { exact: true }).inputValue()) ===
+      "Court",
+    "POLL_VENUE_SUGGESTED",
+  );
+  for (const width of [360, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    check(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+      "POLL_NO_OVERFLOW",
+    );
+    await page.screenshot({
+      path: `.tools/minimal-ux/poll-${width}.png`,
+      fullPage: true,
+    });
+  }
+  const localTime = (hours) =>
+    new Date(Date.now() + (hours + 7) * 3600000).toISOString().slice(0, 16);
+  await page.locator("#poll-deadline").fill(localTime(24));
+  for (const [i, hour] of [48, 72].entries()) {
+    await page.locator(`#starts-${i}`).fill(localTime(hour));
+    await page.locator(`#ends-${i}`).fill(localTime(hour + 1));
+  }
+  await page.getByRole("button", { name: "Tạo thăm dò", exact: true }).click();
+  await page.waitForURL(/\/polls\/[a-f0-9-]{36}$/);
+  await db.query(
+    "insert into public.group_members(group_id,display_name) select $1,'Khách giả lập ' || n from generate_series(1,28) n",
+    [group],
+  );
+  await page.goto(origin + "/sessions/new");
+  await page.locator("select").first().selectOption(group);
+  await page
+    .getByRole("button", { name: "2. Người chơi", exact: true })
+    .click();
+  check(
+    await page
+      .locator(".participant-list")
+      .evaluate(
+        (el) => el.clientHeight <= 264 && el.scrollHeight > el.clientHeight,
+      ),
+    "THIRTY_MEMBERS_BOUNDED",
+  );
+  await page.screenshot({
+    path: ".tools/minimal-ux/thirty-members.png",
+    fullPage: true,
+  });
   step = "feedback-errors";
   await page.goto(origin + "/sessions/" + randomUUID());
   await page

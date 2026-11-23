@@ -207,6 +207,7 @@ try {
   passed("collector sets up test receiving profile");
   step = "create-session";
   await activePage.goto(origin + "/sessions/new");
+  await activePage.locator(".suggested-details > summary").click();
   await activePage.getByLabel("Tên buổi", { exact: true }).waitFor();
   const at = Date.now();
   await activePage
@@ -215,9 +216,15 @@ try {
   await activePage.getByLabel("Địa điểm", { exact: true }).fill("Sân kiểm thử");
   await activePage.getByLabel("Tiền sân (đ)", { exact: true }).fill("100000");
   await activePage
+    .getByRole("button", { name: "2. Người chơi", exact: true })
+    .click();
+  await activePage
     .getByRole("button", { name: "Chọn tất cả", exact: true })
     .click();
   await screenshot("04-create-preview");
+  await activePage
+    .getByRole("button", { name: "3. Xem lại", exact: true })
+    .click();
   await activePage
     .getByRole("button", { name: "Tôi đã xem bảng chia", exact: true })
     .click();

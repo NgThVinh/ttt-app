@@ -5,6 +5,9 @@ import { createSession } from "@/app/sessions/actions";
 import { formatMoney, reconcile } from "@/lib/money";
 import { splitExpense, balances } from "@/lib/expense-calculation";
 import type { ExpenseTools } from "@/lib/expense-tools";
+import SuggestedSessionDetails, {
+  type SessionSuggestion,
+} from "./suggested-session-details";
 import {
   courtInputSchema,
   formatVndInput,
@@ -27,6 +30,7 @@ export default function SessionForm({
   userId,
   toolsByGroup,
   initialTime,
+  suggestions = {},
 }: {
   groups: { id: string; name: string }[];
   members: {
@@ -38,12 +42,14 @@ export default function SessionForm({
   userId: string;
   toolsByGroup: Record<string, ExpenseTools>;
   initialTime: string;
+  suggestions?: Record<string, SessionSuggestion>;
 }) {
   const [group, setGroup] = useState(groups[0].id),
     [flow, setFlow] = useState("played"),
     [selected, setSelected] = useState<string[]>([]),
     [amount, setAmount] = useState("");
   const fieldId = useId();
+  const [step, setStep] = useState(0);
   const [courtTouched, setCourtTouched] = useState(false);
   const [weights, setWeights] = useState<Record<string, string>>({}),
     [extras, setExtras] = useState<Extra[]>([]),
@@ -171,39 +177,73 @@ export default function SessionForm({
     inGroup.find((m) => m.id === id)?.display_name || "Thành viên";
   return (
     <section className="panel session-form">
-      <label>
-        Nhóm
-        <select
-          value={group}
-          onChange={(e) => {
-            setGroup(e.target.value);
-            setSelected([]);
-            setWeights({});
-            setExtras([]);
-          }}
-        >
-          {groups.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Loại buổi
-        <select
-          value={flow}
-          onChange={(e) => {
-            setFlow(e.target.value);
-            setStarts(defaultTime(e.target.value === "planned" ? 86400000 : 0));
-          }}
-        >
-          <option value="played">Đã chơi — tôi tính tiền</option>
-          <option value="planned">Đã có lịch — mời mọi người tham gia</option>
-        </select>
-      </label>
+      {flow === "played" && (
+        <>
+          <nav className="form-steps" aria-label="Các phần tạo buổi">
+            {["Lịch & tiền", "Người chơi", "Xem lại"].map((label, index) => (
+              <button
+                type="button"
+                key={label}
+                aria-current={step === index ? "step" : undefined}
+                onClick={() => setStep(index)}
+              >
+                {index + 1}. {label}
+              </button>
+            ))}
+          </nav>
+          <p className="form-overview">
+            {courtInput.success
+              ? formatMoney(BigInt(courtInput.data))
+              : "Chưa nhập tiền sân"}{" "}
+            · {selected.length} người ·{" "}
+            {extras.length ? `${extras.length} phụ phí` : "Chia đều mặc định"}
+          </p>
+        </>
+      )}
+      <div className="compact-fields" hidden={flow === "played" && step !== 0}>
+        <label>
+          Nhóm
+          <select
+            value={group}
+            onChange={(e) => {
+              setGroup(e.target.value);
+              setSelected([]);
+              setWeights({});
+              setExtras([]);
+            }}
+          >
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Loại buổi
+          <select
+            value={flow}
+            onChange={(e) => {
+              setFlow(e.target.value);
+              setStarts(
+                defaultTime(e.target.value === "planned" ? 86400000 : 0),
+              );
+            }}
+          >
+            <option value="played">Đã chơi — tôi tính tiền</option>
+            <option value="planned">Đã có lịch — mời mọi người tham gia</option>
+          </select>
+        </label>
+      </div>
       <ActionForm
         action={createSession}
+        hideSubmit={flow === "played" && step !== 2}
+        onInvalidCapture={(event) => {
+          const target = event.target as HTMLElement;
+          const details = target.closest("details");
+          if (details) details.open = true;
+          setStep(target.closest(".split-customization") ? 1 : 0);
+        }}
         disabled={flow === "played" && !reviewed}
         disabledReason={
           flow === "played" && !reviewed
@@ -225,33 +265,28 @@ export default function SessionForm({
           name="extras"
           value={JSON.stringify(flow === "played" ? payloadExtras : [])}
         />
-        <label>
-          Tên buổi
-          <input
-            name="title"
-            required
-            maxLength={160}
-            placeholder="Cầu lông tối thứ Năm"
+        <div hidden={flow === "played" && step !== 0}>
+          <SuggestedSessionDetails
+            key={group}
+            groupName={groups.find((g) => g.id === group)?.name || "cùng nhóm"}
+            date={starts}
+            suggestion={suggestions[group]}
           />
-        </label>
-        <label>
-          Địa điểm
-          <input name="venue" required maxLength={200} />
-        </label>
-        <label>
-          Ngày giờ (Việt Nam)
-          <input
-            name="starts"
-            type="datetime-local"
-            required
-            value={starts}
-            onChange={(e) => setStarts(e.target.value)}
-          />
-        </label>
+          <label>
+            Ngày giờ (Việt Nam)
+            <input
+              name="starts"
+              type="datetime-local"
+              required
+              value={starts}
+              onChange={(e) => setStarts(e.target.value)}
+            />
+          </label>
+        </div>
         {flow === "played" ? (
           <>
             <input type="hidden" name="collectorMode" value="self" />
-            <label>
+            <label hidden={step !== 0}>
               Tiền sân (đ)
               <input
                 name="court"
@@ -269,6 +304,7 @@ export default function SessionForm({
               />
             </label>
             <p
+              hidden={step !== 0}
               id={`${fieldId}-court-help`}
               className={
                 courtError && (courtTouched || amount)
@@ -280,7 +316,7 @@ export default function SessionForm({
                 ? courtError
                 : "Nhập giá sân thực tế. Có thể dùng 400000, 400.000 hoặc 400,000."}
             </p>
-            <fieldset>
+            <fieldset hidden={step !== 1}>
               <legend>Ai đã tham gia?</legend>
               {!selected.length && (
                 <p className="field-hint">
@@ -301,33 +337,38 @@ export default function SessionForm({
               >
                 Bỏ chọn
               </button>
-              {inGroup.map((m) => (
-                <div key={m.id} className="member-choice">
-                  <label>
-                    <input
-                      type="checkbox"
-                      name="people"
-                      value={m.id}
-                      checked={selected.includes(m.id)}
-                      onChange={(e) =>
-                        setSelected((old) =>
-                          e.target.checked
-                            ? [...old, m.id]
-                            : old.filter((id) => id !== m.id),
-                        )
-                      }
-                    />
-                    {m.display_name}
-                  </label>
-                </div>
-              ))}
+              <p className="field-hint">
+                Đã chọn {selected.length}/{inGroup.length} người
+              </p>
+              <div className="participant-list">
+                {inGroup.map((m) => (
+                  <div key={m.id} className="member-choice">
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="people"
+                        value={m.id}
+                        checked={selected.includes(m.id)}
+                        onChange={(e) =>
+                          setSelected((old) =>
+                            e.target.checked
+                              ? [...old, m.id]
+                              : old.filter((id) => id !== m.id),
+                          )
+                        }
+                      />
+                      {m.display_name}
+                    </label>
+                  </div>
+                ))}
+              </div>
             </fieldset>
-            <p>
+            <p hidden={step !== 1}>
               {selected.some((id) => weightMap[id] !== "1")
                 ? "Đang chia tiền sân theo hệ số đã tùy chỉnh."
                 : "Chia đều tiền sân cho những người đã chọn."}
             </p>
-            <details className="split-customization">
+            <details className="split-customization" hidden={step !== 1}>
               <summary>
                 Tùy chỉnh cách chia và phụ phí
                 {extras.length > 0 ||
@@ -549,52 +590,54 @@ export default function SessionForm({
                 </fieldset>
               ))}
             </details>
-            <h2>Xem trước tổng phần chịu</h2>
-            {error ? (
-              <p role="status">{error}</p>
-            ) : (
-              <>
-                <div className="split-preview">
-                  {shares.map((p) => (
-                    <div key={p.memberId}>
-                      <span>{name(p.memberId)}</span>
-                      <strong>{formatMoney(p.amount)}</strong>
-                    </div>
-                  ))}
-                </div>
-                <h3>Cần thanh toán</h3>
-                {transfers.length ? (
-                  transfers.map((t) => (
-                    <p key={t.from + t.to}>
-                      {name(t.from)} → {name(t.to)}:{" "}
-                      <strong>{formatMoney(t.amount)}</strong>
+            <div hidden={step !== 2}>
+              <h2>Xem trước tổng phần chịu</h2>
+              {error ? (
+                <p role="status">{error}</p>
+              ) : (
+                <>
+                  <div className="split-preview">
+                    {shares.map((p) => (
+                      <div key={p.memberId}>
+                        <span>{name(p.memberId)}</span>
+                        <strong>{formatMoney(p.amount)}</strong>
+                      </div>
+                    ))}
+                  </div>
+                  <h3>Cần thanh toán</h3>
+                  {transfers.length ? (
+                    transfers.map((t) => (
+                      <p key={t.from + t.to}>
+                        {name(t.from)} → {name(t.to)}:{" "}
+                        <strong>{formatMoney(t.amount)}</strong>
+                      </p>
+                    ))
+                  ) : (
+                    <p>Không có khoản cần chuyển.</p>
+                  )}
+                  <details>
+                    <summary>Cách làm tròn</summary>{" "}
+                    <p>
+                      Phần lẻ dưới 1.000đ thuộc người ứng nếu cùng chịu khoản
+                      chi; nếu không, thuộc người có phần lý thuyết lớn nhất.
                     </p>
-                  ))
-                ) : (
-                  <p>Không có khoản cần chuyển.</p>
-                )}
-                <details>
-                  <summary>Cách làm tròn</summary>{" "}
-                  <p>
-                    Phần lẻ dưới 1.000đ thuộc người ứng nếu cùng chịu khoản chi;
-                    nếu không, thuộc người có phần lý thuyết lớn nhất.
-                  </p>
-                </details>
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() => setReview(fingerprint)}
-                >
-                  Tôi đã xem bảng chia
-                </button>
-              </>
-            )}
-            <input
-              type="hidden"
-              name="reviewed"
-              value={reviewed ? "yes" : "no"}
-            />
-            {reviewed && <p role="status">Đã xem trước. Có thể lưu buổi.</p>}
+                  </details>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => setReview(fingerprint)}
+                  >
+                    Tôi đã xem bảng chia
+                  </button>
+                </>
+              )}
+              <input
+                type="hidden"
+                name="reviewed"
+                value={reviewed ? "yes" : "no"}
+              />
+              {reviewed && <p role="status">Đã xem trước. Có thể lưu buổi.</p>}
+            </div>
           </>
         ) : (
           <>
@@ -637,6 +680,28 @@ export default function SessionForm({
               riêng.
             </p>
           </>
+        )}
+        {flow === "played" && (
+          <div className="form-step-actions">
+            {step > 0 && (
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setStep(step - 1)}
+              >
+                Quay lại
+              </button>
+            )}
+            {step < 2 && (
+              <button
+                type="button"
+                className="primary"
+                onClick={() => setStep(step + 1)}
+              >
+                {step === 0 ? "Chọn người chơi" : "Xem lại bảng chia"}
+              </button>
+            )}
+          </div>
         )}
       </ActionForm>
     </section>
