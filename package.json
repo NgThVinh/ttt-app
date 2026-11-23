@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "simulate": "node scripts/simulate.mjs",
-    "simulate:check": "node scripts/simulate.mjs --check",
+    "simulate": "node scripts/standalone/run.mjs",
+    "simulate:check": "node scripts/standalone/run.mjs --check",
+    "simulate:backend": "node scripts/simulate.mjs",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
