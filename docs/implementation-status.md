@@ -1,5 +1,7 @@
 # Tiến độ theo tám mốc
 
+- Sửa lỗi bootstrap nhóm đầu tiên cho super admin: người dùng email đã xác minh, có trong cả SUPER_ADMIN_EMAILS và allowlist DB được GET/POST /groups khi chưa có membership; root/welcome dẫn về đó. Không cấp quyền xem nhóm khác/tiền, tài khoản thường giữ trang chờ. Cập nhật hướng dẫn tạo nhóm/mời/khách tại [group-setup.md](group-setup.md). 167 test/typecheck/lint/build qua; cấu hình hosted có 1 allowlist đã xác minh, không có thay đổi chưa sync. Browser first-group test được bổ sung nhưng lần chạy lại bị chặn bởi Docker/local Supabase tắt. Bản sửa hiện ở local, chưa deploy production.
+
 - Bản tối ưu feedback `d2d8403` đã deploy production ngày 23/11/2026 (`dpl_APh7NR7NDGXip9pkingKgg9jMRFy`, Ready). Kiểm tra UI trên domain bằng tài khoản test đã có qua cả ba màn nhóm/tạo buổi/thanh toán; không ghi thêm công nợ, không gọi LLM.
 
 - 23/11/2026: xử lý bốn feedback của production-user-review: ưu tiên thanh toán trước phần chia/người tham gia, bằng chứng tùy chọn đóng mặc định; Mời bạn đầu trang nhóm, role management/khách/link cũ thu gọn, không mặc định đổi quyền; hệ số/phụ phí/giải thích làm tròn chỉ mở khi cần. Có nhãn khi tùy chỉnh và giữ đầy đủ preview/revision. Browser `test:minimal-ux` và `test:payment-ui` qua trên local, không gọi LLM. 163 test thường/typecheck/lint/build qua; không cần migration.

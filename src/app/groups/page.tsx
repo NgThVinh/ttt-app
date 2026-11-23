@@ -43,7 +43,11 @@ export default async function Groups() {
         </section>
       ))}
       {!data?.length && !error && (
-        <p>Bạn chưa tham gia nhóm. Nhờ admin gửi link mời nhé.</p>
+        <p>
+          {isSuper
+            ? "Chưa có nhóm. Tạo nhóm đầu tiên bên dưới."
+            : "Bạn chưa tham gia nhóm. Nhờ admin gửi link mời nhé."}
+        </p>
       )}
       {isSuper && (
         <section className="panel">

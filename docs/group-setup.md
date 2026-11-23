@@ -1,0 +1,24 @@
+# Tạo nhóm và thêm thành viên
+
+## Super admin tạo nhóm
+
+1. Đăng nhập Google bằng email trong `SUPER_ADMIN_EMAILS`; email phải được xác minh và có trong allowlist database.
+2. Mở `http://localhost:3000/groups` khi chạy local.
+3. Trong **Tạo nhóm mới**, nhập **Tên nhóm** và **Môn thể thao**, bấm **Tạo nhóm**.
+4. App mở nhóm vừa tạo. Người tạo tự động là admin của nhóm.
+
+Super admin chưa có nhóm được mở riêng trang này để tạo nhóm đầu tiên; tài khoản thường vẫn cần link mời. Không có quyền truy cập chung vào các nhóm của người khác.
+
+Nếu vừa thay cấu hình email: khởi động lại dev server, chạy `npm run db:admins` để xem trạng thái, rồi `npm run db:admins:sync` khi cần đồng bộ thay đổi. Không dán key hay email credentials vào chat.
+
+## Mời người có tài khoản
+
+1. Mở nhóm → **Mời bạn** → **Tạo link mời**.
+2. Sao chép link và gửi cho bạn bè. Có thể mở **Tùy chỉnh link mời** để đổi hạn/lượt dùng.
+3. Người nhận mở link, đăng nhập Google, nhập tên trong nhóm và bấm **Tham gia nhóm**.
+
+## Thêm người chưa dùng app
+
+Mở nhóm → **Thêm người chưa có tài khoản** → nhập tên → **Thêm thành viên**. Đây là thành viên khách để tính phần tiền; thao tác không tạo tài khoản hoặc gửi email.
+
+Khi người đó dùng app, gửi link mời. Việc nhận lại thành viên khách cần admin xác minh/duyệt; app không tự ghép tài khoản theo tên.

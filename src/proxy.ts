@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { verifiedSuperAdmin } from "@/lib/super-admin-access";
 export async function proxy(request: NextRequest) {
   // Supabase falls back to Site URL when an OAuth redirect isn't allowlisted.
   // Exchange at the callback before the membership/authentication gate.
@@ -64,6 +65,14 @@ export async function proxy(request: NextRequest) {
         headers: { "Cache-Control": "private, no-store" },
       });
     if (!membership.data?.length) {
+      if (
+        (path === "/" || path === "/groups") &&
+        (await verifiedSuperAdmin(db))
+      ) {
+        if (path === "/") return redirect("/groups");
+        response.headers.set("Cache-Control", "private, no-store");
+        return response;
+      }
       if (request.method !== "GET" || path.startsWith("/api/"))
         return NextResponse.json(
           { error: "Bạn cần tham gia nhóm qua link mời trước." },

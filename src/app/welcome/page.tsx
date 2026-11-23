@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { logout } from "@/app/actions";
+import { verifiedSuperAdmin } from "@/lib/super-admin-access";
 export default async function Welcome() {
   const db = await supabase();
   const {
@@ -14,6 +15,7 @@ export default async function Welcome() {
     .eq("status", "active")
     .limit(1);
   if (!membership.error && membership.data?.length) redirect("/");
+  if (!membership.error && (await verifiedSuperAdmin(db))) redirect("/groups");
   return (
     <main className="welcome-page">
       <div className="welcome-brand" aria-label="3T · Thích Tính Tiền">
