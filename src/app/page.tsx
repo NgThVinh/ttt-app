@@ -3,13 +3,16 @@ import Dashboard from "@/components/dashboard";
 import { z } from "zod";
 import { moneySchema } from "@/lib/schemas";
 import { redirect } from "next/navigation";
+import { profileName } from "@/lib/profile-name";
+import { appName } from "@/lib/config";
+export const metadata = { title: { absolute: `Trang chủ · ${appName}` } };
 export default async function Home() {
   const db = await supabase();
   const {
     data: { user },
   } = await db.auth.getUser();
   if (!user) redirect("/login");
-  const [groups, sessions, wallet] = await Promise.all([
+  const [groups, sessions, wallet, profile] = await Promise.all([
     db.from("groups").select("id,name,sport"),
     db
       .from("sessions")
@@ -17,6 +20,7 @@ export default async function Home() {
       .order("starts_at", { ascending: false })
       .limit(30),
     db.rpc("my_settlements"),
+    db.from("profiles").select("display_name").eq("id", user.id).maybeSingle(),
   ]);
   const parsed = z
     .array(
@@ -48,9 +52,7 @@ export default async function Home() {
     <Dashboard
       demo={false}
       name={
-        typeof user.user_metadata.full_name === "string"
-          ? user.user_metadata.full_name.split(" ")[0]
-          : "bạn"
+        profileName(profile.data?.display_name, user.user_metadata) || "bạn"
       }
       summary={summary}
       groups={groups.data || []}

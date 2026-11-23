@@ -204,3 +204,4 @@ export default async function AISettings() {
     </main>
   );
 }
+export const metadata = { title: "Cài đặt trợ lý AI" };

@@ -70,3 +70,4 @@ export default async function Debts() {
     </main>
   );
 }
+export const metadata = { title: "Công nợ" };

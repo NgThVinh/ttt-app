@@ -55,3 +55,4 @@ export default async function AI() {
     </main>
   );
 }
+export const metadata = { title: "Trợ lý 3T" };

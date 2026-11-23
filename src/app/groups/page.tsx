@@ -5,6 +5,7 @@ import ActionForm from "@/components/action-form";
 import { createGroup } from "./actions";
 import { randomUUID } from "node:crypto";
 import { envAllowsSuperAdmin } from "@/lib/super-admin-config.mjs";
+export const metadata = { title: "Nhóm" };
 export default async function Groups() {
   const db = await supabase();
   const {
@@ -25,7 +26,7 @@ export default async function Groups() {
     <main>
       <Link href="/">Về trang chủ</Link>
       <h1>Nhóm của bạn</h1>
-      <Link href="/ai/settings">Cấu hình và yêu cầu bật AI</Link>
+      <Link href="/ai/settings">Cài đặt trợ lý AI</Link>
       <p>
         <Link href="/ai">Mở trợ lý AI</Link>
       </p>

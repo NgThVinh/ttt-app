@@ -3,10 +3,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { verifiedSuperAdmin } from "@/lib/super-admin-access";
 export async function proxy(request: NextRequest) {
   // Supabase falls back to Site URL when an OAuth redirect isn't allowlisted.
-  // Exchange at the callback before the membership/authentication gate.
+  // Handle success and failure at the callback before the membership/auth gate.
   if (
     request.nextUrl.pathname === "/" &&
-    request.nextUrl.searchParams.has("code")
+    request.method === "GET" &&
+    (request.nextUrl.searchParams.has("code") ||
+      request.nextUrl.searchParams.has("error") ||
+      request.nextUrl.searchParams.has("error_code"))
   ) {
     const target = request.nextUrl.clone();
     target.pathname = "/auth/callback";
@@ -86,6 +89,6 @@ export async function proxy(request: NextRequest) {
 }
 export const config = {
   matcher: [
-    "/((?!_next/|favicon.ico|icon.svg|icon-192.png|icon-512.png|icon-maskable.png|apple-touch-icon.png|offline.html|sw.js|manifest.webmanifest).*)",
+    "/((?!_next/|favicon.ico|icon.svg|icon-192.png|icon-512.png|icon-maskable.png|apple-touch-icon.png|offline.html|sw.js|manifest.webmanifest|robots.txt).*)",
   ],
 };

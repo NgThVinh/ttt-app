@@ -7,7 +7,7 @@ import pg from "pg";
 export function check(ok, code) {
   if (!ok) throw Object.assign(new Error(), { code });
 }
-export async function localBrowser(port, directory, options = {}) {
+export async function localBrowser(port, directory) {
   const origin = `http://127.0.0.1:${port}`;
   const status = JSON.parse(
     execFileSync(
@@ -60,6 +60,7 @@ export async function localBrowser(port, directory, options = {}) {
     log = openSync(directory + "/server.log", "w");
     const env = {
       ...process.env,
+      THREE_T_TEST_DIST_DIR: `${directory}/next-build`,
       NEXT_PUBLIC_APP_URL: origin,
       NEXT_PUBLIC_SUPABASE_URL: status.API_URL,
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: pub,
@@ -74,7 +75,7 @@ export async function localBrowser(port, directory, options = {}) {
       process.execPath,
       [
         "node_modules/next/dist/bin/next",
-        options.production ? "start" : "dev",
+        "dev",
         "--hostname",
         "127.0.0.1",
         "--port",

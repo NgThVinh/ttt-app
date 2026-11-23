@@ -49,3 +49,4 @@ export default async function Polls() {
     </main>
   );
 }
+export const metadata = { title: "Thăm dò lịch chơi" };

@@ -160,3 +160,4 @@ export default async function Poll({
     </main>
   );
 }
+export const metadata = { title: "Chi tiết thăm dò" };

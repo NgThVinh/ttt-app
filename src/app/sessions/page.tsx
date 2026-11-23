@@ -50,3 +50,4 @@ export default async function Sessions() {
     </main>
   );
 }
+export const metadata = { title: "Buổi chơi" };

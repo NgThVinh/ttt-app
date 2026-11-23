@@ -18,8 +18,62 @@
 }
 .payment-evidence > summary,
 .split-customization > summary {
-  color: var(--muted);
-  font-size: 13px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+.session-form label {
+  font-size: 14px;
+}
+.session-form label > select {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+}
+.member-choice > label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  margin-block: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.member-choice > label:has(:checked) {
+  background: var(--soft);
+  border-color: var(--accent);
+}
+.member-choice input[type="checkbox"] {
+  flex-shrink: 0;
+  margin: 0;
+}
+.field-hint,
+.field-error {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.field-error {
+  color: #b42318;
+}
+[data-theme="dark"] .field-error {
+  color: #ffb4ab;
+}
+.session-form input[aria-invalid="true"] {
+  border-color: #b42318;
+}
+.not-found-panel {
+  max-width: 520px;
+  margin: 10vh auto;
+}
+.not-found-panel > a,
+.actions > a,
+main > a:first-child {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 8px;
 }
 .split-customization {
   margin-block: 20px;

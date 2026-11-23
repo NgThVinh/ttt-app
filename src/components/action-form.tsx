@@ -1,5 +1,5 @@
 "use client";
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useId, useRef } from "react";
 import { useRouter, unstable_rethrow } from "next/navigation";
 import { Button } from "@/components/ui/button";
 export type FormResult = { message: string; ok?: boolean; link?: string };
@@ -8,12 +8,15 @@ export default function ActionForm({
   children,
   label = "Lưu",
   disabled = false,
+  disabledReason,
 }: {
   action: (state: FormResult, form: FormData) => Promise<FormResult>;
   children: React.ReactNode;
   label?: string;
   disabled?: boolean;
+  disabledReason?: string;
 }) {
+  const reasonId = useId();
   const request = useRef<{ fingerprint: string; key: string } | null>(null);
   async function submitIntent(state: FormResult, form: FormData) {
     if (!form.has("request_key")) {
@@ -45,11 +48,17 @@ export default function ActionForm({
       {children}
       <Button
         disabled={pending || disabled}
+        aria-describedby={disabled && disabledReason ? reasonId : undefined}
         className="rounded-lg"
         style={{ marginTop: 16 }}
       >
         {pending ? "Đang xử lý…" : label}
       </Button>
+      {disabled && disabledReason && (
+        <p id={reasonId} className="field-hint">
+          {disabledReason}
+        </p>
+      )}
       {state.message && (
         <p role={state.ok ? "status" : "alert"}>{state.message}</p>
       )}

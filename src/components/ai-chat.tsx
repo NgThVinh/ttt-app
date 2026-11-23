@@ -133,8 +133,8 @@ export default function AIChat({
           )}
       </div>
       <p>
-        Mọi thao tác ghi cần xem và xác nhận bản nháp. Yêu cầu T3 được duyệt
-        trong app.
+        Mọi thay đổi đều cần xem và xác nhận bản nháp. Những yêu cầu cần người
+        có quyền duyệt sẽ xuất hiện ở mục “Chờ tôi duyệt”.
       </p>
     </section>
   );

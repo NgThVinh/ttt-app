@@ -5,6 +5,11 @@ import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { expenseInputSchema, expenseDraftSchema } from "@/lib/session-data";
 import { moneySchema } from "@/lib/schemas";
+import {
+  courtInputSchema,
+  vndInputSchema,
+  weightInputSchema,
+} from "@/lib/number-input";
 import type { FormResult } from "@/components/action-form";
 import { detailSchema } from "@/lib/session-data";
 import { runFinancialCommand } from "@/lib/financial-command";
@@ -87,22 +92,28 @@ export async function createSession(
         .or(z.literal(""))
         .optional(),
       flow: z.enum(["played", "planned"]),
-      court: moneySchema,
+      court: courtInputSchema,
       collectorMode: z.enum(["self", "unknown", "nominee"]).default("self"),
       nominee: z.uuid().or(z.literal("")).default(""),
     })
     .safeParse(Object.fromEntries(form));
   const ids = z.array(z.uuid()).max(100).safeParse(form.getAll("people"));
-  if (!input.success || !ids.success)
+  if (!input.success)
+    return {
+      message:
+        input.error.issues.find((issue) => issue.path[0] === "court")
+          ?.message || "Kiểm tra thông tin của buổi.",
+    };
+  if (!ids.success)
     return { message: "Kiểm tra thông tin và số tiền của buổi." };
   let extras, weights;
   try {
     extras = z
-      .array(expenseDraftSchema)
+      .array(expenseDraftSchema.extend({ amount: vndInputSchema }))
       .max(199)
       .parse(JSON.parse(String(form.get("extras") || "[]")));
     weights = z
-      .record(z.uuid(), z.string().regex(/^\d+(\.\d{1,6})?$/))
+      .record(z.uuid(), weightInputSchema)
       .parse(JSON.parse(String(form.get("weights") || "{}")));
   } catch {
     return { message: "Kiểm tra phụ phí và hệ số tham gia." };

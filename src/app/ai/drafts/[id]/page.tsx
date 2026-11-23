@@ -139,3 +139,4 @@ export default async function Draft({
     </main>
   );
 }
+export const metadata = { title: "Xem bản nháp" };

@@ -40,3 +40,4 @@ export default async function Welcome() {
     </main>
   );
 }
+export const metadata = { title: "Chào mừng" };

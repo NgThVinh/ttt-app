@@ -1,10 +1,16 @@
 "use client";
-import { useState } from "react";
+import { useId, useState } from "react";
 import ActionForm from "./action-form";
 import { createSession } from "@/app/sessions/actions";
 import { formatMoney, reconcile } from "@/lib/money";
 import { splitExpense, balances } from "@/lib/expense-calculation";
 import type { ExpenseTools } from "@/lib/expense-tools";
+import {
+  courtInputSchema,
+  formatVndInput,
+  vndInputSchema,
+  weightInputSchema,
+} from "@/lib/number-input";
 type Extra = {
   title: string;
   amount: string;
@@ -36,7 +42,9 @@ export default function SessionForm({
   const [group, setGroup] = useState(groups[0].id),
     [flow, setFlow] = useState("played"),
     [selected, setSelected] = useState<string[]>([]),
-    [amount, setAmount] = useState("400000");
+    [amount, setAmount] = useState("");
+  const fieldId = useId();
+  const [courtTouched, setCourtTouched] = useState(false);
   const [weights, setWeights] = useState<Record<string, string>>({}),
     [extras, setExtras] = useState<Extra[]>([]),
     [review, setReview] = useState(""),
@@ -49,11 +57,23 @@ export default function SessionForm({
       .toISOString()
       .slice(0, 16);
   const [starts, setStarts] = useState(defaultTime(0));
-  const weightMap = Object.fromEntries(
-    selected.map((id) => [id, weights[id] || "1"]),
+  const courtInput = courtInputSchema.safeParse(amount);
+  const weightInputs = Object.fromEntries(
+    selected.map((id) => [id, weightInputSchema.safeParse(weights[id] ?? "1")]),
   );
-  const payloadExtras = extras.map((e) => ({
+  const weightMap = Object.fromEntries(
+    selected.map((id) => [
+      id,
+      weightInputs[id].success ? weightInputs[id].data : (weights[id] ?? "1"),
+    ]),
+  );
+  const extraInputs = extras.map((e) => vndInputSchema.safeParse(e.amount));
+  const courtError = courtInput.success
+    ? ""
+    : courtInput.error.issues[0].message;
+  const payloadExtras = extras.map((e, index) => ({
     ...e,
+    amount: extraInputs[index].success ? extraInputs[index].data : e.amount,
     beneficiaries: e.beneficiaries ?? selected,
     values: [],
     reason: "Tạo buổi đã chơi",
@@ -61,7 +81,7 @@ export default function SessionForm({
   const fingerprint = JSON.stringify({
     group,
     selected,
-    amount,
+    amount: courtInput.success ? courtInput.data : amount,
     weightMap,
     payloadExtras,
   });
@@ -69,31 +89,28 @@ export default function SessionForm({
     transfers: { from: string; to: string; amount: bigint }[] = [],
     error = "";
   try {
-    if (
-      !selected.length ||
-      !/^\d+$/.test(amount) ||
-      BigInt(amount) > 1000000000000n
-    )
-      throw Error("Chọn người tham gia và nhập tiền sân hợp lệ.");
+    if (!courtInput.success) throw Error(courtError);
+    if (!selected.length) throw Error("Chọn ít nhất một người đã tham gia.");
     const people = selected.map((id) => {
       const value = weightMap[id];
-      if (
-        !/^\d+(\.\d{1,6})?$/.test(value) ||
-        Number(value) <= 0 ||
-        Number(value) > 100
-      )
-        throw Error("Hệ số cần lớn hơn 0 và không quá 100.");
+      const parsed = weightInputs[id];
+      if (!parsed.success) throw Error(parsed.error.issues[0].message);
       return { id, value };
     });
     const court = splitExpense(
-      BigInt(amount),
+      BigInt(courtInput.data),
       "total",
       "weighted",
       people,
       actor,
     );
     const costs = [{ ...court, payer: actor }];
-    for (const e of payloadExtras) {
+    for (const [index, e] of payloadExtras.entries()) {
+      const extraInput = extraInputs[index];
+      if (!extraInput.success)
+        throw Error(
+          `Khoản ${index + 1}: ${extraInput.error.issues[0].message}`,
+        );
       if (
         !e.title.trim() ||
         !inGroup.some((m) => m.id === e.payer) ||
@@ -153,7 +170,7 @@ export default function SessionForm({
   const name = (id: string) =>
     inGroup.find((m) => m.id === id)?.display_name || "Thành viên";
   return (
-    <section className="panel">
+    <section className="panel session-form">
       <label>
         Nhóm
         <select
@@ -182,12 +199,18 @@ export default function SessionForm({
           }}
         >
           <option value="played">Đã chơi — tôi tính tiền</option>
-          <option value="planned">Hẹn lịch trước</option>
+          <option value="planned">Đã có lịch — mời mọi người tham gia</option>
         </select>
       </label>
       <ActionForm
         action={createSession}
         disabled={flow === "played" && !reviewed}
+        disabledReason={
+          flow === "played" && !reviewed
+            ? error ||
+              "Xem bảng chia và bấm “Tôi đã xem bảng chia” trước khi lưu."
+            : undefined
+        }
         label="Lưu buổi chơi"
       >
         <input type="hidden" name="groupId" value={group} />
@@ -233,14 +256,37 @@ export default function SessionForm({
               <input
                 name="court"
                 inputMode="numeric"
-                pattern="[0-9]+"
                 required
                 value={amount}
+                placeholder="Ví dụ: 400.000"
+                aria-invalid={!!courtError && courtTouched}
+                aria-describedby={`${fieldId}-court-help`}
                 onChange={(e) => setAmount(e.target.value)}
+                onBlur={() => {
+                  setCourtTouched(true);
+                  setAmount(formatVndInput(amount));
+                }}
               />
             </label>
+            <p
+              id={`${fieldId}-court-help`}
+              className={
+                courtError && (courtTouched || amount)
+                  ? "field-error"
+                  : "field-hint"
+              }
+            >
+              {courtError && (courtTouched || amount)
+                ? courtError
+                : "Nhập giá sân thực tế. Có thể dùng 400000, 400.000 hoặc 400,000."}
+            </p>
             <fieldset>
               <legend>Ai đã tham gia?</legend>
+              {!selected.length && (
+                <p className="field-hint">
+                  Chọn ít nhất một người đã tham gia.
+                </p>
+              )}
               <button
                 type="button"
                 className="secondary"
@@ -277,7 +323,7 @@ export default function SessionForm({
               ))}
             </fieldset>
             <p>
-              {selected.some((id) => (weights[id] || "1") !== "1")
+              {selected.some((id) => weightMap[id] !== "1")
                 ? "Đang chia tiền sân theo hệ số đã tùy chỉnh."
                 : "Chia đều tiền sân cho những người đã chọn."}
             </p>
@@ -285,23 +331,42 @@ export default function SessionForm({
               <summary>
                 Tùy chỉnh cách chia và phụ phí
                 {extras.length > 0 ||
-                selected.some((id) => (weights[id] || "1") !== "1")
+                selected.some((id) => weightMap[id] !== "1")
                   ? " · Đã tùy chỉnh"
                   : ""}
               </summary>
               <fieldset>
                 <legend>Hệ số tham gia</legend>
+                <p className="field-hint">
+                  1 = cả buổi · 0,5 = nửa buổi. Để 1 nếu chia đều.
+                </p>
                 {selected.map((id) => (
-                  <label key={id}>
-                    Hệ số của {name(id)}
-                    <input
-                      inputMode="decimal"
-                      value={weights[id] || "1"}
-                      onChange={(e) =>
-                        setWeights((old) => ({ ...old, [id]: e.target.value }))
-                      }
-                    />
-                  </label>
+                  <div key={id}>
+                    <label>
+                      Hệ số của {name(id)}
+                      <input
+                        inputMode="decimal"
+                        value={weights[id] ?? "1"}
+                        aria-invalid={!weightInputs[id].success}
+                        aria-describedby={
+                          !weightInputs[id].success
+                            ? `${fieldId}-weight-${id}`
+                            : undefined
+                        }
+                        onChange={(e) =>
+                          setWeights((old) => ({
+                            ...old,
+                            [id]: e.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    {!weightInputs[id].success && (
+                      <p id={`${fieldId}-weight-${id}`} className="field-error">
+                        {weightInputs[id].error.issues[0].message}
+                      </p>
+                    )}
+                  </div>
                 ))}
               </fieldset>
               <h2>Phụ phí và giảm giá</h2>
@@ -352,11 +417,25 @@ export default function SessionForm({
                       required
                       inputMode="numeric"
                       value={e.amount}
+                      aria-invalid={!extraInputs[i].success}
+                      aria-describedby={
+                        !extraInputs[i].success
+                          ? `${fieldId}-extra-${i}`
+                          : undefined
+                      }
                       onChange={(v) =>
                         updateExtra(i, { amount: v.target.value })
                       }
+                      onBlur={() =>
+                        updateExtra(i, { amount: formatVndInput(e.amount) })
+                      }
                     />
                   </label>
+                  {!extraInputs[i].success && (
+                    <p id={`${fieldId}-extra-${i}`} className="field-error">
+                      {extraInputs[i].error.issues[0].message}
+                    </p>
+                  )}
                   <label>
                     Loại số tiền
                     <select

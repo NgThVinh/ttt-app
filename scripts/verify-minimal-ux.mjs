@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { expect } from "@playwright/test";
 import { localBrowser, check } from "./local-browser.mjs";
 let app,
   step = "setup";
@@ -73,8 +74,42 @@ try {
     .getByLabel("Tên buổi", { exact: true })
     .fill("UX preserved customization");
   await page.getByLabel("Địa điểm", { exact: true }).fill("Court");
-  await page.getByLabel("Tiền sân (đ)", { exact: true }).fill("90000");
+  const courtInput = page.getByLabel("Tiền sân (đ)", { exact: true });
+  check((await courtInput.inputValue()) === "", "NO_ASSUMED_COURT_PRICE");
   await page.getByRole("button", { name: "Chọn tất cả", exact: true }).click();
+  await courtInput.fill("400000.5");
+  await courtInput.press("Tab");
+  check(
+    (await page.locator(".field-error").first().innerText()).includes(
+      "không có phần lẻ",
+    ),
+    "DECIMAL_AMOUNT_EXPLAINED_INLINE",
+  );
+  check(
+    !(await page
+      .getByRole("button", { name: "Tôi đã xem bảng chia", exact: true })
+      .count()),
+    "NO_DECIMAL_PREVIEW",
+  );
+  for (const input of ["90.000", "90,000", " 90000 "]) {
+    await courtInput.fill(input);
+    await courtInput.press("Tab");
+    check(
+      (await page.locator(".split-preview").innerText()).includes("45.000"),
+      "LOCALE_AMOUNT_PREVIEW",
+    );
+    check(
+      (await courtInput.inputValue()) === "90.000",
+      "LOCALE_AMOUNT_FORMATTED_ON_BLUR",
+    );
+  }
+  check(
+    await page
+      .locator(".member-choice > label")
+      .first()
+      .evaluate((el) => el.getBoundingClientRect().height >= 44),
+    "MEMBER_ROW_TOUCH_TARGET",
+  );
   check(
     !(await page.getByLabel("Hệ số của UX B", { exact: true }).isVisible()),
     "WEIGHTS_HIDDEN_BY_DEFAULT",
@@ -90,13 +125,23 @@ try {
     fullPage: true,
     caret: "initial",
   });
+  for (const width of [360, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    check(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+      "CREATE_NO_OVERFLOW",
+    );
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   await page
     .getByRole("button", { name: "Tôi đã xem bảng chia", exact: true })
     .click();
   await page
     .getByText("Tùy chỉnh cách chia và phụ phí", { exact: true })
     .click();
-  await page.getByLabel("Hệ số của UX B", { exact: true }).fill("0.5");
+  await page.getByLabel("Hệ số của UX B", { exact: true }).fill("0,5");
   check(
     await page
       .getByRole("button", { name: "Lưu buổi chơi", exact: true })
@@ -106,6 +151,7 @@ try {
   await page
     .getByRole("button", { name: "+ Nước 10k/người", exact: true })
     .click();
+  await page.getByLabel("Số tiền (đ)", { exact: true }).fill("10,000");
   await page.locator(".split-customization > summary").click();
   check(
     (await page.locator(".split-customization > summary").innerText()).includes(
@@ -128,6 +174,65 @@ try {
     )
   ).rows[0];
   check(payment.amount === "40000", "HIDDEN_WEIGHTS_AND_EXTRAS_PRESERVED");
+  await expect(page).toHaveTitle("Chi tiết buổi chơi · 3T");
+  step = "feedback-errors";
+  await page.goto(origin + "/sessions/" + randomUUID());
+  await page
+    .getByRole("heading", { name: "Không tìm thấy trang", exact: true })
+    .waitFor();
+  await page.getByRole("link", { name: "Về trang chủ", exact: true }).waitFor();
+  const headers = await fetch(origin + "/login");
+  check(headers.headers.get("x-frame-options") === "DENY", "FRAME_HEADER");
+  check(
+    headers.headers.get("x-content-type-options") === "nosniff",
+    "CONTENT_TYPE_HEADER",
+  );
+  check(
+    headers.headers
+      .get("content-security-policy")
+      .includes("frame-ancestors 'none'"),
+    "BASELINE_CSP",
+  );
+  check(
+    (await (await fetch(origin + "/robots.txt")).text()).includes(
+      "Disallow: /",
+    ),
+    "ROBOTS_PUBLIC",
+  );
+  const invitePath = "/join/" + "a".repeat(64);
+  const rootError = await fetch(
+    origin +
+      "/?error=invalid_request&error_code=flow_state_already_used&next=" +
+      encodeURIComponent(invitePath),
+    { redirect: "manual" },
+  );
+  check(
+    new URL(rootError.headers.get("location"), origin).pathname ===
+      "/auth/callback",
+    "ROOT_AUTH_ERROR_RECOVERED",
+  );
+  const callbackError = await fetch(
+    new URL(rootError.headers.get("location"), origin),
+    {
+      redirect: "manual",
+    },
+  );
+  const loginUrl = new URL(callbackError.headers.get("location"), origin);
+  check(
+    loginUrl.searchParams.get("error") === "used_link" &&
+      loginUrl.searchParams.get("next") === invitePath,
+    "AUTH_RETRY_PRESERVES_INVITE",
+  );
+  const loginPage = await (await fetch(loginUrl)).text();
+  check(
+    loginPage.includes("Link đăng nhập đã được dùng."),
+    "AUTH_ERROR_EXPLAINED",
+  );
+  step = "auth-session-resume";
+  await page.goto(origin + "/?error_code=flow_state_already_used");
+  await expect(page).toHaveURL(origin + "/");
+  step = "auth-home-title";
+  await expect(page).toHaveTitle("Trang chủ · 3T");
   step = "payment";
   await member.page.goto(origin + "/sessions/" + sid);
   const panel = member.page
@@ -178,6 +283,11 @@ try {
       customizationPreservedWhenClosed: true,
       paymentBeforeOptionalEvidence: true,
       responsive: true,
+      localizedNumberInputs: true,
+      decimalInputRejected: true,
+      pageTitlesAndNotFound: true,
+      securityHeadersAndRobots: true,
+      authErrorRecovery: true,
       localOnly: true,
       providerCalls: 0,
     }),

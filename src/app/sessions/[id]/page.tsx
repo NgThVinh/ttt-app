@@ -490,3 +490,4 @@ export default async function Session({
     </main>
   );
 }
+export const metadata = { title: "Chi tiết buổi chơi" };

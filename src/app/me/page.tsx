@@ -8,6 +8,8 @@ import PushSettings from "@/components/push-settings";
 import InstallApp from "@/components/install-app";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { profileName } from "@/lib/profile-name";
+export const metadata = { title: "Hồ sơ của tôi" };
 import {
   Card,
   CardHeader,
@@ -50,7 +52,7 @@ export default async function Me() {
               name="display_name"
               required
               maxLength={100}
-              defaultValue={p?.display_name || ""}
+              defaultValue={profileName(p?.display_name, user.user_metadata)}
             />
             <p>
               Chỉ người nhận tiền cần điền ngân hàng. Thông tin này không được
@@ -68,6 +70,7 @@ export default async function Me() {
             <Input
               id="bank_account_no"
               name="bank_account_no"
+              inputMode="numeric"
               maxLength={30}
               defaultValue={p?.bank_account_no || ""}
             />

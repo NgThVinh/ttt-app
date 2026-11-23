@@ -22,7 +22,8 @@ const beVietnam = localFont({
 import "./globals.css";
 import "./frame.css";
 export const metadata: Metadata = {
-  title: appName,
+  title: { default: appName, template: `%s · ${appName}` },
+  robots: { index: false, follow: false },
   description: "Thích Tính Tiền — Chơi hết mình, chia tiền nhẹ tênh",
   manifest: "/manifest.webmanifest",
   referrer: "no-referrer",

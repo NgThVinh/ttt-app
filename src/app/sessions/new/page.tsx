@@ -46,3 +46,4 @@ export default async function NewSession() {
     </main>
   );
 }
+export const metadata = { title: "Tạo buổi chơi" };

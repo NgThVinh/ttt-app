@@ -70,3 +70,4 @@ export default async function Approvals() {
     </main>
   );
 }
+export const metadata = { title: "Chờ tôi duyệt" };

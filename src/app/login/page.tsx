@@ -2,6 +2,9 @@
 import Link from "next/link";
 import { login, googleLogin } from "../actions";
 import { safeReturnPath } from "@/lib/auth-redirect";
+import { authErrorMessage } from "@/lib/auth-errors";
+import LoginButton from "@/components/login-button";
+export const metadata = { title: "Đăng nhập" };
 export default async function Login({
   searchParams,
 }: {
@@ -24,7 +27,9 @@ export default async function Login({
         <p>Một chỗ cho lịch chơi, chia tiền và những khoản cần nhớ.</p>
         <form action={googleLogin}>
           <input type="hidden" name="next" value={safeReturnPath(p.next)} />
-          <button className="primary full">Tiếp tục với Google</button>
+          <LoginButton className="primary full" pendingLabel="Đang mở Google…">
+            Tiếp tục với Google
+          </LoginButton>
         </form>
         <div className="divider">hoặc dùng email</div>
         <form action={login}>
@@ -37,16 +42,14 @@ export default async function Login({
             placeholder="ban@gmail.com"
             required
           />
-          <button className="secondary full">Gửi link đăng nhập</button>
+          <LoginButton className="secondary full" pendingLabel="Đang gửi link…">
+            Gửi link đăng nhập
+          </LoginButton>
         </form>
         {p.sent && (
           <p role="status">Đã gửi link. Hãy kiểm tra hộp thư của bạn.</p>
         )}
-        {p.error && (
-          <p role="alert">
-            Chưa đăng nhập được. Kiểm tra cấu hình đăng nhập hoặc thử lại.
-          </p>
-        )}
+        {p.error && <p role="alert">{authErrorMessage(p.error)}</p>}
         <small>Đăng nhập bằng liên kết bảo mật, không cần nhớ mật khẩu.</small>
       </section>
     </main>

@@ -4,7 +4,7 @@ let app;
 try {
   const email = `first-group-${randomUUID()}@3t.test`;
   process.env.SUPER_ADMIN_EMAILS = email;
-  app = await localBrowser(3224, ".tools/first-group", { production: true });
+  app = await localBrowser(3224, ".tools/first-group");
   const { db, origin } = app;
   const owner = await app.login(email);
   await db.query(

@@ -41,3 +41,4 @@ export default async function Join({
     </main>
   );
 }
+export const metadata = { title: "Lời mời vào nhóm" };

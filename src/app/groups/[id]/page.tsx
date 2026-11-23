@@ -275,3 +275,4 @@ export default async function Group({
     </main>
   );
 }
+export const metadata = { title: "Chi tiết nhóm" };
