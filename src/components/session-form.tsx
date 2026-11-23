@@ -1,5 +1,7 @@
 "use client";
 import { useId, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import ActionForm from "./action-form";
 import { createSession } from "@/app/sessions/actions";
 import { formatMoney, reconcile } from "@/lib/money";
@@ -33,6 +35,7 @@ export default function SessionForm({
   toolsByGroup,
   initialTime,
   suggestions = {},
+  bankReady = true,
 }: {
   groups: { id: string; name: string }[];
   members: {
@@ -45,18 +48,22 @@ export default function SessionForm({
   toolsByGroup: Record<string, ExpenseTools>;
   initialTime: string;
   suggestions?: Record<string, SessionSuggestion>;
+  bankReady?: boolean;
 }) {
   const [group, setGroup] = useState(groups[0].id),
     [flow, setFlow] = useState("played"),
     [selected, setSelected] = useState<string[]>([]),
     [amount, setAmount] = useState("");
   const fieldId = useId();
+  const router = useRouter();
   const [step, setStep] = useState(0);
   const [courtTouched, setCourtTouched] = useState(false);
   const [weights, setWeights] = useState<Record<string, string>>({}),
     [extras, setExtras] = useState<Extra[]>([]),
     [review, setReview] = useState(""),
     [collectorMode, setCollectorMode] = useState("self");
+  const needsBank =
+    !bankReady && (flow === "played" || collectorMode === "self");
   const inGroup = members.filter((m) => m.group_id === group),
     actor = inGroup.find((m) => m.user_id === userId)?.id || "",
     tools = toolsByGroup[group];
@@ -179,6 +186,25 @@ export default function SessionForm({
     inGroup.find((m) => m.id === id)?.display_name || "Thành viên";
   return (
     <section className="panel session-form">
+      {needsBank && (
+        <aside className="bank-setup-notice" role="alert">
+          <strong>Chưa thể lưu buổi khi bạn nhận tính tiền</strong>
+          <p>
+            Bạn cần bổ sung ngân hàng, số tài khoản và tên chủ tài khoản. Các
+            thông tin đã nhập trong form vẫn được giữ.
+          </p>
+          <Link href="/me" target="_blank" rel="noopener noreferrer">
+            Bổ sung ngân hàng (tab mới)
+          </Link>{" "}
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => router.refresh()}
+          >
+            Đã cập nhật · Kiểm tra lại
+          </button>
+        </aside>
+      )}
       {flow === "played" && (
         <>
           <nav className="form-steps" aria-label="Các phần tạo buổi">
@@ -246,12 +272,14 @@ export default function SessionForm({
           if (details) details.open = true;
           setStep(target.closest(".split-customization") ? 1 : 0);
         }}
-        disabled={flow === "played" && !reviewed}
+        disabled={needsBank || (flow === "played" && !reviewed)}
         disabledReason={
-          flow === "played" && !reviewed
-            ? error ||
-              "Xem bảng chia và bấm “Tôi đã xem bảng chia” trước khi lưu."
-            : undefined
+          needsBank
+            ? "Chưa lưu: bổ sung thông tin ngân hàng rồi bấm Kiểm tra lại."
+            : flow === "played" && !reviewed
+              ? error ||
+                "Xem bảng chia và bấm “Tôi đã xem bảng chia” trước khi lưu."
+              : undefined
         }
         label="Lưu buổi chơi"
       >

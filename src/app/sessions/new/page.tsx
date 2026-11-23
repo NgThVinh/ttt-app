@@ -9,19 +9,28 @@ export default async function NewSession() {
     data: { user },
   } = await db.auth.getUser();
   if (!user) redirect("/login");
-  const [{ data: groups, error }, { data: members }, { data: recent }] =
-    await Promise.all([
-      db.from("groups").select("id,name"),
-      db
-        .from("group_members")
-        .select("id,group_id,display_name,user_id")
-        .eq("status", "active"),
-      db
-        .from("sessions")
-        .select("group_id,venue")
-        .order("created_at", { ascending: false })
-        .limit(100),
-    ]);
+  const [
+    { data: groups, error },
+    { data: members },
+    { data: recent },
+    { data: profile },
+  ] = await Promise.all([
+    db.from("groups").select("id,name"),
+    db
+      .from("group_members")
+      .select("id,group_id,display_name,user_id")
+      .eq("status", "active"),
+    db
+      .from("sessions")
+      .select("group_id,venue")
+      .order("created_at", { ascending: false })
+      .limit(100),
+    db
+      .from("profiles")
+      .select("bank_bin,bank_account_no,bank_account_name")
+      .eq("id", user.id)
+      .maybeSingle(),
+  ]);
   const suggestions: Record<string, { venue: string }> = {};
   for (const session of recent || []) {
     if (
@@ -57,6 +66,13 @@ export default async function NewSession() {
           toolsByGroup={toolsByGroup}
           initialTime={new Date().toISOString()}
           suggestions={suggestions}
+          bankReady={
+            !!(
+              profile?.bank_bin &&
+              profile?.bank_account_no &&
+              profile?.bank_account_name
+            )
+          }
         />
       )}
     </main>

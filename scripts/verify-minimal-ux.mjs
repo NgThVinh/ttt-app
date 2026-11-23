@@ -325,6 +325,26 @@ try {
   }
   await page.getByRole("button", { name: "Tạo thăm dò", exact: true }).click();
   await page.waitForURL(/\/polls\/[a-f0-9-]{36}$/);
+  step = "bank-preflight";
+  await db.query(
+    "update public.profiles set bank_bin=null,bank_account_no=null,bank_account_name=null where id=$1",
+    [owner.user.id],
+  );
+  await page.goto(origin + "/sessions/new");
+  await page.locator("select").first().selectOption(group);
+  await expect(page.locator(".bank-setup-notice")).toBeVisible();
+  await page.getByLabel("Tiền sân (đ)", { exact: true }).fill("123000");
+  await db.query(
+    "update public.profiles set bank_bin='970436',bank_account_no='TEST0001',bank_account_name='TEST' where id=$1",
+    [owner.user.id],
+  );
+  await page
+    .getByRole("button", { name: "Đã cập nhật · Kiểm tra lại", exact: true })
+    .click();
+  await expect(page.locator(".bank-setup-notice")).toHaveCount(0);
+  await expect(page.getByLabel("Tiền sân (đ)", { exact: true })).toHaveValue(
+    "123.000",
+  );
   await db.query(
     "insert into public.group_members(group_id,display_name) select $1,'Khách giả lập ' || n from generate_series(1,28) n",
     [group],

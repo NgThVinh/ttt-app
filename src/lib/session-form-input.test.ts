@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { createSession } from "@/app/sessions/actions";
+import { revalidatePath } from "next/cache";
 
 const memberA = "00000000-0000-4000-8000-000000000001";
 const memberB = "00000000-0000-4000-8000-000000000002";
@@ -68,6 +69,20 @@ it("normalizes localized input on the server before the authenticated financial 
       }),
     }),
   );
+  for (const path of ["/sessions", "/", "/debts", "/notifications"])
+    expect(revalidatePath).toHaveBeenCalledWith(path);
+});
+
+it("explains missing bank information without claiming a session was saved", async () => {
+  const data = form();
+  mocks.rpc.mockResolvedValue({
+    data: null,
+    error: { message: "Người tính tiền cần ngân hàng" },
+  });
+  const result = await createSession({ message: "" }, data);
+  expect(result.message).toContain("Chưa lưu buổi");
+  expect(result.message).toContain("Hồ sơ");
+  expect(revalidatePath).not.toHaveBeenCalled();
 });
 
 it.each(["400000.5", "-5.000", "1.000.000.000.001"])(

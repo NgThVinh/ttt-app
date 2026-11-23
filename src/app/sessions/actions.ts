@@ -173,11 +173,20 @@ export async function createSession(
     },
   );
   const created = z.object({ id: z.uuid() }).safeParse(data);
+  if (error?.message?.includes("ngân hàng"))
+    return {
+      message:
+        "Chưa lưu buổi: người tính tiền cần đủ ngân hàng, số tài khoản và tên chủ tài khoản trong Hồ sơ. Dữ liệu form vẫn được giữ; cập nhật hồ sơ rồi thử lại.",
+    };
   if (error || !created.success)
     return {
       message:
         "Chưa tạo được: kiểm tra ngân hàng của người tính tiền, thời gian và danh sách tham gia.",
     };
+  revalidatePath("/sessions");
+  revalidatePath("/");
+  revalidatePath("/debts");
+  revalidatePath("/notifications");
   redirect(`/sessions/${created.data.id}`);
 }
 export async function sessionCommand(

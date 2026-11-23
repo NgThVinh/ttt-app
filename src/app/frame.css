@@ -11,6 +11,26 @@
   background: var(--bg);
   color-scheme: light;
 }
+.bank-setup-notice {
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid #cf9b36;
+  border-radius: 10px;
+  background: #fff0c7;
+  color: #684500;
+  font-size: 14px;
+}
+.bank-setup-notice p {
+  color: inherit;
+}
+.bank-setup-notice a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: inherit;
+  text-decoration: underline;
+  font-weight: 600;
+}
 .calendar {
   width: 100%;
   padding: 8px;
