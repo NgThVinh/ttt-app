@@ -7,7 +7,7 @@ import pg from "pg";
 export function check(ok, code) {
   if (!ok) throw Object.assign(new Error(), { code });
 }
-export async function localBrowser(port, directory) {
+export async function localBrowser(port, directory, options = {}) {
   const origin = `http://127.0.0.1:${port}`;
   const status = JSON.parse(
     execFileSync(
@@ -101,7 +101,7 @@ export async function localBrowser(port, directory) {
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
     check(ready, "LOCAL_NEXT_NOT_READY");
-    browser = await chromium.launch({ headless: true });
+    browser = await chromium.launch({ headless: !options.headed });
     async function login(email) {
       const users = await admin.auth.admin.listUsers();
       check(!users.error, "LOCAL_AUTH_LIST");
