@@ -6,6 +6,7 @@
     "dev": "next dev",
     "dev:local": "node scripts/dev-local.mjs",
     "local:setup": "node scripts/setup-local.mjs",
+    "local:clean": "node scripts/clean-local.mjs",
     "test:local-dev": "node scripts/verify-local-development.mjs",
     "simulate": "node scripts/standalone/run.mjs",
     "simulate:check": "node scripts/standalone/run.mjs --check",

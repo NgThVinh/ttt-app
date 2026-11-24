@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { parseEnv } from "node:util";
 import { randomUUID } from "node:crypto";
 import { setRsvp } from "./ui-helpers.mjs";
+import { cleanLocal } from "./clean-local.mjs";
 import pg from "pg";
 import {
   allowsLocalLogin,
@@ -26,6 +27,7 @@ if (
   throw Error("LOOPBACK_CONFIGURATION_REQUIRED");
 let browser,
   step = "connect";
+let createdSession;
 const db = new pg.Client({
   connectionString: local.SUPABASE_DB_URL,
   connectionTimeoutMillis: 10000,
@@ -78,6 +80,7 @@ try {
   await page.getByRole("button", { name: "Tạo lịch", exact: true }).click();
   await page.waitForURL(/\/sessions\/[a-f0-9-]{36}$/);
   const sid = new URL(page.url()).pathname.split("/").at(-1);
+  createdSession = sid;
   const saved = (
     await db.query("select title,group_id from public.sessions where id=$1", [
       sid,
@@ -146,4 +149,14 @@ try {
 } finally {
   await browser?.close();
   await db.end().catch(() => {});
+  if (createdSession && process.env.THREE_T_KEEP_TEST_DATA !== "1") {
+    try {
+      await cleanLocal({ apply: true, sessionIds: [createdSession] });
+    } catch (error) {
+      console.error(
+        JSON.stringify({ cleanup: false, code: error.code || error.name }),
+      );
+      process.exitCode = 1;
+    }
+  }
 }
