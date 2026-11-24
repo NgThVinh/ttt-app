@@ -225,7 +225,13 @@ try {
   for (let i = 0; i < 100 && (await paymentState()) !== "confirmed"; i++)
     await new Promise((resolve) => setTimeout(resolve, 100));
   check((await paymentState()) === "confirmed", "CONFIRM_SUCCESS");
-  await receivedPanel.getByText("Đã nhận", { exact: true }).waitFor();
+  await receiver.page
+    .getByText("Bạn đã nhận đủ tiền", { exact: true })
+    .waitFor();
+  await receiver.page
+    .locator(".payment-archive")
+    .getByText("Khoản đã hoàn tất", { exact: false })
+    .waitFor();
   await receiver.page.screenshot({
     path: ".tools/payment-ui/confirmed.png",
     fullPage: true,

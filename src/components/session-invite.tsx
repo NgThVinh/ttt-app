@@ -49,6 +49,8 @@ export default function SessionInvite({
         ref={trigger}
         className="secondary"
         type="button"
+        aria-label="Mời thêm người tham gia"
+        title="Mời thêm người tham gia"
         aria-expanded={open}
         aria-controls="session-invite-menu"
         onClick={() => {
@@ -60,7 +62,7 @@ export default function SessionInvite({
           }
         }}
       >
-        <UserPlus size={17} aria-hidden="true" /> Mời thêm người tham gia
+        <UserPlus size={17} aria-hidden="true" /> <span>Mời thêm</span>
       </button>
       <div
         id="session-invite-menu"

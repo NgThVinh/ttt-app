@@ -113,9 +113,12 @@ export default function SessionHistory({ sid }: { sid: string }) {
         type="button"
         className="secondary history-trigger"
         disabled={busy}
+        aria-label="Lịch sử"
+        title="Lịch sử"
         onClick={open}
       >
-        <History size={17} aria-hidden="true" /> Lịch sử
+        <History size={17} aria-hidden="true" />{" "}
+        <span className="history-label">Lịch sử</span>
       </button>
       <dialog
         ref={dialog}

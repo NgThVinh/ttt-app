@@ -5,10 +5,12 @@ export default function ShareButton({
   title,
   text,
   path,
+  compact = false,
 }: {
   title: string;
   text: string;
   path: string;
+  compact?: boolean;
 }) {
   const [message, setMessage] = useState("");
   async function share() {
@@ -40,9 +42,11 @@ export default function ShareButton({
         className="secondary"
         type="button"
         onClick={share}
+        title="Chia sẻ buổi chơi"
         aria-label="Chia sẻ buổi chơi"
       >
-        <Share2 size={16} aria-hidden /> Chia sẻ
+        <Share2 size={16} aria-hidden />{" "}
+        <span className={compact ? "sr-only" : undefined}>Chia sẻ</span>
       </button>
       {message && <p role="status">{message}</p>}
     </div>

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { CalendarDays, Clock3, MapPin, Pencil } from "lucide-react";
+import { Clock3, MapPin, Pencil } from "lucide-react";
 import type { SessionDetail } from "@/lib/session-data";
 import {
   sessionDate,
@@ -29,17 +29,40 @@ export default function SessionHeader({
     const timer = setInterval(() => setClock(Date.now()), 60000);
     return () => clearInterval(timer);
   }, []);
+  const startPassed = clock >= Date.parse(s.starts_at),
+    endPassed = !!s.ends_at && clock >= Date.parse(s.ends_at);
+  const statusLabel =
+    s.status === "planned"
+      ? endPassed
+        ? "Chờ chốt chi phí"
+        : startPassed
+          ? "Đang diễn ra"
+          : sessionStatus[s.status]
+      : sessionStatus[s.status];
   const canEdit =
     (s.status === "planned" || s.status === "cancelled") && !s.calendar_locked;
+  const endOtherDay =
+    s.ends_at && sessionDay(s.ends_at) !== sessionDay(s.starts_at);
   return (
-    <section className="session-hero">
+    <section className="session-hero" aria-label="Thông tin buổi chơi">
       <div className="hero-top">
-        <span className="status">{sessionStatus[s.status]}</span>
-        <div className="actions">
+        <div className="hero-titles">
+          <div className="hero-state">
+            <span className="status">{statusLabel}</span>
+            {s.status === "planned" && !startPassed && (
+              <span className="hero-countdown">
+                {sessionCountdown(s.starts_at, s.ends_at, s.status, clock)}
+              </span>
+            )}
+          </div>
+          <h1>{s.title}</h1>
+        </div>
+        <div className="actions hero-tools">
           {canEdit && (
             <button
               className="secondary"
               type="button"
+              title={editing ? "Hủy sửa" : "Sửa thông tin buổi"}
               aria-label={
                 editing
                   ? "Hủy sửa"
@@ -50,16 +73,13 @@ export default function SessionHeader({
               aria-expanded={editing}
               onClick={() => setEditing(!editing)}
             >
-              <Pencil size={16} />
-              {editing
-                ? "Hủy sửa"
-                : s.status === "cancelled"
-                  ? "Mở lại buổi"
-                  : "Sửa"}
+              <Pencil size={17} aria-hidden="true" />
+              <span className="sr-only">{editing ? "Hủy sửa" : "Sửa"}</span>
             </button>
           )}
           <SessionHistory sid={s.id} />
           <ShareButton
+            compact
             title={s.title}
             text={`${s.title} tại ${s.venue}. Xem lịch và nhận lời tham gia trong app.`}
             path={`/sessions/${s.id}`}
@@ -76,45 +96,33 @@ export default function SessionHeader({
         />
       ) : (
         <>
-          <h1>{s.title}</h1>
           <div className="hero-information">
-            <div>
-              <CalendarDays aria-hidden="true" />
-              <div>
-                <strong>{sessionDate(s.starts_at)}</strong>
-                <span>
-                  {new Date(s.starts_at).toLocaleDateString("vi-VN", {
-                    year: "numeric",
-                    timeZone: "Asia/Ho_Chi_Minh",
-                  })}
-                </span>
-              </div>
+            <div className="hero-schedule">
+              <Clock3 size={17} aria-hidden="true" />
+              <strong>
+                {sessionDate(s.starts_at)} · {sessionTime(s.starts_at)}
+                {s.ends_at ? `–${sessionTime(s.ends_at)}` : ""}
+              </strong>
             </div>
-            <div>
-              <Clock3 aria-hidden="true" />
-              <div>
-                <strong>
-                  {sessionTime(s.starts_at)}
-                  {s.ends_at ? ` – ${sessionTime(s.ends_at)}` : ""}
-                </strong>
-                <span>
-                  {sessionCountdown(s.starts_at, s.ends_at, s.status, clock)}
-                </span>
-                {s.ends_at &&
-                  sessionDay(s.ends_at) !== sessionDay(s.starts_at) && (
-                    <small>Kết thúc {sessionDate(s.ends_at)}</small>
-                  )}
-              </div>
-            </div>
-            <div>
-              <MapPin aria-hidden="true" />
-              <div>
-                <strong>{s.venue}</strong>
-                <span>Địa điểm</span>
-              </div>
+            <div className="hero-place">
+              <MapPin size={17} aria-hidden="true" />
+              <strong>{s.venue}</strong>
             </div>
           </div>
-          {note && <p className="hero-note">{note}</p>}
+          {endOtherDay && (
+            <small className="hero-end-date">
+              Kết thúc {sessionDate(s.ends_at!)}
+            </small>
+          )}
+          {note &&
+            (note.length > 100 ? (
+              <details className="hero-note">
+                <summary>Ghi chú của buổi</summary>
+                <p>{note}</p>
+              </details>
+            ) : (
+              <p className="hero-note">{note}</p>
+            ))}
         </>
       )}
     </section>

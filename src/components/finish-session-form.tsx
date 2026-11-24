@@ -126,6 +126,14 @@ export default function FinishSessionForm({
   } catch (cause) {
     error = cause instanceof Error ? cause.message : "Kiểm tra bảng chi phí.";
   }
+  const grouped = new Map<string, { amount: bigint; names: string[] }>();
+  for (const p of people) {
+    const amount = shares[p.member_id] || 0n,
+      key = amount.toString();
+    const row = grouped.get(key) || { amount, names: [] };
+    row.names.push(p.name);
+    grouped.set(key, row);
+  }
   return (
     <div className="cost-composer">
       <div className="cost-court">
@@ -138,6 +146,9 @@ export default function FinishSessionForm({
           placeholder="0"
         />
       </div>
+      {!!extras.length && (
+        <p className="field-hint">Dùng số âm cho khoản giảm giá.</p>
+      )}
       {extras.map((e, index) => (
         <fieldset className="cost-extra" key={e.key}>
           <legend>Phụ phí {index + 1}</legend>
@@ -318,7 +329,7 @@ export default function FinishSessionForm({
       </div>
       {error ? (
         <p className="field-hint" role={court ? "alert" : undefined}>
-          {error}
+          {court ? error : "Nhập tiền sân để xem phần chia."}
         </p>
       ) : (
         <>
@@ -328,13 +339,21 @@ export default function FinishSessionForm({
           </div>
           <p className="field-hint">Phần chi phí mỗi người</p>
           <div className="split-preview" aria-label="Xem trước toàn bộ chi phí">
-            {people.map((p) => (
-              <div key={p.member_id}>
-                <span>{p.name}</span>
-                <strong>{formatMoney(shares[p.member_id] || 0n)}</strong>
+            {[...grouped].map(([key, row]) => (
+              <div key={key} className="split-group">
+                <span>{row.names.join(", ")}</span>
+                <strong>
+                  {formatMoney(row.amount)}
+                  <small>/người</small>
+                </strong>
               </div>
             ))}
           </div>
+        </>
+      )}
+      <p className="field-hint">Chốt sẽ khóa lịch và danh sách tham gia.</p>
+      <div className="cost-submit-actions">
+        {!error && (
           <button
             type="button"
             className="secondary"
@@ -343,28 +362,24 @@ export default function FinishSessionForm({
           >
             Tôi đã xem bảng chia
           </button>
-        </>
-      )}
-      <p className="field-hint">
-        Chốt sẽ khóa lịch và việc tham gia/rút. Phụ phí âm dùng cho giảm giá.
-      </p>
-      <ActionForm
-        action={sessionCommand}
-        label="Chốt toàn bộ chi phí"
-        disabled={!!error || review !== fingerprint}
-        disabledReason="Xem và xác nhận bảng chia trước khi chốt."
-      >
-        <input type="hidden" name="sid" value={s.id} />
-        <input type="hidden" name="revision" value={s.revision} />
-        <input type="hidden" name="operation" value="finish" />
-        <input type="hidden" name="court" value={court} />
-        <input type="hidden" name="extras" value={JSON.stringify(payload)} />
-        <input
-          type="hidden"
-          name="reviewed"
-          value={review === fingerprint ? "yes" : "no"}
-        />
-      </ActionForm>
+        )}
+        <ActionForm
+          action={sessionCommand}
+          label="Chốt toàn bộ chi phí"
+          disabled={!!error || review !== fingerprint}
+        >
+          <input type="hidden" name="sid" value={s.id} />
+          <input type="hidden" name="revision" value={s.revision} />
+          <input type="hidden" name="operation" value="finish" />
+          <input type="hidden" name="court" value={court} />
+          <input type="hidden" name="extras" value={JSON.stringify(payload)} />
+          <input
+            type="hidden"
+            name="reviewed"
+            value={review === fingerprint ? "yes" : "no"}
+          />
+        </ActionForm>
+      </div>
     </div>
   );
 }

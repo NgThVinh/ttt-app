@@ -143,7 +143,9 @@ try {
     "INVITATION_IS_NOT_CONSENT",
   );
   step = "outside-member-invitation";
-  await page.getByText("Mời thêm người tham gia", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "Mời thêm người tham gia", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "Tạo link mời bạn mới vào buổi", exact: true })
     .click();

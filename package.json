@@ -27,6 +27,7 @@
     "test:minimal-ux": "node scripts/verify-minimal-ux.mjs",
     "test:meeting-ui": "node scripts/verify-meeting-ui.mjs",
     "test:session-workspace": "node scripts/verify-session-workspace.mjs",
+    "test:session-focus": "node scripts/verify-session-focus.mjs",
     "test:theme-ui": "node scripts/verify-theme-ui.mjs",
     "test:calendar-ux": "node scripts/verify-calendar-ux.mjs",
     "security:check": "node scripts/check-secrets.mjs",

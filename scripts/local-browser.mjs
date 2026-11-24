@@ -65,6 +65,7 @@ export async function localBrowser(port, directory, options = {}) {
       NEXT_PUBLIC_SUPABASE_URL: status.API_URL,
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: pub,
       SUPABASE_SECRET_KEY: status.SECRET_KEY || status.SERVICE_ROLE_KEY,
+      NEXT_PUBLIC_VIETQR_TEMPLATE: options.qrTemplate || "",
       AI_KILL_SWITCH: "1",
       THREE_T_LOCAL_DEVELOPMENT: "0",
       THREE_T_LOCAL_AUTH_PASSWORD: "",
@@ -105,9 +106,13 @@ export async function localBrowser(port, directory, options = {}) {
     check(ready, "LOCAL_NEXT_NOT_READY");
     browser = await chromium.launch({ headless: !options.headed });
     async function login(email) {
-      const users = await admin.auth.admin.listUsers();
-      check(!users.error, "LOCAL_AUTH_LIST");
-      let user = users.data.users.find((user) => user.email === email);
+      let user;
+      for (let page = 1; !user; page++) {
+        const users = await admin.auth.admin.listUsers({ page, perPage: 200 });
+        check(!users.error, "LOCAL_AUTH_LIST");
+        user = users.data.users.find((u) => u.email === email);
+        if (users.data.users.length < 200) break;
+      }
       if (!user) {
         const result = await admin.auth.admin.createUser({
           email,

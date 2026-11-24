@@ -8,12 +8,14 @@ export default function PaymentQr({
   amount,
   reference,
   name,
+  compact = false,
 }: {
   bin: string;
   account: string;
   amount: string;
   reference: string;
   name: string;
+  compact?: boolean;
 }) {
   const [failed, setFailed] = useState(false),
     [message, setMessage] = useState("");
@@ -36,36 +38,49 @@ export default function PaymentQr({
     }
   }
   return (
-    <div>
+    <div className={compact ? "payment-qr compact" : undefined}>
       {url && !failed && (
         <Image
           unoptimized
           src={url}
           alt={`QR chuyển ${amount}đ, nội dung 3T-${reference}`}
-          width={240}
-          height={285}
+          width={compact ? 156 : 240}
+          height={compact ? 185 : 285}
           onError={() => setFailed(true)}
         />
       )}
-      <p>
-        {!url || failed
-          ? "QR chưa khả dụng. Dùng thông tin ngân hàng và các nút sao chép dưới đây."
-          : "Kiểm tra tên người nhận trong app ngân hàng trước khi chuyển."}
-      </p>
-      <button type="button" className="secondary" onClick={() => copy(account)}>
-        Sao chép tài khoản
-      </button>{" "}
-      <button type="button" className="secondary" onClick={() => copy(amount)}>
-        Sao chép số tiền
-      </button>{" "}
-      <button
-        type="button"
-        className="secondary"
-        onClick={() => copy(`3T-${reference}`)}
-      >
-        Sao chép nội dung
-      </button>
-      {message && <p role="status">{message}</p>}
+      <div className="payment-qr-tools">
+        <p>
+          {!url || failed
+            ? "QR chưa khả dụng. Dùng thông tin ngân hàng và các nút sao chép dưới đây."
+            : "Kiểm tra tên người nhận trong app ngân hàng trước khi chuyển."}
+        </p>
+        <button
+          type="button"
+          className="secondary"
+          aria-label="Sao chép tài khoản"
+          onClick={() => copy(account)}
+        >
+          {compact ? "Tài khoản" : "Sao chép tài khoản"}
+        </button>{" "}
+        <button
+          type="button"
+          className="secondary"
+          aria-label="Sao chép số tiền"
+          onClick={() => copy(amount)}
+        >
+          {compact ? "Số tiền" : "Sao chép số tiền"}
+        </button>{" "}
+        <button
+          type="button"
+          className="secondary"
+          aria-label="Sao chép nội dung"
+          onClick={() => copy(`3T-${reference}`)}
+        >
+          {compact ? "Nội dung" : "Sao chép nội dung"}
+        </button>
+        {message && <p role="status">{message}</p>}
+      </div>
     </div>
   );
 }

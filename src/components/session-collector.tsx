@@ -20,80 +20,93 @@ export default function SessionCollector({
   request?: CollectorRequest;
 }) {
   const current = members.find((m) => m.id === s.collector_member_id),
-    authority = members.find((m) => m.id === request?.required_authority);
+    authority = members.find((m) => m.id === request?.required_authority),
+    mine = s.collector_member_id === s.my_member_id;
+  const claim = (
+    <ActionForm
+      action={s.collector_member_id ? requestChange : sessionCommand}
+      label="Gán cho tôi"
+    >
+      <input type="hidden" name="sid" value={s.id} />
+      <input type="hidden" name="revision" value={s.revision} />
+      <input type="hidden" name="operation" value="claim" />
+      <input type="hidden" name="court" value="0" />
+      <input type="hidden" name="kind" value="collector_nomination" />
+      <input type="hidden" name="member_id" value={s.my_member_id} />
+      <input
+        type="hidden"
+        name="reason"
+        value="Tôi muốn nhận vai trò tính tiền"
+      />
+    </ActionForm>
+  );
   return (
     <div className="collector-control">
-      <div className="section-heading">
-        <span>Người tính tiền</span>
-        <strong>{current?.display_name || "Chưa có"}</strong>
+      <div className="collector-summary">
+        <span>{s.status === "planned" ? "Tính tiền" : "Người tính tiền"}</span>
+        <strong>
+          {mine ? "Bạn" : current?.display_name || "Chưa có người nhận"}
+        </strong>
       </div>
       {s.status === "planned" && !request && (
-        <>
-          {s.collector_member_id !== s.my_member_id && (
-            <ActionForm
-              action={s.collector_member_id ? requestChange : sessionCommand}
-              label="Gán cho tôi"
-            >
+        <div className="collector-actions">
+          {!s.collector_member_id && claim}
+          <details className="collector-change">
+            <summary>
+              {s.collector_member_id
+                ? "Đổi người tính tiền"
+                : "Chọn người khác"}
+            </summary>
+            {s.collector_member_id && !mine && claim}
+            <ActionForm action={requestChange} label="Mời tính tiền">
               <input type="hidden" name="sid" value={s.id} />
-              <input type="hidden" name="revision" value={s.revision} />
-              <input type="hidden" name="operation" value="claim" />
-              <input type="hidden" name="court" value="0" />
               <input type="hidden" name="kind" value="collector_nomination" />
-              <input type="hidden" name="member_id" value={s.my_member_id} />
               <input
                 type="hidden"
                 name="reason"
-                value="Tôi muốn nhận vai trò tính tiền"
+                value="Mời tính tiền từ phần chi phí buổi chơi"
               />
+              <label htmlFor="cost-collector">Chọn người khác</label>
+              <select
+                id="cost-collector"
+                name="member_id"
+                defaultValue=""
+                required
+              >
+                <option value="" disabled>
+                  Chọn người tính tiền
+                </option>
+                {members
+                  .filter(
+                    (m) =>
+                      m.user_id &&
+                      m.id !== s.collector_member_id &&
+                      m.id !== s.my_member_id,
+                  )
+                  .map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.display_name}
+                    </option>
+                  ))}
+              </select>
             </ActionForm>
-          )}
-          <ActionForm action={requestChange} label="Mời tính tiền">
-            <input type="hidden" name="sid" value={s.id} />
-            <input type="hidden" name="kind" value="collector_nomination" />
-            <input
-              type="hidden"
-              name="reason"
-              value="Mời tính tiền từ phần chi phí buổi chơi"
-            />
-            <label htmlFor="cost-collector">Chọn người khác</label>
-            <select
-              id="cost-collector"
-              name="member_id"
-              defaultValue=""
-              required
-            >
-              <option value="" disabled>
-                Chọn người tính tiền
-              </option>
-              {members
-                .filter(
-                  (m) =>
-                    m.user_id &&
-                    m.id !== s.collector_member_id &&
-                    m.id !== s.my_member_id,
-                )
-                .map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.display_name}
-                  </option>
-                ))}
-            </select>
-          </ActionForm>
-        </>
-      )}
-      {s.status === "planned" && (
-        <p className="field-hint">
-          Người nhận cần có <Link href="/me">thông tin ngân hàng</Link>. Đề cử
-          cần được xác nhận.
-        </p>
+            <small>
+              Người nhận cần có <Link href="/me">ngân hàng trong hồ sơ</Link> và
+              tự xác nhận.
+            </small>
+          </details>
+        </div>
       )}
       {s.status === "planned" && request && (
         <div className="collector-pending">
           <p>
-            Đề cử{" "}
             {members.find((m) => m.id === request.payload.member_id)
-              ?.display_name || "thành viên"}
-            . Chờ {authority?.display_name || "người có quyền"} xác nhận.
+              ?.display_name || "Thành viên"}{" "}
+            được mời tính tiền ·{" "}
+            {request.required_authority === s.my_member_id
+              ? "Cần bạn xác nhận"
+              : `Chờ ${authority?.display_name || "người có quyền"} xác nhận`}
+            .
           </p>
           {request.required_authority === s.my_member_id && (
             <div className="actions">

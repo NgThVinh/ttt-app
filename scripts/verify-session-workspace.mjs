@@ -100,6 +100,7 @@ try {
   await page.reload();
   await expect(page.locator(".attendance-groups")).toContainText("Bình");
   step = "collector-consent";
+  await page.locator(".collector-change > summary").click();
   await page
     .getByLabel("Chọn người khác", { exact: true })
     .selectOption(ids[1]);
