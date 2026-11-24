@@ -11,6 +11,9 @@ export type SessionOverview = {
   going?: number;
   pending?: number;
   my_rsvp?: Rsvp;
+  schedule_confirmed?: boolean;
+  going_names?: string[];
+  pending_names?: string[];
 };
 
 export const sessionDay = (instant: string) =>

@@ -64,6 +64,9 @@ export default function AppFrame({
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+  useEffect(() => {
+    document.getElementById("main-content")?.scrollTo({ top: 0 });
+  }, [path]);
   function toggleTheme() {
     try {
       localStorage.setItem("3t-theme", theme === "dark" ? "light" : "dark");
@@ -80,7 +83,10 @@ export default function AppFrame({
     [...mainLinks, ...otherLinks].find((link) => active(link.href))?.label ||
     "Không gian của bạn";
   return (
-    <div className="app-frame">
+    <div
+      className="app-frame"
+      data-workspace={path === "/sessions" ? "calendar" : "page"}
+    >
       <a className="skip-link" href="#main-content">
         Đến nội dung chính
       </a>
@@ -159,7 +165,7 @@ export default function AppFrame({
             </Link>
           </div>
         </header>
-        <div id="main-content" tabIndex={-1}>
+        <div id="main-content" tabIndex={-1} data-scroll="workspace">
           {children}
         </div>
       </div>

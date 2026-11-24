@@ -232,7 +232,13 @@ export default function MeetingForm({
                   onChange={(e) => setSearch(e.target.value)}
                 />
               )}
-              <div className="meeting-person-list">
+              <div
+                className="meeting-person-list"
+                role="group"
+                aria-label="Danh sách thành viên để mời"
+                tabIndex={0}
+                data-scroll="members"
+              >
                 {inGroup
                   .filter((m) =>
                     m.display_name
@@ -348,7 +354,13 @@ export default function MeetingForm({
           onChange={(d) => moveStart(d + "T" + (starts.slice(11) || "18:00"))}
         />
         <h3>Các buổi cùng ngày</h3>
-        <div className="meeting-day-events">
+        <div
+          className="meeting-day-events"
+          role="region"
+          aria-label="Các buổi cùng ngày"
+          tabIndex={0}
+          data-scroll="day-events"
+        >
           {dayEvents.length ? (
             dayEvents.map((e) => {
               const overlap =

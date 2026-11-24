@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { MapPin, Users } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { Badge } from "./ui/badge";
 import RsvpButtons from "./rsvp-buttons";
+import AttendancePreview from "./attendance-preview";
 import {
   sessionDate,
   sessionTime,
@@ -33,10 +34,12 @@ export default function SessionListItem({
             {s.venue || "Chưa chọn sân"}
           </span>
           {s.going !== undefined && (
-            <span>
-              <Users size={14} aria-hidden />
-              {s.going} đi{s.pending ? ` · ${s.pending} chờ` : ""}
-            </span>
+            <AttendancePreview
+              going={s.going}
+              pending={s.pending || 0}
+              goingNames={s.going_names}
+              pendingNames={s.pending_names}
+            />
           )}
         </p>
         {showGroup && s.group_name && (

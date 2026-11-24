@@ -198,7 +198,12 @@ try {
   const row = page
     .locator(".agenda-row")
     .filter({ has: page.locator(`a[href="/sessions/${sid}"]`) });
-  await expect(row.getByText("1 đi · 2 chờ", { exact: true })).toBeVisible();
+  await expect(
+    row.getByRole("button", { name: "1 đi · Đã nhận lời", exact: true }),
+  ).toBeVisible();
+  await expect(
+    row.getByRole("button", { name: "2 chờ · Chờ trả lời", exact: true }),
+  ).toBeVisible();
   const listSave = page.waitForResponse((r) => r.request().method() === "POST");
   await row.getByRole("button", { name: "Không đi", exact: true }).click();
   await listSave;

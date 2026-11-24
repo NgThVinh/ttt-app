@@ -440,7 +440,7 @@ try {
   await member.page.goto(origin + "/sessions/" + sid);
   const panel = member.page
     .locator("article.session-row")
-    .filter({ hasText: "Mã tham chiếu:" });
+    .filter({ hasText: /3T-/ });
   const button = panel.getByRole("button", {
     name: "Tôi đã chuyển",
     exact: true,
@@ -500,7 +500,7 @@ try {
     JSON.stringify({
       code: error.code || error.name,
       step,
-      assertion: error.matcherResult?.message?.slice(0, 800),
+      assertion: (error.matcherResult?.message || error.message)?.slice(0, 800),
     }),
   );
   process.exitCode = 1;

@@ -6,6 +6,8 @@ Production: https://thichtinhtien.online. Login and Google authorization redirec
 
 New accounts see one waiting-for-invitation page until they join a group through a valid link. Feature URLs/APIs remain unavailable without active membership; removal from the last group restores this page. Member overviews show balances, session times, venues and attendance together, with one-click RSVP from the agenda. Mobile calendars start with a compact week and can expand to a month. Session details show personal costs and the collector first; allocation details, history and recurring settings open when needed. `npm run test:invite-gate` verifies the membership gate locally.
 
+Calendar days distinguish personal attendance, confirmed schedules and active polls. Hover/focus/tap attendance counts to see member names. The calendar and navigation stay fixed while the agenda scrolls; other long pages use one workspace scroll region. See [scrolling and calendar UX](docs/scrolling-and-calendar-ux.md). `npm run test:calendar-ux` checks markers, roster previews, membership isolation and scroll behavior using local fixtures.
+
 ## Local development
 
 Use Node.js 24 LTS and Docker Desktop. Run `npm ci`, then `npm run dev:local` and visit http://localhost:3000. The setup uses the workspace's Supabase CLI under `.tools/supabase`, starts the local stack if needed, applies local migrations and writes ignored `.env.development.local`; it preserves `.env` and hosted data. Choose An, Bình or Chi on the local login screen. See [local development](docs/local-development.md). `npm run dev` also uses the generated dev environment when the stack is already running. Never commit credentials.

@@ -2,6 +2,12 @@
 import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { monthDays, shiftDate, shiftMonth } from "@/lib/calendar";
+import {
+  markerLabel,
+  markerStates,
+  type CalendarMarkers,
+} from "@/lib/calendar-overview";
+import { CalendarDayMarks } from "./calendar-markers";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00Z").toLocaleDateString("vi-VN", {
@@ -16,11 +22,13 @@ export function Calendar({
   today,
   onChange,
   counts = {},
+  markers,
 }: {
   value?: string;
   today: string;
   onChange: (date: string) => void;
   counts?: Record<string, number>;
+  markers?: CalendarMarkers;
 }) {
   const [month, setMonth] = useState((value || today).slice(0, 7));
   const [focus, setFocus] = useState(value || today);
@@ -89,10 +97,11 @@ export function Calendar({
               type="button"
               key={day}
               data-date={day}
+              data-calendar-states={markerStates(markers?.[day])}
               tabIndex={day === tabDay ? 0 : -1}
               aria-pressed={day === value}
               aria-current={day === today ? "date" : undefined}
-              aria-label={`${dateLabel(day)}${counts[day] ? `, ${counts[day]} buổi chơi` : ""}`}
+              aria-label={`${dateLabel(day)}${counts[day] ? `, ${counts[day]} buổi chơi` : ""}${markers?.[day] ? `, ${markerLabel(markers[day])}` : ""}`}
               onFocus={() => setFocus(day)}
               onKeyDown={(event) => {
                 if (move(day, event.key)) event.preventDefault();
@@ -100,9 +109,10 @@ export function Calendar({
               onClick={() => onChange(day)}
             >
               {Number(day.slice(8))}
-              {!!counts[day] && (
+              {!!counts[day] && !markers && (
                 <span className="calendar-dot" aria-hidden="true" />
               )}
+              <CalendarDayMarks mark={markers?.[day]} />
             </button>
           ) : (
             <span key={`blank-${index}`} />
