@@ -31,7 +31,7 @@ export default function FinishSessionForm({
   } catch {}
   return (
     <section className="panel">
-      <h2>Hoàn tất buổi chơi</h2>
+      <h2>Chốt chi phí buổi chơi</h2>
       <label htmlFor="finish-amount">Tổng tiền sân (đ)</label>
       <input
         id="finish-amount"
@@ -53,7 +53,10 @@ export default function FinishSessionForm({
           </div>
         ))}
       </div>
-      <p>Chỉ người đã chốt đi trước hạn được tính vào bảng chia.</p>
+      <p>
+        Chỉ người đã tự nhận lời tham gia được tính vào bảng chia. Sau khi chốt,
+        lịch và danh sách tham gia sẽ khóa; mọi người không thể rút.
+      </p>
       {shares.length > 0 && (
         <button
           type="button"

@@ -78,7 +78,7 @@ export class Sandbox {
     };
   }
   command(actor, input) {
-    const member = this.member(actor);
+    this.member(actor);
     if (input.op === "preview")
       return this.calculate(input.amount, input.people, actor);
     if (typeof input.key !== "string" || !input.key)
@@ -93,7 +93,6 @@ export class Sandbox {
     }
     let result;
     if (input.op === "create") {
-      if (member.role !== "admin") throw Error("Sandbox: chỉ admin tạo buổi.");
       const title =
         typeof input.title === "string" ? input.title.trim().slice(0, 160) : "";
       if (!title) throw Error("Nhập tên buổi.");
@@ -123,6 +122,17 @@ export class Sandbox {
         if (session.collector !== actor)
           throw Error("Chỉ người tính tiền sửa bảng chia trong sandbox.");
         const calc = this.calculate(input.amount, input.people, actor);
+        if (
+          JSON.stringify(
+            [...calc.people].sort((a, b) => a.id.localeCompare(b.id)),
+          ) !==
+          JSON.stringify(
+            [...session.people].sort((a, b) => a.id.localeCompare(b.id)),
+          )
+        )
+          throw Error(
+            "Buổi đã chốt chi phí; danh sách và hệ số tham gia đã khóa.",
+          );
         const payments = reconcile(calc.net, session.confirmed, actor).map(
           (p, i) => ({
             ...p,

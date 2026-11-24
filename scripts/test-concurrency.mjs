@@ -156,18 +156,10 @@ async function extra(sid) {
 }
 async function proposal(sid) {
   await user(b, (db) =>
-    command(db, "add_expense", {
-      sid,
-      expected_revision: "1",
-      title_text: "Proposal",
-      raw_amount: "20000",
-      payer: bm,
-      beneficiaries: [am, bm],
-      mode: "total",
-      split: "equal",
-      values_text: [],
-      reason: "Race approval",
-    }),
+    db.query(
+      "select public.request_session_change($1,'collector_nomination',$2)",
+      [sid, { member_id: am, reason: "Race nomination" }],
+    ),
   );
   return (
     await owner.query(
@@ -274,8 +266,8 @@ try {
           "select id from public.expenses where session_id=$1",
           [sid],
         )
-      ).rowCount === 1,
-      "one court expense after claim race",
+      ).rowCount === 0,
+      "claim race creates no bill before finalization",
     );
     passed.push(stage);
   }
@@ -374,7 +366,7 @@ try {
     stage = sameKey
       ? "duplicate approval same key"
       : "duplicate approval different keys";
-    const sid = await played(),
+    const sid = await planned(),
       r = await proposal(sid),
       key = randomUUID(),
       body = { request_id: r.id, approve: true, expected_hash: r.payload_hash };
@@ -402,8 +394,8 @@ try {
           "select id from public.session_recalculations where session_id=$1",
           [sid],
         )
-      ).rowCount === 2,
-      "one approval recalculation batch",
+      ).rowCount === 0,
+      "accepting a collector does not create a financial batch",
     );
     passed.push(stage);
   }
@@ -513,107 +505,76 @@ try {
       );
     passed.push(stage);
   }
-  stage = "guest bank edit versus fallback assignment";
-  {
-    const guest = (
-      await owner.query(
-        "insert into public.group_members(group_id,display_name) values($1,'Race guest') returning id",
-        [group],
-      )
-    ).rows[0].id;
-    await user(a, (db) =>
-      db.query(
-        "select public.set_guest_bank($1,'970415','12345678','GUEST','Initial bank')",
-        [guest],
-      ),
-    );
+  for (const finishFirst of [true, false]) {
+    stage = finishFirst
+      ? "finalize before withdrawal"
+      : "withdrawal before finalize";
     const sid = await planned();
-    const draft = (
-      await user(a, (db) =>
-        db.query(
-          "select public.preview_admin_financial($1,0,'assign_guest_collector',$2,'Guest assignment',null) p",
-          [sid, { member_id: guest }],
-        ),
-      )
-    ).rows[0].p;
-    const r = await race(
-      a,
-      a,
-      (db) =>
-        db.query("select public.apply_admin_financial($1,$2)", [
-          draft.id,
-          draft.hash,
-        ]),
-      (db) =>
-        db.query(
-          "select public.set_guest_bank($1,'970415','87654321','GUEST','Changed bank')",
-          [guest],
-        ),
-    );
-    assert(
-      r.second.ok,
-      "bank edit and fallback serialize without a group/member/session deadlock",
-    );
-    assert(
-      (
-        await owner.query(
-          "select collector_member_id from public.sessions where id=$1",
-          [sid],
-        )
-      ).rows[0].collector_member_id === guest,
-      "guest assignment persists",
-    );
-    passed.push(stage);
-  }
-  stage = "withdraw source versus fallback application";
-  {
-    const sid = await played();
-    await user(b, (db) =>
-      db.query("select public.request_session_change($1,'weight',$2)", [
+    await user(a, (db) =>
+      command(db, "claim_collector", {
         sid,
-        { weight: "0.5", reason: "Half session" },
-      ]),
+        expected_revision: "0",
+        court: "0",
+      }),
     );
-    const source = (
-      await owner.query(
-        "select id from public.approval_requests where session_id=$1 and type='weight' and status='pending'",
-        [sid],
-      )
-    ).rows[0].id;
-    await owner.query(
-      "update public.approval_requests set created_at=now()-interval '73 hours',expires_at=now()-interval '1 hour' where id=$1",
-      [source],
-    );
-    const draft = (
-      await user(b, async (db) =>
-        db.query(
-          "select public.preview_admin_financial($1,$2,'apply_request','{}','Escalated review',$3) p",
-          [sid, await revision(sid), source],
-        ),
-      )
-    ).rows[0].p;
+    for (const id of [a, b])
+      await user(id, (db) =>
+        db.query("select public.set_rsvp($1,true)", [sid]),
+      );
+    const before = await revision(sid);
+    const finish = (db) =>
+      command(db, "finish_session", {
+        sid,
+        expected_revision: before,
+        court: "100000",
+      });
+    const withdraw = (db) =>
+      db.query("select public.set_rsvp($1,false)", [sid]);
     const r = await race(
-      b,
-      b,
-      (db) => db.query("select public.cancel_session_request($1)", [source]),
-      (db) =>
-        db.query("select public.apply_admin_financial($1,$2)", [
-          draft.id,
-          draft.hash,
-        ]),
+      finishFirst ? a : b,
+      finishFirst ? b : a,
+      finishFirst ? finish : withdraw,
+      finishFirst ? withdraw : finish,
     );
     assert(
       !r.second.ok,
-      "withdrawn source invalidates a previously reviewed fallback draft",
+      "only the action against the current booking state succeeds",
     );
+    const state = (
+      await owner.query("select status from public.sessions where id=$1", [sid])
+    ).rows[0];
+    assert(
+      state.status === (finishFirst ? "played" : "planned"),
+      "no silent finalization across a withdrawal",
+    );
+    passed.push(stage);
+  }
+  stage = "duplicate session invitations";
+  {
+    const sid = await planned();
+    const r = await race(
+      a,
+      b,
+      (db) =>
+        db.query("select public.invite_session_members($1,$2)", [
+          sid,
+          [am, bm],
+        ]),
+      (db) =>
+        db.query("select public.invite_session_members($1,$2)", [
+          sid,
+          [am, bm],
+        ]),
+    );
+    assert(r.second.ok, "both member invitation requests succeed safely");
     assert(
       (
         await owner.query(
-          "select id from public.session_recalculations where session_id=$1",
+          "select member_id from public.session_attendees where session_id=$1 and committed_at is null",
           [sid],
         )
-      ).rowCount === 1,
-      "withdrawal race produces no fallback money change",
+      ).rowCount === 2,
+      "invitations never duplicate or commit people",
     );
     passed.push(stage);
   }

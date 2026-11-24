@@ -19,14 +19,6 @@ export default function SessionRequestForm({
   );
   const options = [
     ...(mine ? [{ value: "weight", label: "Đề nghị hệ số" }] : []),
-    ...(s.deadline_passed
-      ? [
-          {
-            value: mine ? "leave" : "join",
-            label: mine ? "Đề nghị rút khỏi buổi" : "Đề nghị thêm tôi vào buổi",
-          },
-        ]
-      : []),
     ...(canNominate
       ? [{ value: "collector_nomination", label: "Đề cử người tính tiền" }]
       : []),

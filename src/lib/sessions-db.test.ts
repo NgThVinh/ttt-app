@@ -93,14 +93,16 @@ it("allocations conserve integer VND and text DTOs preserve precision", async ()
   expect(d.settlements).toHaveLength(1);
   expect(d.settlements[0].from_member).toBe(people[1]);
 });
-it("creator/member cannot edit money unless they are the collector; outsiders cannot read", async () => {
+it("members cannot propose financial charges and outsiders cannot read", async () => {
   await actor(b);
-  const originalCount = (await details()).expenses.length;
-  await db.query(
-    "select public.add_expense($1,$2,'Extra','1000',$3,$4,'total','equal','{}','reason')",
-    [sid, (await details()).revision, people[1], people],
-  );
-  expect((await details()).expenses.length).toBe(originalCount);
+  const before = await details();
+  await expect(
+    db.query(
+      "select public.add_expense($1,$2,'Extra','1000',$3,$4,'total','equal','{}','reason')",
+      [sid, before.revision, people[1], people],
+    ),
+  ).rejects.toThrow(/người tính tiền/);
+  expect((await details()).expenses).toEqual(before.expenses);
   await actor(outside);
   await expect(details()).rejects.toThrow(/quyền/);
   await actor(a);
@@ -190,85 +192,33 @@ it("RSVP acts only on the caller and refuses late changes", async () => {
   expect(rows.rows.map((r) => r.member_id)).toEqual([people[1]]);
   await expect(
     db.query("select public.set_rsvp($1,false)", [sid]),
-  ).rejects.toThrow(/hạn chốt/);
+  ).rejects.toThrow(/chốt chi phí/);
 });
 
-it("preview rolls back all writes; removing a paid attendee creates a refund", async () => {
-  await actor(a);
-  const newId = (
-    await db.query<{ id: string }>(
-      "select public.create_session($1,'Refund test','Court',now()-interval '1 hour',now()-interval '1 hour',true,$2,'100000',true) id",
-      [group, people],
-    )
-  ).rows[0].id;
-  const before = (
-    await db.query<{
-      d: { revision: string; settlements: { id: string; status: string }[] };
-    }>("select public.session_details($1) d", [newId])
-  ).rows[0].d;
-  await db.query("select public.payment_action($1,'confirm')", [
-    before.settlements[0].id,
-  ]);
-  const paid = (
-    await db.query<{
-      d: { revision: string; settlements: { id: string; status: string }[] };
-    }>("select public.session_details($1) d", [newId])
-  ).rows[0].d;
+it("a finalized attendee cannot be removed through preview or direct financial RPC", async () => {
+  const id = await approvalFixture();
+  const before = await sessionState(id);
   const body = {
     member_id: people[1],
     operation: "remove",
-    reason: "Recorded wrong attendee",
+    reason: "Try removing",
   };
-  const preview = (
-    await db.query<{
-      d: {
-        settlements: {
-          amount: string;
-          from_member: string;
-          to_member: string;
-          status: string;
-        }[];
-      };
-    }>("select public.preview_financial_change($1,$2,'attendee',$3) d", [
-      newId,
-      paid.revision,
-      body,
-    ])
-  ).rows[0].d;
-  expect(preview.settlements.find((p) => p.status === "pending")).toMatchObject(
-    { amount: "50000", from_member: people[0], to_member: people[1] },
-  );
-  expect(
-    (
-      await db.query<{ d: unknown }>("select public.session_details($1) d", [
-        newId,
-      ])
-    ).rows[0].d,
-  ).toEqual(paid);
-  await db.query("select public.apply_financial_change($1,$2,'attendee',$3)", [
-    newId,
-    paid.revision,
-    body,
-  ]);
-  const after = (
-    await db.query<{
-      d: { settlements: { status: string; amount: string }[] };
-    }>("select public.session_details($1) d", [newId])
-  ).rows[0].d;
-  expect(after.settlements.find((p) => p.status === "confirmed")?.amount).toBe(
-    "50000",
-  );
-  expect(after.settlements.find((p) => p.status === "pending")?.amount).toBe(
-    "50000",
-  );
-  await actor(b);
   await expect(
-    db.query("select public.apply_financial_change($1,$2,'attendee',$3)", [
-      newId,
-      paid.revision,
+    db.query("select public.preview_financial_change($1,$2,'attendee',$3)", [
+      id,
+      before.revision,
       body,
     ]),
-  ).rejects.toThrow(/người tính tiền/);
+  ).rejects.toThrow(/danh sách tham gia đã khóa/);
+  await expect(
+    db.query("select public.apply_financial_change($1,$2,'attendee',$3)", [
+      id,
+      before.revision,
+      body,
+    ]),
+  ).rejects.toThrow(/danh sách tham gia đã khóa/);
+  await actor(a);
+  expect(await sessionState(id)).toEqual(before);
 });
 it("partial confirmations invalidate old previews and repeated confirmation is idempotent", async () => {
   await db.exec("reset role");
@@ -374,16 +324,8 @@ it("planned session weight and late join approvals apply only to the requesting 
     [id],
   );
   await actor(b);
-  await db.query("select public.request_session_change($1,'join',$2)", [
-    id,
-    { reason: "I actually played" },
-  ]);
-  r = await requestRow(id);
+  await db.query("select public.set_rsvp($1,true)", [id]);
   await actor(a);
-  await db.query("select public.decide_session_request($1,true,$2)", [
-    r.id,
-    r.payload_hash,
-  ]);
   await db.query("select public.finish_session($1,$2,'100000')", [
     id,
     (await sessionState(id)).revision,
@@ -431,65 +373,18 @@ async function sessionState(id: string) {
     }>("select public.session_details($1) d", [id])
   ).rows[0].d;
 }
-it("shared expense proposals have no money effect before a collector approves the exact preview", async () => {
-  const id = await approvalFixture();
-  const before = await sessionState(id);
-  await actor(b);
-  await db.query(
-    "select public.add_expense($1,$2,'Water','20000',$3,$4,'total','equal','{}','Water for everyone')",
-    [id, before.revision, people[1], people],
-  );
-  expect((await sessionState(id)).expenses).toEqual(before.expenses);
-  const r = await requestRow(id);
-  await expect(
-    db.query("select public.decide_session_request($1,true,$2)", [
-      r.id,
-      r.payload_hash,
-    ]),
-  ).rejects.toThrow(/thẩm quyền/);
-  await actor(a);
-  const preview = await db.query(
-    "select public.preview_session_request($1,$2)",
-    [r.id, r.payload_hash],
-  );
-  expect(preview.rows).toHaveLength(1);
-  expect((await sessionState(id)).revision).toBe(before.revision);
-  await db.query("select public.decide_session_request($1,true,$2)", [
-    r.id,
-    r.payload_hash,
-  ]);
-  expect((await sessionState(id)).expenses).toHaveLength(2);
-  expect(
-    (
-      await db.query<{ status: string }>(
-        "select status from public.expenses where id=$1",
-        [r.payload.expense_id],
-      )
-    ).rows[0].status,
-  ).toBe("active");
-  const approvedRevision = (await sessionState(id)).revision;
-  await db.query("select public.decide_session_request($1,true,$2)", [
-    r.id,
-    r.payload_hash,
-  ]);
-  expect((await sessionState(id)).revision).toBe(approvedRevision);
-  expect((await sessionState(id)).expenses).toHaveLength(2);
+it("shared expenses from non-collectors are rejected without leaving proposals", async () => {
+  const id = await approvalFixture(),
+    before = await sessionState(id);
   await actor(b);
   await expect(
     db.query(
-      "select public.write_expense_internal($1,'0','Bypass','1000',$2,$3,'total','equal','{}','Bypass')",
-      [id, people[1], people],
+      "select public.add_expense($1,$2,'Water','20000',$3,$4,'total','equal','{}','Water')",
+      [id, before.revision, people[1], people],
     ),
-  ).rejects.toThrow(/permission denied/);
-});
-it("a participant-only extra is effective immediately", async () => {
-  const id = await approvalFixture();
-  await actor(b);
-  await db.query(
-    "select public.add_expense($1,$2,'Parking','5000',$3,$4,'total','equal','{}','Own parking')",
-    [id, (await sessionState(id)).revision, people[1], [people[1]]],
-  );
-  expect((await sessionState(id)).expenses).toHaveLength(2);
+  ).rejects.toThrow(/người tính tiền/);
+  await actor(a);
+  expect(await sessionState(id)).toEqual(before);
   expect(
     (
       await db.query(
@@ -499,112 +394,85 @@ it("a participant-only extra is effective immediately", async () => {
     ).rows,
   ).toHaveLength(0);
 });
-it("leave requests bind the requester identity and refunds require collector approval", async () => {
+it("even self-only costs require the collector", async () => {
+  const id = await approvalFixture();
+  await actor(b);
+  await expect(
+    db.query(
+      "select public.add_expense($1,$2,'Parking','5000',$3,$4,'total','equal','{}','Own parking')",
+      [id, (await sessionState(id)).revision, people[1], [people[1]]],
+    ),
+  ).rejects.toThrow(/người tính tiền/);
+  expect((await sessionState(id)).expenses).toHaveLength(1);
+});
+it("finalized sessions reject leave requests instead of changing confirmed obligations", async () => {
   const id = await approvalFixture();
   await db.query("select public.payment_action($1,'confirm')", [
     (await sessionState(id)).settlements[0].id,
   ]);
+  const before = await sessionState(id);
   await actor(b);
-  await db.query("select public.request_session_change($1,'leave',$2)", [
-    id,
-    { member_id: people[0], reason: "I was entered by mistake" },
-  ]);
-  const r = await requestRow(id);
-  expect(r.payload.member_id).toBe(people[1]);
+  await expect(
+    db.query("select public.request_session_change($1,'leave',$2)", [
+      id,
+      { reason: "Leave" },
+    ]),
+  ).rejects.toThrow(/khóa/);
   await actor(a);
-  await db.query("select public.decide_session_request($1,true,$2)", [
-    r.id,
-    r.payload_hash,
-  ]);
-  expect(
-    (await sessionState(id)).settlements.find((p) => p.status === "pending"),
-  ).toMatchObject({
-    from_member: people[0],
-    to_member: people[1],
-    amount: "50000",
-  });
+  expect(await sessionState(id)).toEqual(before);
 });
-it("stale revisions, expired requests and changed payloads cannot execute", async () => {
-  const id = await approvalFixture();
-  await actor(b);
-  await db.query("select public.request_session_change($1,'weight',$2)", [
-    id,
-    { weight: "0.5", reason: "Half session" },
-  ]);
-  const r = await requestRow(id);
+it("nomination approvals reject stale revisions, changed hashes and expiration", async () => {
   await actor(a);
+  const id = (
+    await db.query<{ id: string }>(
+      "select public.create_session($1,'Approval checks','Court',now()+interval '1 day',now()+interval '1 day',false,'{}','0',false) id",
+      [group],
+    )
+  ).rows[0].id;
   await db.query(
-    "select public.add_expense($1,$2,'Water','1000',$3,$4,'total','equal','{}','New cost')",
-    [id, (await sessionState(id)).revision, people[0], people],
+    "select public.request_session_change($1,'collector_nomination',$2)",
+    [id, { member_id: people[1], reason: "Nominate B" }],
   );
+  const r = await requestRow(id);
+  await actor(b);
+  await expect(
+    db.query("select public.decide_session_request($1,true,$2)", [
+      r.id,
+      "wrong",
+    ]),
+  ).rejects.toThrow(/thay đổi/);
+  await db.query("select public.set_rsvp($1,true)", [id]);
   await expect(
     db.query("select public.decide_session_request($1,true,$2)", [
       r.id,
       r.payload_hash,
     ]),
   ).rejects.toThrow(/thay đổi/);
-  await actor(b);
-  await db.query("select public.cancel_session_request($1)", [r.id]);
-  await db.query("select public.request_session_change($1,'weight',$2)", [
-    id,
-    { weight: "0.5", reason: "Half session again" },
-  ]);
-  const next = await requestRow(id);
-  await db.exec("reset role");
-  await db.query(
-    'update public.approval_requests set payload=payload||\'{"weight":"0.1"}\' where id=$1',
-    [next.id],
-  );
-  await actor(a);
-  await expect(
-    db.query("select public.decide_session_request($1,true,$2)", [
-      next.id,
-      next.payload_hash,
-    ]),
-  ).rejects.toThrow(/thay đổi/);
   await db.exec("reset role");
   await db.query(
     "update public.approval_requests set expires_at=now()-interval '1 second' where id=$1",
-    [next.id],
+    [r.id],
   );
-  await actor(a);
+  await actor(b);
   await expect(
     db.query("select public.decide_session_request($1,true,$2)", [
-      next.id,
-      next.payload_hash,
+      r.id,
+      r.payload_hash,
     ]),
   ).rejects.toThrow(/hết hạn/);
 });
-it("collector transfer preserves confirmed payments and reroutes outstanding economic balances", async () => {
+it("collector reassignment is locked after finalization and confirmed payments remain unchanged", async () => {
   const id = await approvalFixture();
   const original = (await sessionState(id)).settlements[0];
   await db.query("select public.payment_action($1,'confirm')", [original.id]);
-  await db.query(
-    "select public.request_session_change($1,'collector_nomination',$2)",
-    [id, { member_id: people[1], reason: "B paid for the court" }],
-  );
-  const r = await requestRow(id);
-  expect(r.required_authority).toBe(people[1]);
-  await actor(b);
-  await db.query(
-    "insert into public.profiles(id,display_name,bank_bin,bank_account_no,bank_account_name) values($1,'B','970415','87654321','B') on conflict(id) do update set bank_bin='970415',bank_account_no='87654321',bank_account_name='B'",
-    [b],
-  );
-  await db.query("select public.decide_session_request($1,true,$2)", [
-    r.id,
-    r.payload_hash,
-  ]);
-  const after = await sessionState(id);
-  expect(after.collector_member_id).toBe(people[1]);
-  expect(after.settlements.find((p) => p.id === original.id)).toMatchObject({
-    status: "confirmed",
-    amount: "50000",
-  });
-  expect(after.settlements.find((p) => p.status === "pending")).toMatchObject({
-    from_member: people[0],
-    to_member: people[1],
-    amount: "100000",
-  });
+  const before = await sessionState(id);
+  await expect(
+    db.query(
+      "select public.request_session_change($1,'collector_nomination',$2)",
+      [id, { member_id: people[1], reason: "Reassign" }],
+    ),
+  ).rejects.toThrow(/khóa/);
+  expect(await sessionState(id)).toEqual(before);
 });
 it("a creator cannot replace an existing collector without both consent and acceptance", async () => {
   await actor(b);
@@ -644,6 +512,10 @@ it("a creator cannot replace an existing collector without both consent and acce
       r.payload_hash,
     ]),
   ).rejects.toThrow(/thay đổi/);
+  await db.query(
+    "insert into public.profiles(id,display_name,bank_bin,bank_account_no,bank_account_name) values($1,'B','970415','87654321','B') on conflict(id) do update set bank_bin='970415',bank_account_no='87654321',bank_account_name='B'",
+    [b],
+  );
   await db.query("select public.decide_session_request($1,true,$2)", [
     accepted.id,
     accepted.payload_hash,

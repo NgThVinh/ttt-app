@@ -69,6 +69,9 @@ try {
   });
   step = "create";
   await page.goto(origin + "/sessions/new");
+  await page
+    .getByRole("button", { name: "Nhập buổi đã chơi", exact: true })
+    .click();
   await page.locator("select").first().selectOption(group);
   check(
     !(await page.getByLabel("Tên buổi", { exact: true }).isVisible()),
@@ -331,6 +334,9 @@ try {
     [owner.user.id],
   );
   await page.goto(origin + "/sessions/new");
+  await page
+    .getByRole("button", { name: "Nhập buổi đã chơi", exact: true })
+    .click();
   await page.locator("select").first().selectOption(group);
   await expect(page.locator(".bank-setup-notice")).toBeVisible();
   await page.getByLabel("Tiền sân (đ)", { exact: true }).fill("123000");
@@ -350,6 +356,9 @@ try {
     [group],
   );
   await page.goto(origin + "/sessions/new");
+  await page
+    .getByRole("button", { name: "Nhập buổi đã chơi", exact: true })
+    .click();
   await page.locator("select").first().selectOption(group);
   await page
     .getByRole("button", { name: "2. Người chơi", exact: true })

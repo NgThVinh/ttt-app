@@ -196,39 +196,24 @@ it("retries return the committed result without creating another expense, batch,
   ).rejects.toThrow(/nội dung khác/);
   await expect(command("add_expense", body)).rejects.toThrow(/thay đổi/);
 });
-it("distinct explicit keys can represent identical proposals on the same revision; a retry cannot duplicate one", async () => {
+it("retries and fresh keys cannot grant a member expense authority", async () => {
   const s = await session();
   await actor(b);
   const body = { ...extra(s), payer: members[1] },
     key = randomUUID();
-  await command("add_expense", body, key);
-  await command("add_expense", body, key);
-  expect(
-    (
-      await db.query(
-        "select id from public.approval_requests where session_id=$1",
-        [s.session_id],
-      )
-    ).rows,
-  ).toHaveLength(1);
-  await command("add_expense", body);
-  expect(
-    (
-      await db.query(
-        "select id from public.approval_requests where session_id=$1",
-        [s.session_id],
-      )
-    ).rows,
-  ).toHaveLength(2);
+  for (const k of [key, key, randomUUID()])
+    await expect(command("add_expense", body, k)).rejects.toThrow(
+      /người tính tiền/,
+    );
   expect((await detail(s.session_id)).revision).toBe(s.revision);
   expect(
     (
       await db.query(
-        "select id from public.session_recalculations where session_id=$1",
+        "select id from public.approval_requests where session_id=$1",
         [s.session_id],
       )
     ).rows,
-  ).toHaveLength(1);
+  ).toHaveLength(0);
 });
 it("failed commands reserve no result and may be corrected with the same key", async () => {
   const s = await session(),
@@ -251,12 +236,15 @@ it("previews roll back batches/links and a stale preview cannot be saved with a 
   const change = {
     sid: s.session_id,
     expected_revision: s.revision,
-    action_name: "attendee",
+    action_name: "delete_expense",
     body: {
-      member_id: members[1],
-      operation: "weight",
-      weight: "0.5",
-      reason: "Half session",
+      expense_id: (
+        await db.query<{ id: string }>(
+          "select id from public.expenses where session_id=$1 limit 1",
+          [s.session_id],
+        )
+      ).rows[0].id,
+      reason: "Preview deletion",
     },
   };
   await db.query("select public.preview_financial_change($1,$2,$3,$4)", [

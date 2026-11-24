@@ -11,6 +11,9 @@ export const detailSchema = z.object({
   revision: z.string(),
   deadline_passed: z.boolean(),
   calendar_locked: z.boolean().default(false),
+  booking_locked: z.boolean().default(false),
+  ends_at: z.string().nullable().optional(),
+  costs_finalized_at: z.string().nullable().optional(),
   collector_member_id: z.uuid().nullable(),
   my_member_id: z.uuid(),
   attendees: z.array(

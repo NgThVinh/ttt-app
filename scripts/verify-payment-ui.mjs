@@ -1,3 +1,4 @@
+import { expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { localBrowser, check } from "./local-browser.mjs";
@@ -252,178 +253,75 @@ try {
     duplicateIds.length === 0,
     "DUPLICATE_FORM_IDS_" + duplicateIds.join(","),
   );
-  const changePanel = receiver.page.locator("section.panel").filter({
-    has: receiver.page.getByRole("heading", {
-      name: "Sửa người, hệ số hoặc xóa khoản chi",
+  step = "collector-refund";
+  await receiver.page
+    .getByText("Thêm khoản chi hoặc giảm giá", { exact: true })
+    .click();
+  const expensePanel = receiver.page
+    .locator("details.panel")
+    .filter({
+      has: receiver.page.getByText("Thêm khoản chi hoặc giảm giá", {
+        exact: true,
+      }),
+    });
+  await expensePanel
+    .getByLabel("Tên khoản chi", { exact: true })
+    .fill("Hoàn giảm giá sân");
+  await expensePanel
+    .getByLabel("Số tiền (đ, số âm cho giảm giá)", { exact: true })
+    .fill("-100000");
+  await expensePanel
+    .getByLabel("Lý do thay đổi", { exact: true })
+    .fill("Browser refund acceptance");
+  await expensePanel
+    .getByRole("button", {
+      name: "Tôi đã xem phần chia và công nợ mới",
       exact: true,
-    }),
-  });
-  async function previewRemoval() {
-    const details = receiver.page.locator("details").filter({
-      has: receiver.page
-        .locator("summary")
-        .getByText("Điều chỉnh người và phần chia", { exact: true }),
-    });
-    if (!(await details.getAttribute("open"))) {
-      if (await details.evaluate((el) => !el.open))
-        await receiver.page
-          .getByText("Điều chỉnh người và phần chia", { exact: true })
-          .click();
-    }
-    await receiver.page.screenshot({
-      path: ".tools/payment-ui/before-adjustment.png",
-      fullPage: true,
-      caret: "initial",
-    });
-    step = "adjustment-member";
-    await changePanel
-      .getByLabel("Thành viên", { exact: true })
-      .selectOption(members[1]);
-    step = "adjustment-operation";
-    await changePanel
-      .getByLabel("Thao tác", { exact: true })
-      .selectOption("remove");
-    step = "adjustment-reason";
-    await changePanel
-      .getByLabel("Lý do", { exact: true })
-      .fill("Browser refund acceptance");
-    step = "adjustment-click-preview";
-    await changePanel
-      .getByRole("button", { name: "Xem trước thay đổi", exact: true })
-      .click();
-    await changePanel
-      .getByRole("heading", { name: "Công nợ sau thay đổi", exact: true })
-      .waitFor();
-  }
-  await previewRemoval();
-  check(
-    (
-      await db.query(
-        "select count(*) from public.settlements where session_id=$1 and status='pending'",
-        [sid],
-      )
-    ).rows[0].count === "0",
-    "PREVIEW_MUST_ROLL_BACK",
-  );
-  const revision = (
-    await db.query("select revision from public.sessions where id=$1", [sid])
-  ).rows[0].revision;
-  const concurrent = await receiver.client.rpc("execute_financial_command", {
+    })
+    .click();
+  await expensePanel
+    .getByRole("button", { name: "Lưu khoản chi", exact: true })
+    .click();
+  await expect
+    .poll(
+      async () =>
+        (
+          await db.query(
+            "select count(*) from public.settlements where session_id=$1 and status='pending' and from_member=$2 and to_member=$3 and amount=50000",
+            [sid, members[0], members[1]],
+          )
+        ).rows[0].count,
+    )
+    .toBe("1");
+  check((await paymentState()) === "confirmed", "CONFIRMED_CASH_PRESERVED");
+  step = "finalized-attendance-lock";
+  const denied = await receiver.client.rpc("execute_financial_command", {
     command_name: "apply_financial_change",
     request_key: randomUUID(),
     body: {
       sid,
-      expected_revision: String(revision),
+      expected_revision: String(
+        (
+          await db.query("select revision from public.sessions where id=$1", [
+            sid,
+          ])
+        ).rows[0].revision,
+      ),
       action_name: "attendee",
       body: {
-        member_id: members[0],
-        operation: "weight",
-        weight: "2",
-        reason: "Concurrent edit fixture",
+        member_id: members[1],
+        operation: "remove",
+        reason: "Try leaving",
       },
     },
   });
-  check(!concurrent.error, "CONCURRENT_EDIT_FAILED");
-  await changePanel
-    .getByRole("button", { name: "Xác nhận lưu thay đổi", exact: true })
-    .click();
-  await changePanel
-    .getByRole("alert")
-    .filter({ hasText: "Buổi có thể đã thay đổi" })
-    .waitFor();
-  check(
-    (
-      await db.query(
-        "select removed_at from public.session_attendees where session_id=$1 and member_id=$2",
-        [sid, members[1]],
-      )
-    ).rows[0].removed_at === null,
-    "STALE_PREVIEW_MUST_NOT_APPLY",
-  );
-  await receiver.page.reload();
-  await previewRemoval();
-  check(
-    (await changePanel.innerText()).includes("50.000đ"),
-    "REFUND_PREVIEW_AMOUNT",
-  );
-  await changePanel
-    .getByRole("button", { name: "Xác nhận lưu thay đổi", exact: true })
-    .click();
-  for (let i = 0; i < 100; i++) {
-    const row = (
-      await db.query(
-        "select id from public.settlements where session_id=$1 and status='pending' and from_member=$2 and to_member=$3 and amount=50000",
-        [sid, members[0], members[1]],
-      )
-    ).rows[0];
-    if (row) break;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  check(
-    (
-      await db.query(
-        "select count(*) from public.settlements where session_id=$1 and status='pending' and from_member=$2 and to_member=$3 and amount=50000",
-        [sid, members[0], members[1]],
-      )
-    ).rows[0].count === "1",
-    "REFUND_EXACT_AMOUNT",
-  );
-  check(
-    (await paymentState()) === "confirmed",
-    "ADJUSTMENT_MUST_PRESERVE_CONFIRMED_CASH",
-  );
-  step = "collector-change";
-  const nominated = await receiver.client.rpc("request_session_change", {
+  check(!!denied.error, "FINALIZED_ATTENDANCE_LOCKED");
+  const nomination = await receiver.client.rpc("request_session_change", {
     sid,
     kind: "collector_nomination",
-    body: { member_id: members[2], reason: "Browser handover acceptance" },
+    body: { member_id: members[2], reason: "Try handover after finalization" },
   });
-  check(!nominated.error, "NOMINATION_FAILED");
-  const approval = (
-    await db.query(
-      "select id from public.approval_requests where session_id=$1 and type='collector_nomination' and status='pending'",
-      [sid],
-    )
-  ).rows[0];
-  await peer.page.goto(origin + "/approvals");
-  const approvalPanel = peer.page.locator("section.panel").filter({
-    has: peer.page.locator(`input[name="id"][value="${approval.id}"]`),
-  });
-  await approvalPanel
-    .getByRole("button", { name: "Xem trước nội dung sẽ duyệt", exact: true })
-    .click();
-  await approvalPanel
-    .getByRole("heading", { name: "Phần chia sau thay đổi", exact: true })
-    .waitFor();
-  await approvalPanel
-    .getByRole("button", {
-      name: "Đồng ý bước đề cử / nhận vai trò",
-      exact: true,
-    })
-    .click();
-  for (let i = 0; i < 100; i++) {
-    const row = (
-      await db.query(
-        "select collector_member_id from public.sessions where id=$1",
-        [sid],
-      )
-    ).rows[0];
-    if (row.collector_member_id === members[2]) break;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  check(
-    (
-      await db.query(
-        "select collector_member_id from public.sessions where id=$1",
-        [sid],
-      )
-    ).rows[0].collector_member_id === members[2],
-    "NOMINEE_ACCEPTANCE_REQUIRED",
-  );
-  check(
-    (await paymentState()) === "confirmed",
-    "CONFIRMED_PAYMENT_PRESERVED_ON_HANDOVER",
-  );
+  check(!!nomination.error, "FINALIZED_COLLECTOR_LOCKED");
   for (const actor of [receiver, sender])
     check(
       !(
@@ -439,7 +337,7 @@ try {
         .from("3t-payment-evidence")
         .download(evidence.storage_path)
     ).error,
-    "NEW_COLLECTOR_CANNOT_READ_OTHERS_HISTORIC_PROOF",
+    "OTHER_MEMBER_CANNOT_READ_HISTORIC_PROOF",
   );
   step = "removed-member";
   check(
@@ -486,15 +384,21 @@ try {
       privateStoragePermissions: true,
       lostResponseRetryExactlyOnce: true,
       confirmationWaitsForServer: true,
-      stalePreviewRejected: true,
+      finalizedAttendanceLocked: true,
       postCollectionRefund: "50000",
-      collectorHandoverViaReviewedUI: true,
+      finalizedCollectorLocked: true,
       historicEvidencePermissions: true,
       removedMemberDenied: true,
     }),
   );
 } catch (error) {
-  console.error(JSON.stringify({ code: error.code || error.name, step }));
+  console.error(
+    JSON.stringify({
+      code: error.code || error.name,
+      step,
+      message: error.message?.slice(0, 800),
+    }),
+  );
   process.exitCode = 1;
 } finally {
   await app?.close();

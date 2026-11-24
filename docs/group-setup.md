@@ -13,9 +13,13 @@ Nếu vừa thay cấu hình email: khởi động lại dev server, chạy `npm
 
 ## Mời người có tài khoản
 
+Mọi thành viên đang hoạt động đều tạo được link mời, không cần quyền admin. Người tạo link hoặc admin có thể thu hồi link đó.
+
 1. Mở nhóm → **Mời bạn** → **Tạo link mời**.
 2. Sao chép link và gửi cho bạn bè. Có thể mở **Tùy chỉnh link mời** để đổi hạn/lượt dùng.
 3. Người nhận mở link, đăng nhập Google, nhập tên trong nhóm và bấm **Tham gia nhóm**.
+
+Để mời vào một buổi cụ thể: mở buổi → **Mời thêm người tham gia** → **Tạo link mời bạn mới vào buổi**. Sau khi vào nhóm, người nhận được đưa về đúng buổi để tự nhận lời; tham gia nhóm chưa tạo nghĩa vụ tiền. Với thành viên đã ở nhóm, chọn tên và gửi lời mời trực tiếp. Mọi người được rút đến khi người tính tiền chốt chi phí.
 
 ## Thêm người chưa dùng app
 

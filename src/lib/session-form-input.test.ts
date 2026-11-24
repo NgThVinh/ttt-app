@@ -10,7 +10,7 @@ vi.mock("next/navigation", () => ({
   },
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-import { createSession } from "@/app/sessions/actions";
+import { createSession, scheduleMeeting } from "@/app/sessions/actions";
 import { revalidatePath } from "next/cache";
 
 const memberA = "00000000-0000-4000-8000-000000000001";
@@ -52,6 +52,38 @@ function form() {
   return data;
 }
 afterEach(() => vi.clearAllMocks());
+
+it("schedules a meeting with pending invitations and Vietnamese time, without accepting for other people", async () => {
+  const data = form();
+  data.set("ends", "2026-11-23T20:00");
+  data.set("note", "");
+  data.set("collectorMode", "unknown");
+  data.set("nominee", "");
+  data.append("invitees", memberB);
+  await expect(scheduleMeeting({ message: "" }, data)).rejects.toThrow(
+    "redirect:/sessions/" + session,
+  );
+  expect(mocks.rpc).toHaveBeenCalledWith("schedule_meeting", {
+    request_key: session,
+    body: expect.objectContaining({
+      start_time: "2026-11-23T18:00:00+07:00",
+      ends_at: "2026-11-23T20:00:00+07:00",
+      be_collector: false,
+      invitees: [memberB],
+    }),
+  });
+});
+it("rejects an invalid meeting interval before writing to the database", async () => {
+  const data = form();
+  data.set("ends", "2026-11-23T17:00");
+  data.set("note", "");
+  data.set("collectorMode", "unknown");
+  data.set("nominee", "");
+  expect((await scheduleMeeting({ message: "" }, data)).message).toContain(
+    "kết thúc",
+  );
+  expect(mocks.rpc).not.toHaveBeenCalled();
+});
 
 it("normalizes localized input on the server before the authenticated financial gateway", async () => {
   await expect(createSession({ message: "" }, form())).rejects.toThrow(

@@ -1,0 +1,52 @@
+-- Reply reminders cannot silently accept, decline, or lock a person.
+create or replace function public.run_scheduled_jobs_core() returns void language plpgsql security definer set search_path='' as $$
+declare stage integer;
+begin
+ if not pg_try_advisory_xact_lock(hashtextextended('3t-scheduled-jobs',0)) then return;end if;
+ perform public.generate_weekly_sessions();
+ -- The reply date is a reminder, never consent or an attendance lock.
+ -- Reminders: one day/two hours before commitment, two hours before play.
+ for stage in 1..2 loop
+ insert into public.notifications(group_id,user_id,event_key,title,href)
+ select s.group_id,m.user_id,'commit:'||s.id||case when s.schedule_generation=0 then '' else ':'||s.schedule_generation end||':'||stage,'Nhớ trả lời lời mời: '||s.title,'/sessions/'||s.id
+ from public.sessions s join public.group_members m on m.group_id=s.group_id and m.status='active' and m.user_id is not null
+ left join public.session_attendees a on a.session_id=s.id and a.member_id=m.id
+ where s.status='planned' and s.commit_deadline>now() and s.commit_deadline<=now()+case when stage=1 then interval '1 day' else interval '2 hours' end and (a.committed_at is null)
+ and (stage=2 or s.commit_deadline>now()+interval '2 hours') on conflict(user_id,event_key) do nothing;
+ end loop;
+ insert into public.notifications(group_id,user_id,event_key,title,href)
+ select s.group_id,m.user_id,'play:'||s.id||case when s.schedule_generation=0 then '' else ':'||s.schedule_generation end,'Sắp đến giờ ra sân: '||s.title,'/sessions/'||s.id from public.sessions s join public.session_attendees a on a.session_id=s.id and a.rsvp='going' and a.committed_at is not null and a.removed_at is null join public.group_members m on m.id=a.member_id and m.status='active' and m.user_id is not null where s.status='planned' and s.starts_at>now() and s.starts_at<=now()+interval '2 hours' on conflict(user_id,event_key) do nothing;
+ for stage in 1..2 loop
+ insert into public.notifications(group_id,user_id,event_key,title,href)
+ select p.group_id,m.user_id,'poll-reminder:'||p.id||':'||stage,'Cùng chọn lịch: '||p.title,'/polls/'||p.id from public.polls p join public.group_members m on m.group_id=p.group_id and m.status='active' and m.user_id is not null where p.status='open' and p.closes_at>now() and ((stage=1 and p.created_at<=now()-interval '1 day') or (stage=2 and p.closes_at<=now()+interval '1 day')) and not exists(select 1 from public.poll_votes v join public.poll_options o on o.id=v.option_id where o.poll_id=p.id and v.member_id=m.id) on conflict(user_id,event_key) do nothing;
+ end loop;
+ for stage in 1..3 loop
+ insert into public.notifications(group_id,user_id,event_key,title,href)
+ select s.group_id,m.user_id,'debt:'||p.id||':'||stage,'Bạn còn khoản cần trả trong buổi: '||s.title,'/sessions/'||s.id from public.settlements p join public.sessions s on s.id=p.session_id join public.group_members m on m.id=p.from_member and m.status='active' and m.user_id is not null where p.status='pending' and p.created_at<=now()-case when stage=1 then interval '1 day' when stage=2 then interval '3 days' else interval '7 days' end and (stage=3 or p.created_at>now()-case when stage=1 then interval '3 days' else interval '7 days' end) on conflict(user_id,event_key) do nothing;
+ end loop;
+ for stage in 1..2 loop
+ insert into public.notifications(group_id,user_id,event_key,title,href)
+ select s.group_id,m.user_id,'receipt:'||p.id||':'||stage,'Kiểm tra sao kê và xác nhận khoản đã nhận: '||s.title,'/sessions/'||s.id from public.settlements p join public.sessions s on s.id=p.session_id join public.group_members m on m.id=p.to_member and m.status='active' and m.user_id is not null where p.status='marked_paid' and p.marked_paid_at<=now()-stage*interval '1 day' and (stage=2 or p.marked_paid_at>now()-interval '2 days') on conflict(user_id,event_key) do nothing;
+ insert into public.notifications(group_id,user_id,event_key,title,href)
+ select r.group_id,m.user_id,'approval:'||r.id||':'||stage,'Có yêu cầu đang chờ bạn duyệt',case when r.session_id is null then '/groups/'||r.group_id else '/approvals' end from public.approval_requests r join public.group_members m on m.group_id=r.group_id and (m.id::text=r.required_authority or (r.required_authority='group_admin' and m.role='admin')) and m.status='active' and m.user_id is not null where r.status='pending' and r.expires_at>now() and r.created_at<=now()-stage*interval '1 day' and (stage=2 or r.created_at>now()-interval '2 days') on conflict(user_id,event_key) do nothing;
+ end loop;
+ insert into public.notifications(group_id,user_id,event_key,title,href)
+ select r.group_id,m.user_id,'escalate-request:'||r.id,'Yêu cầu chờ quá 72 giờ cần admin xem lại','/approvals' from public.approval_requests r join public.group_members m on m.group_id=r.group_id and m.role='admin' and m.status='active' and m.user_id is not null where r.status='pending' and r.expires_at<=now() on conflict(user_id,event_key) do nothing;
+ insert into public.notifications(group_id,user_id,event_key,title,href)
+ select s.group_id,m.user_id,'escalate-receipt:'||p.id,'Khoản báo chuyển chờ quá 72 giờ cần admin xem lại','/sessions/'||s.id from public.settlements p join public.sessions s on s.id=p.session_id join public.group_members m on m.group_id=s.group_id and m.role='admin' and m.status='active' and m.user_id is not null where p.status='marked_paid' and p.marked_paid_at<=now()-interval '72 hours' on conflict(user_id,event_key) do nothing;
+ update public.expenses set status='rejected' where status='proposed' and approval_request_id in(select id from public.approval_requests where status='pending' and expires_at<=now());
+ update public.approval_requests set status='expired' where status='pending' and expires_at<=now();
+end $$;
+revoke all on function public.run_scheduled_jobs_core() from public,anon,authenticated;
+
+create or replace function app_private.claim_collector(sid uuid,expected_revision bigint,court text) returns void language plpgsql security definer set search_path='' as $$
+declare s public.sessions;actor uuid;
+begin
+ select * into s from public.sessions where id=sid for update;
+ if not found or not public.is_member(s.group_id) or s.collector_member_id is not null or s.status<>'planned' or expected_revision is null or s.revision<>expected_revision then raise exception 'Không thể nhận vai trò. Buổi có thể đã thay đổi';end if;
+ if not exists(select 1 from public.profiles where id=auth.uid() and coalesce(bank_account_no,'')<>'' and coalesce(bank_bin,'')<>'' and coalesce(bank_account_name,'')<>'') then raise exception 'Cần lưu thông tin ngân hàng trước';end if;
+ select id into actor from public.group_members where group_id=s.group_id and user_id=auth.uid() and status='active';
+ update public.sessions set collector_member_id=actor,collector_nominee_member_id=null,revision=revision+1 where id=sid;
+ update public.approval_requests set status='cancelled',decided_by=auth.uid(),decided_at=now(),decision_note='Một thành viên đã tự nhận tính tiền' where session_id=sid and type='collector_nomination' and status='pending';
+ insert into public.audit_log(group_id,session_id,actor_id,action) values(s.group_id,sid,auth.uid(),'collector_claimed');
+end $$;

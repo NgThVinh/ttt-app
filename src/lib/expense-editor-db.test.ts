@@ -221,115 +221,62 @@ it("editing an active expense keeps its ID/authorship and reconciles confirmed c
     ).rows[0].a,
   ).toBe("5000");
 });
-it("proposal edits change the reviewed hash without financial effects and preserve authorship after approval", async () => {
-  const sid = await session();
-  await actor(b);
-  const proposed = await save(await body(sid, { payer: bm }));
-  const old = (
-    await db.query<{ id: string; payload_hash: string }>(
-      "select id,payload_hash from public.approval_requests where session_id=$1 and status='pending'",
-      [sid],
-    )
-  ).rows[0];
-  await save(
-    await body(sid, {
-      expense_id: proposed.id,
-      payer: bm,
-      raw_amount: "30000",
-      note_text: "Updated receipt note",
-    }),
-  );
-  expect(await revision(sid)).toBe("1");
-  const fresh = (
-    await db.query<{ payload_hash: string }>(
-      "select payload_hash from public.approval_requests where id=$1",
-      [old.id],
-    )
-  ).rows[0];
-  expect(fresh.payload_hash).not.toBe(old.payload_hash);
-  await actor(a);
-  await expect(
-    db.query("select public.preview_session_request($1,$2)", [
-      old.id,
-      old.payload_hash,
-    ]),
-  ).rejects.toThrow(/đổi/);
-  await db.query("select public.decide_session_request($1,true,$2)", [
-    old.id,
-    fresh.payload_hash,
-  ]);
-  expect(
-    (
-      await db.query<{ created_by: string }>(
-        "select created_by from public.expenses where id=$1",
-        [proposed.id],
-      )
-    ).rows[0].created_by,
-  ).toBe(b);
+it("non-collectors cannot create expense proposals", async () => {
+  const sid = await session(),
+    before = await revision(sid);
   await actor(b);
   await expect(
-    save(await body(sid, { expense_id: proposed.id, payer: bm })),
+    save(await body(sid, { payer: bm, beneficiaries: [bm] })),
   ).rejects.toThrow(/người tính tiền/);
-});
-it("rebasing an unchanged proposal includes the new baseline in its hash", async () => {
-  const sid = await session();
-  await actor(b);
-  const originalBody = await body(sid, { payer: bm });
-  const proposed = await save(originalBody);
-  const old = (
-    await db.query<{ id: string; payload_hash: string }>(
-      "select id,payload_hash from public.approval_requests where session_id=$1 and status='pending'",
+  await expect(save(await body(sid, { payer: bm }))).rejects.toThrow(
+    /người tính tiền/,
+  );
+  expect(await revision(sid)).toBe(before);
+  const editors = (
+    await db.query<{ d: { can_edit: boolean }[] }>(
+      "select public.expense_editor_data($1) d",
       [sid],
     )
-  ).rows[0];
-  await actor(a);
-  await save(await body(sid, { title_text: "Other cost", raw_amount: "1000" }));
-  await actor(b);
-  await save({
-    ...originalBody,
-    expected_revision: await revision(sid),
-    expense_id: proposed.id,
-  });
-  expect(
-    (
-      await db.query<{ payload_hash: string }>(
-        "select payload_hash from public.approval_requests where id=$1",
-        [old.id],
-      )
-    ).rows[0].payload_hash,
-  ).not.toBe(old.payload_hash);
-  await actor(a);
-  await expect(
-    db.query("select public.decide_session_request($1,true,$2)", [
-      old.id,
-      old.payload_hash,
-    ]),
-  ).rejects.toThrow(/đổi/);
+  ).rows[0].d;
+  expect(editors.every((e) => !e.can_edit)).toBe(true);
 });
-it("members may edit their own self-only expenses but cannot turn them into shared charges", async () => {
-  const sid = await session();
+it("failed member expense attempts do not advance the session revision", async () => {
+  const sid = await session(),
+    before = await revision(sid);
   await actor(b);
-  const own = await save(await body(sid, { payer: bm, beneficiaries: [bm] }));
-  await save(
-    await body(sid, {
-      expense_id: own.id,
-      payer: bm,
-      beneficiaries: [bm],
-      raw_amount: "30000",
-    }),
-  );
   await expect(
-    save(await body(sid, { expense_id: own.id, payer: bm })),
+    save(await body(sid, { payer: bm, beneficiaries: [bm] })),
   ).rejects.toThrow(/người tính tiền/);
-  const court = (
-    await db.query<{ id: string }>(
-      "select id from public.expenses where session_id=$1 and kind='court'",
+  await expect(save(await body(sid, { payer: bm }))).rejects.toThrow(
+    /người tính tiền/,
+  );
+  expect(await revision(sid)).toBe(before);
+  const editors = (
+    await db.query<{ d: { can_edit: boolean }[] }>(
+      "select public.expense_editor_data($1) d",
       [sid],
     )
-  ).rows[0].id;
-  await expect(save(await body(sid, { expense_id: court }))).rejects.toThrow(
-    /tiền sân/,
+  ).rows[0].d;
+  expect(editors.every((e) => !e.can_edit)).toBe(true);
+});
+it("self-only expense entry and court editing require the collector", async () => {
+  const sid = await session(),
+    before = await revision(sid);
+  await actor(b);
+  await expect(
+    save(await body(sid, { payer: bm, beneficiaries: [bm] })),
+  ).rejects.toThrow(/người tính tiền/);
+  await expect(save(await body(sid, { payer: bm }))).rejects.toThrow(
+    /người tính tiền/,
   );
+  expect(await revision(sid)).toBe(before);
+  const editors = (
+    await db.query<{ d: { can_edit: boolean }[] }>(
+      "select public.expense_editor_data($1) d",
+      [sid],
+    )
+  ).rows[0].d;
+  expect(editors.every((e) => !e.can_edit)).toBe(true);
 });
 it("court edits enforce the current collector and full weighted attendance", async () => {
   const sid = await session();
@@ -367,12 +314,12 @@ it("court edits enforce the current collector and full weighted attendance", asy
   ).toHaveLength(2);
 });
 
-it("admin can edit a guest collector's court advance without making the admin or guest a beneficiary", async () => {
+it("an admin cannot author invoices on behalf of a legacy guest collector", async () => {
   const sid = await session();
   await db.exec("reset role");
   const guest = (
     await db.query<{ id: string }>(
-      "insert into public.group_members(group_id,display_name) values($1,'Guest payer') returning id",
+      "insert into public.group_members(group_id,display_name) values($1,'Guest') returning id",
       [group],
     )
   ).rows[0].id;
@@ -380,54 +327,12 @@ it("admin can edit a guest collector's court advance without making the admin or
     "update public.sessions set collector_member_id=$2 where id=$1",
     [sid, guest],
   );
-  await db.query(
-    "update public.expenses set paid_by=$2 where session_id=$1 and kind='court'",
-    [sid, guest],
-  );
-  await db.query("select public.recalculate_session($1,'Guest fixture')", [
-    sid,
-  ]);
   await actor(a);
-  const court = (
-    await db.query<{ id: string }>(
-      "select id from public.expenses where session_id=$1 and kind='court'",
-      [sid],
-    )
-  ).rows[0].id;
-  const payload = await body(sid, {
-    expense_id: court,
-    raw_amount: "120000",
-    category_id: "",
-  });
-  const p = (
-    await db.query<{ p: { id: string; hash: string } }>(
-      "select public.preview_admin_financial($1,$2,'save_expense',$3,'Guest court correction',null) p",
-      [sid, await revision(sid), payload],
-    )
-  ).rows[0].p;
-  await db.query("select public.apply_admin_financial($1,$2)", [p.id, p.hash]);
-  expect(
-    (
-      await db.query<{ paid_by: string }>(
-        "select paid_by from public.expenses where id=$1",
-        [court],
-      )
-    ).rows[0].paid_by,
-  ).toBe(guest);
-  expect(
-    (
-      await db.query(
-        "select member_id from public.expense_allocations where expense_id=$1",
-        [court],
-      )
-    ).rows,
-  ).toHaveLength(2);
-  expect(
-    (
-      await db.query(
-        "select member_id from public.expense_allocations where expense_id=$1 and member_id=$2",
-        [court, guest],
-      )
-    ).rows,
-  ).toHaveLength(0);
+  await expect(save(await body(sid))).rejects.toThrow(/người tính tiền/);
+  await expect(
+    db.query(
+      "select public.preview_admin_financial($1,$2,'save_expense',$3,'Try',null)",
+      [sid, await revision(sid), await body(sid)],
+    ),
+  ).rejects.toThrow(/người tính tiền/);
 });

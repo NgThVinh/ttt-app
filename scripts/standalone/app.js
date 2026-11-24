@@ -43,7 +43,7 @@ async function load() {
     return;
   }
   content.innerHTML = `<section><h2>Nhóm cầu lông giả lập</h2><p>${state.members.map((m) => escape(m.name)).join(" · ")}</p></section>`;
-  if (actor.value === "a") {
+  if (state.members.some((m) => m.id === actor.value)) {
     content.innerHTML += `<section><h2>${editing ? "Điều chỉnh buổi" : "Tạo buổi"}</h2><form id="create"><label>Tên buổi<input id="title" required value="${escape(editing?.title || "Cầu lông tối thứ Năm")}"></label><label>Tiền sân (đ)<input id="amount" inputmode="numeric" required value="${editing?.amount || ""}" placeholder="100.000"></label><p>Hệ số: 1 = cả buổi, 0,5 = nửa buổi.</p>${state.members.map((m) => `<label class="person" data-id="${m.id}"><input type="checkbox" ${!editing || editing.people.some((p) => p.id === m.id) ? "checked" : ""}>${escape(m.name)}<input data-weight aria-label="Hệ số ${escape(m.name)}" value="${editing?.people.find((p) => p.id === m.id)?.value || "1"}"></label>`).join("")}<button type="button" id="preview">Xem bảng chia</button><div id="preview-result"></div><button id="save" disabled>${editing ? "Lưu điều chỉnh" : "Lưu buổi"}</button></form></section>`;
     document.querySelector("#create").addEventListener("input", () => {
       preview = null;

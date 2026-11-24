@@ -14,6 +14,7 @@ export default async function NewSession() {
     { data: members },
     { data: recent },
     { data: profile },
+    { data: events },
   ] = await Promise.all([
     db.from("groups").select("id,name"),
     db
@@ -30,6 +31,13 @@ export default async function NewSession() {
       .select("bank_bin,bank_account_no,bank_account_name")
       .eq("id", user.id)
       .maybeSingle(),
+    db
+      .from("sessions")
+      .select("id,group_id,title,starts_at,ends_at")
+      .eq("status", "planned")
+      .gte("starts_at", new Date().toISOString())
+      .order("starts_at")
+      .limit(150),
   ]);
   const suggestions: Record<string, { venue: string }> = {};
   for (const session of recent || []) {
@@ -66,6 +74,7 @@ export default async function NewSession() {
           toolsByGroup={toolsByGroup}
           initialTime={new Date().toISOString()}
           suggestions={suggestions}
+          events={events || []}
           bankReady={
             !!(
               profile?.bank_bin &&

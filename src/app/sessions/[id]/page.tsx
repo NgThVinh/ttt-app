@@ -13,12 +13,12 @@ import { detailSchema } from "@/lib/session-data";
 import { formatMoney } from "@/lib/money";
 import ActionForm from "@/components/action-form";
 import ExpenseForm from "@/components/expense-form";
-import FinancialChangeForm from "@/components/financial-change-form";
 import SessionRequestForm from "@/components/session-request-form";
 import ShareButton from "@/components/share-button";
 import { weeklySeries } from "@/app/polls/actions";
-import { sessionCommand, changePayment } from "../actions";
+import { sessionCommand, changePayment, inviteToSession } from "../actions";
 import { remindPayment } from "@/app/notifications/actions";
+import { createInvite } from "@/app/groups/actions";
 export default async function Session({
   params,
 }: {
@@ -59,7 +59,6 @@ export default async function Session({
     )
     .safeParse(replacedResult.data);
   const collector = s.my_member_id === s.collector_member_id;
-  const due = s.deadline_passed;
   const { data: members } = await db
     .from("group_members")
     .select("id,display_name,user_id,role,status")
@@ -79,13 +78,7 @@ export default async function Session({
     .select("id")
     .eq("session_id", id)
     .limit(1);
-  const authoredExpenseIds = new Set(
-    allExpenses?.filter((e) => e.created_by === user.id).map((e) => e.id),
-  );
-  const canManage =
-    collector ||
-    metadata?.created_by === user.id ||
-    members?.some((m) => m.user_id === user.id && m.role === "admin");
+  const canManage = s.status === "planned" || s.status === "cancelled";
   const locked = s.calendar_locked;
   const [toolsResult, editorsResult] = await Promise.all([
     db.rpc("expense_tools", { g: s.group_id }),
@@ -96,21 +89,6 @@ export default async function Session({
   const admin = members?.some(
     (m) => m.user_id === user.id && m.role === "admin",
   );
-  const { data: fallbackRequests } = admin
-    ? await db
-        .from("approval_requests")
-        .select("id,type,created_at")
-        .eq("session_id", s.id)
-        .in("status", ["pending", "expired"])
-        .in("type", [
-          "join",
-          "leave",
-          "weight",
-          "expense_proposal",
-          "collector_nomination",
-        ])
-        .order("created_at")
-    : { data: [] };
   const canCancel =
     !!allExpenses &&
     !!paymentHistory &&
@@ -147,15 +125,7 @@ export default async function Session({
       {metadata?.note && (
         <p style={{ whiteSpace: "pre-wrap" }}>{metadata.note}</p>
       )}
-      {admin && (
-        <AdminSessionPanel
-          key={`admin-${s.revision}`}
-          session={s}
-          members={members || []}
-          requests={fallbackRequests || []}
-          tools={tools.success ? tools.data : undefined}
-        />
-      )}
+      {admin && <AdminSessionPanel key={`admin-${s.revision}`} session={s} />}
       {canManage && !locked && (
         <SessionCalendarForm
           key={s.revision}
@@ -163,6 +133,12 @@ export default async function Session({
           note={metadata?.note || null}
           canCancel={canCancel}
         />
+      )}
+      {s.booking_locked && s.status !== "cancelled" && (
+        <p className="booking-lock">
+          Đã chốt chi phí · Lịch và danh sách tham gia đã khóa. Chỉ người tính
+          tiền được cập nhật hóa đơn; mọi thay đổi tiền đều lưu lịch sử.
+        </p>
       )}
       {s.settlements.length > 0 && (
         <section className="panel">
@@ -254,30 +230,69 @@ export default async function Session({
           <p key={a.member_id}>
             {a.name} ·{" "}
             {a.rsvp === "going" && a.committed_at
-              ? "Đã chốt đi"
+              ? "Đã nhận lời"
               : a.rsvp === "not_going"
                 ? "Không đi"
-                : "Chưa chốt"}{" "}
+                : "Chờ trả lời"}{" "}
             · Hệ số {a.weight}
           </p>
         ))}
-        {s.status === "planned" && !due && (
+        {s.status === "planned" && (
           <ActionForm action={sessionCommand} label="Chốt lựa chọn của tôi">
             <input type="hidden" name="sid" value={s.id} />
             <input type="hidden" name="revision" value={s.revision} />
-            <select name="operation" aria-label="Tôi tham gia">
-              <option value="going">Tôi đi</option>
-              <option value="not_going">Tôi không đi</option>
+            <select
+              name="operation"
+              aria-label="Tôi tham gia"
+              defaultValue={
+                s.attendees.find((a) => a.member_id === s.my_member_id)
+                  ?.rsvp === "going"
+                  ? "going"
+                  : "not_going"
+              }
+            >
+              <option value="going">Nhận lời tham gia</option>
+              <option value="not_going">Không tham gia / rút khỏi buổi</option>
             </select>
           </ActionForm>
         )}
-        {s.status === "planned" && due && (
-          <p>Đã qua hạn chốt; thay đổi cần người tính tiền duyệt.</p>
+        {s.status === "planned" && (
+          <details>
+            <summary>Mời thêm người tham gia</summary>
+            <ActionForm action={inviteToSession} label="Gửi lời mời">
+              <input type="hidden" name="sid" value={s.id} />
+              <fieldset className="participant-list">
+                <legend>Thành viên trong nhóm</legend>
+                {(members || [])
+                  .filter((m) => !s.attendees.some((a) => a.member_id === m.id))
+                  .map((m) => (
+                    <label key={m.id}>
+                      <input type="checkbox" name="people" value={m.id} />
+                      {m.display_name}
+                    </label>
+                  ))}
+              </fieldset>
+              <p>Lời mời cần người nhận tự xác nhận.</p>
+            </ActionForm>
+            <ActionForm
+              action={createInvite}
+              label="Tạo link mời bạn mới vào buổi"
+            >
+              <input type="hidden" name="groupId" value={s.group_id} />
+              <input type="hidden" name="session_id" value={s.id} />
+              <input type="hidden" name="days" value="7" />
+              <input type="hidden" name="uses" value="30" />
+              <p>
+                Bạn mới vào nhóm qua link này, rồi tự nhận lời tham gia buổi.
+                Link có hiệu lực 7 ngày, tối đa 30 lượt.
+              </p>
+            </ActionForm>
+          </details>
         )}
       </section>
-      {!s.collector_member_id && s.status !== "cancelled" && (
+      {!s.collector_member_id && s.status === "planned" && (
         <section className="panel">
-          <h2>Tôi là người trả</h2>
+          <h2>Người tính tiền</h2>
           <p>
             Lưu ngân hàng trong <Link href="/me">hồ sơ</Link> trước khi nhận vai
             trò.
@@ -289,14 +304,14 @@ export default async function Session({
             <input type="hidden" name="sid" value={s.id} />
             <input type="hidden" name="revision" value={s.revision} />
             <input type="hidden" name="operation" value="claim" />
-            <label htmlFor="claim-court">Tiền sân (đ)</label>
-            <input id="claim-court" name="court" required pattern="[0-9]+" />
+            <input type="hidden" name="court" value="0" />
+            <p>
+              Tự nhận vai trò trước; nhập hóa đơn và chốt chi phí khi sẵn sàng.
+            </p>
           </ActionForm>
         </section>
       )}
-      {collector && s.status === "planned" && due && (
-        <FinishSessionForm session={s} />
-      )}
+      {collector && s.status === "planned" && <FinishSessionForm session={s} />}
       <section className="panel">
         <h2>Tiền của tôi đến từ đâu?</h2>
         {s.expenses.map((e) => (
@@ -328,7 +343,7 @@ export default async function Session({
               <ReceiptPanel
                 bucket="3t-expense-receipts"
                 target={e.id}
-                canUpload={collector || authoredExpenseIds.has(e.id)}
+                canUpload={collector && !locked}
               />
               {!locked &&
                 editors.success &&
@@ -364,13 +379,8 @@ export default async function Session({
       )}
       {s.status !== "planned" &&
         s.status !== "cancelled" &&
-        (collector ||
-          s.attendees.some(
-            (a) =>
-              a.member_id === s.my_member_id &&
-              a.rsvp === "going" &&
-              !a.removed_at,
-          )) && (
+        collector &&
+        !locked && (
           <>
             <details className="panel">
               <summary>Thêm khoản chi hoặc giảm giá</summary>
@@ -379,21 +389,15 @@ export default async function Session({
                 tools={tools.success ? tools.data : undefined}
               />
             </details>
-            {collector && (
-              <details className="panel">
-                <summary>Điều chỉnh người và phần chia</summary>
-                <FinancialChangeForm session={s} members={members || []} />
-              </details>
-            )}
           </>
         )}
-      {s.status !== "cancelled" && (
+      {s.status === "planned" && (
         <details className="panel">
           <summary>Gửi đề nghị thay đổi</summary>
           <SessionRequestForm
             session={s}
             members={members || []}
-            canNominate={collector || metadata?.created_by === user.id}
+            canNominate={true}
           />
         </details>
       )}

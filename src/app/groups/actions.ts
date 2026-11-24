@@ -51,6 +51,20 @@ export async function createInvite(
   const input = inviteSchema.safeParse(Object.fromEntries(form));
   if (!input.success)
     return { message: "Link mời cần hạn 1–30 ngày và 1–100 lượt." };
+  const sessionId = form.get("session_id");
+  if (sessionId) {
+    if (!z.uuid().safeParse(sessionId).success)
+      return { message: "Buổi không hợp lệ." };
+    const { data: session } = await db
+      .from("sessions")
+      .select("id")
+      .eq("id", String(sessionId))
+      .eq("group_id", input.data.groupId)
+      .eq("status", "planned")
+      .maybeSingle();
+    if (!session)
+      return { message: "Buổi không thuộc nhóm hoặc đã chốt chi phí." };
+  }
   const token = randomBytes(32).toString("hex");
   const { error } = await db.rpc("create_invite", {
     g: input.data.groupId,
@@ -63,12 +77,12 @@ export async function createInvite(
   if (error)
     return {
       message:
-        "Không tạo được link mời. Kiểm tra quyền admin hoặc thử lại sau.",
+        "Không tạo được link mời. Kiểm tra bạn còn trong nhóm, giới hạn link hoặc thử lại sau.",
     };
   return {
     ok: true,
     message: "Đã tạo link mời.",
-    link: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/join/${token}`,
+    link: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/join/${token}${sessionId ? `?session=${sessionId}` : ""}`,
   };
 }
 export async function revokeInvite(
@@ -131,6 +145,17 @@ export async function acceptInvite(
       message:
         "Link đã hết hạn, hết lượt, bị thu hồi hoặc bạn đã được gỡ khỏi nhóm.",
     };
+  const sessionId = form.get("session_id");
+  if (z.uuid().safeParse(sessionId).success) {
+    const { data: session } = await db
+      .from("sessions")
+      .select("id")
+      .eq("id", String(sessionId))
+      .eq("group_id", data)
+      .eq("status", "planned")
+      .maybeSingle();
+    if (session) redirect(`/sessions/${session.id}`);
+  }
   redirect(`/groups/${data}`);
 }
 export async function saveProfile(

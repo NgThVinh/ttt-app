@@ -3,7 +3,6 @@ import { readFileSync, readdirSync } from "node:fs";
 import { beforeAll, afterAll, it, expect } from "vitest";
 let db: PGlite,
   group: string,
-  am: string,
   bm: string,
   cm: string,
   guest: string,
@@ -62,35 +61,6 @@ async function preview(
 async function apply(p: Preview) {
   await db.query("select public.apply_admin_financial($1,$2)", [p.id, p.hash]);
 }
-async function oldRequest(sid: string, kind = "weight") {
-  await actor(c);
-  if (kind === "weight")
-    await db.query("select public.request_session_change($1,'weight',$2)", [
-      sid,
-      { weight: "0.5", reason: "Half session" },
-    ]);
-  else
-    await db.query(
-      "select public.add_expense($1,$2,'Old water','20000',$3,$4,'total','equal','{}','Old proposal')",
-      [sid, (await state(sid)).revision, cm, [bm, cm]],
-    );
-  const r = (
-    await db.query<{
-      id: string;
-      payload_hash: string;
-      payload: { expense_id: string };
-    }>(
-      "select id,payload_hash,payload from public.approval_requests where session_id=$1 and type=$2 order by created_at desc limit 1",
-      [sid, kind],
-    )
-  ).rows[0];
-  await db.exec("reset role");
-  await db.query(
-    "update public.approval_requests set created_at=now()-interval '73 hours',expires_at=now()-interval '1 hour' where id=$1",
-    [r.id],
-  );
-  return r;
-}
 beforeAll(async () => {
   db = new PGlite();
   await db.exec(
@@ -125,7 +95,6 @@ beforeAll(async () => {
       [group],
     )
   ).rows;
-  am = people.find((m) => m.user_id === a)!.id;
   bm = people.find((m) => m.user_id === b)!.id;
   cm = people.find((m) => m.user_id === c)!.id;
   guest = (
@@ -147,117 +116,71 @@ beforeAll(async () => {
 afterAll(async () => {
   await db?.close();
 });
-it("admin status and caller-set settings cannot bypass an active collector", async () => {
+it("admin status never grants invoice authority or access to private execution context", async () => {
   const sid = await played();
   await actor(a);
   await db.query("select set_config('ttt.admin_fallback','true',false)");
   await expect(
-    preview(sid, "apply_financial_change", {
-      action_name: "attendee",
-      body: { member_id: cm, operation: "weight", weight: "0.5" },
-    }),
-  ).rejects.toThrow(/điều kiện/);
+    db.query(
+      "select public.add_expense($1,$2,'Water','2000',$3,$4,'total','equal','{}','Admin')",
+      [sid, (await state(sid)).revision, bm, [bm, cm]],
+    ),
+  ).rejects.toThrow(/người tính tiền/);
+  await expect(
+    preview(sid, "finish_session", { court: "100000" }),
+  ).rejects.toThrow(/người tính tiền/);
   await expect(
     db.query(
-      "insert into app_private.admin_execution_context values(txid_current(),$1,$2,'apply_financial_change')",
+      "insert into app_private.admin_execution_context values(txid_current(),$1,$2,'save_expense')",
       [a, sid],
     ),
   ).rejects.toThrow();
-  await expect(
-    db.query("select public.apply_financial_change($1,$2,'attendee',$3)", [
-      sid,
-      (await state(sid)).revision,
-      {
-        member_id: cm,
-        operation: "weight",
-        weight: "0.5",
-        reason: "Cannot bypass",
-      },
-    ]),
-  ).rejects.toThrow(/người tính tiền/);
-  await actor(c);
-  await expect(
-    preview(sid, "finish_session", { court: "100000" }),
-  ).rejects.toThrow(/quyền/);
 });
-it("guest assignment previews roll back and finishing records the guest's advance, not the admin's", async () => {
+it("a guest cannot be assigned the collector role without personal account acceptance", async () => {
   await actor(c);
-  guestSession = (
+  const sid = (
     await db.query<{ id: string }>(
-      "select public.create_session($1,'Guest fallback','Court',now()+interval '1 hour',now()+interval '1 hour',false,'{}','0',false) id",
+      "select public.create_session($1,'Open','Court',now()+interval '1 day',now()+interval '1 day',false,'{}','0',false) id",
       [group],
     )
   ).rows[0].id;
   await actor(a);
   await expect(
-    preview(
-      guestSession,
-      "assign_guest_collector",
-      { member_id: guest },
-      null,
-      "",
-    ),
-  ).rejects.toThrow(/lý do/);
-  const p = await preview(guestSession, "assign_guest_collector", {
-    member_id: guest,
-  });
-  expect((await state(guestSession)).collector_member_id).toBeNull();
-  await apply(p);
-  expect((await state(guestSession)).collector_member_id).toBe(guest);
-  await actor(b);
-  await db.query("select public.set_rsvp($1,true)", [guestSession]);
-  await actor(c);
-  await db.query("select public.set_rsvp($1,true)", [guestSession]);
-  await db.exec("reset role");
-  await db.query(
-    "update public.sessions set starts_at=now()-interval '1 hour',commit_deadline=now()-interval '1 hour' where id=$1",
-    [guestSession],
-  );
-  await actor(a);
-  const finish = await preview(guestSession, "finish_session", {
-    court: "100000",
-  });
-  await apply(finish);
-  expect(
-    (
-      await db.query<{ paid_by: string }>(
-        "select paid_by from public.expenses where session_id=$1 and kind='court'",
-        [guestSession],
-      )
-    ).rows[0].paid_by,
-  ).toBe(guest);
-  expect(
-    (
-      await db.query(
-        "select id from public.settlements where session_id=$1 and to_member=$2",
-        [guestSession, guest],
-      )
-    ).rows,
-  ).toHaveLength(2);
+    preview(sid, "assign_guest_collector", { member_id: guest }),
+  ).rejects.toThrow(/tự xác nhận/);
+  expect((await state(sid)).collector_member_id).toBeNull();
 });
-it("guest receipt confirmation requires explicit statement review and replay writes nothing twice", async () => {
-  await actor(a);
-  const payment = (
+it("legacy guest payment receipts retain statement checks and idempotence", async () => {
+  await db.exec("reset role");
+  guestSession = (
     await db.query<{ id: string }>(
-      "select id from public.settlements where session_id=$1 and status='pending' order by id limit 1",
-      [guestSession],
+      "insert into public.sessions(group_id,title,venue,starts_at,commit_deadline,status,collector_member_id,created_by) values($1,'Legacy guest','Court',now(),now(),'played',$2,$3) returning id",
+      [group, guest, b],
     )
   ).rows[0].id;
+  const payment = (
+    await db.query<{ id: string }>(
+      "insert into public.settlements(session_id,from_member,to_member,amount,ref_code) values($1,$2,$3,50000,'OLD123') returning id",
+      [guestSession, bm, guest],
+    )
+  ).rows[0].id;
+  await actor(a);
   await expect(
     preview(guestSession, "payment_action", {
       target: payment,
       operation: "confirm",
+      statement_checked: false,
     }),
-  ).rejects.toThrow(/điều kiện/);
+  ).rejects.toThrow();
   const p = await preview(guestSession, "payment_action", {
     target: payment,
     operation: "confirm",
     statement_checked: true,
   });
   await apply(p);
-  const revision = (await state(guestSession)).revision;
+  const before = await state(guestSession);
   await apply(p);
-  expect((await state(guestSession)).revision).toBe(revision);
+  expect(await state(guestSession)).toEqual(before);
   expect(
     (
       await db.query<{ status: string }>(
@@ -266,223 +189,37 @@ it("guest receipt confirmation requires explicit statement review and replay wri
       )
     ).rows[0].status,
   ).toBe("confirmed");
-  expect(
-    (
-      await db.query(
-        "select id from public.audit_log where session_id=$1 and action='admin_fallback_applied'",
-        [guestSession],
-      )
-    ).rows,
-  ).toHaveLength(3);
 });
-it("an expired request is never revived: admin reviews and applies a fresh request at the current revision", async () => {
-  const sid = await played(),
-    old = await oldRequest(sid);
-  await actor(b);
-  await expect(
-    db.query("select public.decide_session_request($1,true,$2)", [
-      old.id,
-      old.payload_hash,
-    ]),
-  ).rejects.toThrow(/hết hạn/);
+it("an admin cannot enter a bill for a legacy guest collector", async () => {
   await actor(a);
-  const p = await preview(sid, "apply_request", {}, old.id);
-  expect(
-    (
-      await db.query<{ status: string }>(
-        "select status from public.approval_requests where id=$1",
-        [old.id],
-      )
-    ).rows[0].status,
-  ).toBe("pending");
-  await apply(p);
-  expect(
-    (
-      await db.query<{ status: string }>(
-        "select status from public.approval_requests where id=$1",
-        [old.id],
-      )
-    ).rows[0].status,
-  ).toBe("expired");
-  const fresh = (
-    await db.query<{ id: string; status: string }>(
-      "select id,status from public.approval_requests where session_id=$1 and payload->>'source_request_id'=$2",
-      [sid, old.id],
-    )
-  ).rows;
-  expect(fresh).toHaveLength(1);
-  expect(fresh[0].id).not.toBe(old.id);
-  expect(fresh[0].status).toBe("approved");
-  expect(
-    (
-      await db.query<{ weight: string }>(
-        "select weight::text from public.session_attendees where session_id=$1 and member_id=$2",
-        [sid, cm],
-      )
-    ).rows[0].weight,
-  ).toBe("0.5");
-});
-
-it("admin cannot confirm a registered refund recipient's payment even when the collector is a guest", async () => {
-  await actor(a);
-  const p = await preview(guestSession, "add_expense", {
-    title_text: "Advance by C",
-    raw_amount: "200000",
-    payer: cm,
-    beneficiaries: [bm, cm],
-    mode: "total",
-    split: "equal",
-    values_text: [],
-  });
-  await apply(p);
-  const refund = (
-    await db.query<{ id: string }>(
-      "select id from public.settlements where session_id=$1 and to_member=$2 and status='pending'",
-      [guestSession, cm],
-    )
-  ).rows[0];
   await expect(
-    preview(guestSession, "payment_action", {
-      target: refund.id,
-      operation: "confirm",
-      statement_checked: true,
+    preview(guestSession, "add_expense", {
+      title_text: "Water",
+      raw_amount: "20000",
+      payer: guest,
+      beneficiaries: [bm, cm],
+      mode: "total",
+      split: "equal",
+      values_text: [],
     }),
-  ).rejects.toThrow(/điều kiện/);
-});
-
-it("an escalated collector nomination still requires the nominee's separate acceptance", async () => {
-  const sid = await played();
-  await db.exec("reset role");
-  await db.query("update public.sessions set created_by=$2 where id=$1", [
-    sid,
-    c,
-  ]);
-  await actor(c);
-  await db.query(
-    "select public.request_session_change($1,'collector_nomination',$2)",
-    [sid, { member_id: am, reason: "Change collector" }],
-  );
-  const old = (
-    await db.query<{ id: string }>(
-      "select id from public.approval_requests where session_id=$1 and type='collector_nomination' and status='pending'",
-      [sid],
-    )
-  ).rows[0].id;
-  await db.exec("reset role");
-  await db.query(
-    "update public.approval_requests set created_at=now()-interval '73 hours',expires_at=now()-interval '1 hour' where id=$1",
-    [old],
-  );
-  await actor(a);
-  const p = await preview(sid, "apply_request", {}, old);
-  await apply(p);
-  expect((await state(sid)).collector_member_id).toBe(bm);
-  const fresh = (
-    await db.query<{
-      id: string;
-      payload_hash: string;
-      payload: { phase: string };
-    }>(
-      "select id,payload_hash,payload from public.approval_requests where session_id=$1 and type='collector_nomination' and status='pending'",
-      [sid],
-    )
-  ).rows[0];
-  expect(fresh.payload.phase).toBe("accept");
+  ).rejects.toThrow(/người tính tiền/);
   expect(
     (
-      await db.query<{ valid: boolean }>(
-        "select expires_at>now()+interval '71 hours' valid from public.approval_requests where id=$1",
-        [fresh.id],
-      )
-    ).rows[0].valid,
-  ).toBe(true);
-  await db.query(
-    "insert into public.profiles(id,display_name,bank_bin,bank_account_no,bank_account_name) values($1,'A','970415','11112222','A') on conflict(id) do nothing",
-    [a],
-  );
-  await db.query("select public.decide_session_request($1,true,$2)", [
-    fresh.id,
-    fresh.payload_hash,
-  ]);
-  expect((await state(sid)).collector_member_id).toBe(am);
-});
-
-it("expired admin preview drafts cannot execute", async () => {
-  await actor(a);
-  const p = await preview(guestSession, "apply_financial_change", {
-    action_name: "attendee",
-    body: { member_id: bm, operation: "weight", weight: "0.75" },
-  });
-  await db.exec("reset role");
-  await db.query(
-    "update public.approval_requests set expires_at=now()-interval '1 second' where id=$1",
-    [p.id],
-  );
-  await actor(a);
-  await expect(apply(p)).rejects.toThrow(/hết hạn/);
-  await db.exec("reset role");
-  await db.exec("select public.run_scheduled_jobs()");
-  expect(
-    (
-      await db.query("select id from public.notifications where event_key=$1", [
-        `escalate-request:${p.id}`,
+      await db.query("select id from public.expenses where session_id=$1", [
+        guestSession,
       ])
     ).rows,
   ).toHaveLength(0);
 });
-it("expired expense proposals produce a new authored expense instead of activating the rejected one", async () => {
-  const sid = await played(),
-    old = await oldRequest(sid, "expense_proposal");
-  await actor(a);
-  const p = await preview(sid, "apply_request", {}, old.id);
-  await apply(p);
-  expect(
-    (
-      await db.query<{ status: string }>(
-        "select status from public.expenses where id=$1",
-        [old.payload.expense_id],
-      )
-    ).rows[0].status,
-  ).toBe("rejected");
-  const fresh = (
-    await db.query<{ id: string; created_by: string }>(
-      "select id,created_by from public.expenses where session_id=$1 and kind='extra' and status='active'",
-      [sid],
-    )
-  ).rows[0];
-  expect(fresh.id).not.toBe(old.payload.expense_id);
-  expect(fresh.created_by).toBe(c);
-});
-it("withdrawn source requests and stale session revisions invalidate admin drafts", async () => {
-  const sid = await played(),
-    old = await oldRequest(sid);
-  await actor(a);
-  const p = await preview(sid, "apply_request", {}, old.id);
+it("a non-admin cannot unlock another member's finalized session", async () => {
+  const sid = await played();
   await actor(c);
-  await db.query("select public.cancel_session_request($1)", [old.id]);
-  await actor(a);
-  await expect(apply(p)).rejects.toThrow(/điều kiện/);
-  const next = await preview(guestSession, "apply_financial_change", {
-    action_name: "attendee",
-    body: { member_id: bm, operation: "weight", weight: "0.5" },
-  });
-  const pay = (
-    await db.query<{ id: string }>(
-      "select id from public.settlements where session_id=$1 and status='pending'",
-      [guestSession],
-    )
-  ).rows[0].id;
-  await db.exec("reset role");
-  await db.query("update public.sessions set revision=revision+1 where id=$1", [
-    guestSession,
-  ]);
-  await actor(a);
-  await expect(apply(next)).rejects.toThrow(/điều kiện/);
-  expect(pay).toBeTruthy();
-  await db.exec("reset role");
-  expect(
-    (await db.query("select * from app_private.admin_execution_context")).rows,
-  ).toHaveLength(0);
+  await expect(
+    db.query("select public.unlock_session($1,$2,'Try')", [
+      sid,
+      (await state(sid)).revision,
+    ]),
+  ).rejects.toThrow(/admin/);
 });
 it("unlock is admin-only, time bounded, public and does not grant the admin financial authority", async () => {
   const sid = await played();

@@ -20,10 +20,11 @@ export default function SessionCalendarForm({
   canCancel: boolean;
 }) {
   const reopen = s.status === "cancelled";
-  const canMove = reopen || (s.status === "planned" && !s.deadline_passed);
+  const canMove = reopen || s.status === "planned";
   const initialStart = localTime(s.starts_at);
   const initialDeadline = localTime(s.commit_deadline);
   const [starts, setStarts] = useState(initialStart);
+  const [ends, setEnds] = useState(s.ends_at ? localTime(s.ends_at) : "");
   const [deadline, setDeadline] = useState(initialDeadline);
   const moved = starts !== initialStart || deadline !== initialDeadline;
   return (
@@ -69,8 +70,22 @@ export default function SessionCalendarForm({
           name="starts_at"
           value={starts === initialStart ? s.starts_at : `${starts}:00+07:00`}
         />
+        {ends && (
+          <label>
+            Giờ kết thúc (giờ Việt Nam)
+            <input
+              type="datetime-local"
+              required
+              value={ends}
+              onChange={(e) => setEnds(e.target.value)}
+            />
+          </label>
+        )}
+        {ends && (
+          <input type="hidden" name="ends_at" value={`${ends}:00+07:00`} />
+        )}
         <label>
-          Hạn chốt (giờ Việt Nam)
+          Nhắc trả lời trước (giờ Việt Nam)
           <input
             type="datetime-local"
             value={deadline}
@@ -88,9 +103,7 @@ export default function SessionCalendarForm({
               : `${deadline}:00+07:00`
           }
         />
-        {!canMove && (
-          <p>Đã khóa giờ và hạn chốt để giữ nghĩa vụ tham gia đã chốt.</p>
-        )}
+        {!canMove && <p>Lịch đã khóa khi người tính tiền chốt chi phí.</p>}
         <label>
           Ghi chú chung
           <textarea name="note" defaultValue={note || ""} maxLength={2000} />

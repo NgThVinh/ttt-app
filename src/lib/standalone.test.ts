@@ -1,6 +1,42 @@
 import { expect, it } from "vitest";
 import { Sandbox } from "../../scripts/standalone/model.mjs";
 
+it("ordinary sandbox members may create but only the collector changes costs, with attendees locked", () => {
+  const model = new Sandbox();
+  const people = [
+    { id: "a", value: "1" },
+    { id: "b", value: "1" },
+  ];
+  model.command("b", {
+    op: "create",
+    key: "b-create",
+    title: "Member session",
+    amount: "100000",
+    people,
+  });
+  const sid = model.sessions![0].id;
+  expect(() =>
+    model.command("a", {
+      op: "adjust",
+      sid,
+      revision: 1,
+      key: "admin",
+      amount: "50000",
+      people,
+    }),
+  ).toThrow("người tính tiền");
+  expect(() =>
+    model.command("b", {
+      op: "adjust",
+      sid,
+      revision: 1,
+      key: "change-people",
+      amount: "50000",
+      people: [{ id: "b", value: "1" }],
+    }),
+  ).toThrow("đã khóa");
+});
+
 it("keeps confirmed transfers and reconciles refunds after adjustment", () => {
   const model = new Sandbox();
   const people = [

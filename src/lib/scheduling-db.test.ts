@@ -236,7 +236,7 @@ it("weekly generation is idempotent and normal users cannot run maintenance", as
     ).rows,
   ).toHaveLength(4);
 });
-it("scheduled deadlines exclude uncommitted intentions and reminders are deduplicated", async () => {
+it("scheduled reminders preserve uncommitted invitations and are deduplicated", async () => {
   await db.exec("reset role");
   const sid = (
     await db.query<{ id: string }>(
@@ -248,17 +248,21 @@ it("scheduled deadlines exclude uncommitted intentions and reminders are dedupli
     "update public.sessions set starts_at=now()-interval '1 minute',commit_deadline=now()-interval '1 minute' where id=$1",
     [sid],
   );
+  const beforeRsvp = (
+    await db.query(
+      "select member_id,rsvp,committed_at,commit_source from public.session_attendees where session_id=$1 order by member_id",
+      [sid],
+    )
+  ).rows;
   await db.exec("select public.run_scheduled_jobs()");
   expect(
     (
-      await db.query<{ rsvp: string; commit_source: string }>(
-        "select rsvp,commit_source from public.session_attendees where session_id=$1",
+      await db.query(
+        "select member_id,rsvp,committed_at,commit_source from public.session_attendees where session_id=$1 order by member_id",
         [sid],
       )
-    ).rows.every(
-      (r) => r.rsvp === "not_going" && r.commit_source === "auto_not_going",
-    ),
-  ).toBe(true);
+    ).rows,
+  ).toEqual(beforeRsvp);
   const count = (
     await db.query<{ n: number }>(
       "select count(*)::int n from public.notifications",

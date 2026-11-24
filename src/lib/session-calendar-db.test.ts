@@ -111,7 +111,7 @@ afterAll(async () => {
   await db?.close();
 });
 
-it("creator, collector and group admin manage metadata; other members, outsiders and removed creators cannot", async () => {
+it("all active members manage open schedules; outsiders and removed members cannot", async () => {
   const sid = await session();
   await actor(c);
   await db.query("select public.claim_collector($1,0,'0')", [sid]);
@@ -125,9 +125,7 @@ it("creator, collector and group admin manage metadata; other members, outsiders
   }
   const s = await current(sid);
   await actor(d);
-  await expect(
-    manage(sid, "edit", metadata(s, { title: "Forbidden" }), s.revision),
-  ).rejects.toThrow(/quản lý/);
+  await manage(sid,"edit",metadata(s,{title:"Edited by another member"}),s.revision);
   await expect(
     db.query("update public.sessions set title='Forbidden' where id=$1", [sid]),
   ).rejects.toThrow();
@@ -262,87 +260,12 @@ it("rescheduling requires fresh self commitments, preserves choice history and r
   ).toBe("self");
 });
 
-it("elapsed deadlines cannot be moved forward, but descriptive changes preserve commitments and money", async () => {
-  await actor(c);
-  const sid = (
-    await db.query<{ id: string }>(
-      "select public.create_session($1,'Played','Court',now()-interval '1 hour',now()-interval '1 hour',true,$2,'100000',true) id",
-      [group, [memberC, memberD]],
-    )
-  ).rows[0].id;
-  await db.exec("reset role");
-  await db.query("update public.sessions set created_by=$2 where id=$1", [
-    sid,
-    b,
-  ]);
-  await actor(b);
-  const s = await current(sid);
-  const balances = (
-    await db.query(
-      "select id,amount,status from public.settlements where session_id=$1 order by id",
-      [sid],
-    )
-  ).rows;
-  const commitments = (
-    await db.query(
-      "select member_id,rsvp,committed_at from public.session_attendees where session_id=$1 order by member_id",
-      [sid],
-    )
-  ).rows;
-  await expect(
-    manage(
-      sid,
-      "edit",
-      metadata(s, {
-        starts_at: "2099-01-01T00:00:00Z",
-        commit_deadline: "2099-01-01T00:00:00Z",
-      }),
-    ),
-  ).rejects.toThrow(/hạn chốt/);
-  await manage(
-    sid,
-    "edit",
-    metadata(s, { venue: "Court B", note: "Bring water" }),
-  );
-  expect(
-    (
-      await db.query(
-        "select id,amount,status from public.settlements where session_id=$1 order by id",
-        [sid],
-      )
-    ).rows,
-  ).toEqual(balances);
-  expect(
-    (
-      await db.query(
-        "select member_id,rsvp,committed_at from public.session_attendees where session_id=$1 order by member_id",
-        [sid],
-      )
-    ).rows,
-  ).toEqual(commitments);
-  await expect(
-    db.query(
-      "select public.add_expense($1,$2,'Forbidden','1000',$3,$4,'total','equal','{}','Test')",
-      [sid, (await current(sid)).revision, memberC, [memberC, memberD]],
-    ),
-  ).rejects.toThrow(/tham gia|người tính tiền/);
-  const past = await session();
-  await db.exec("reset role");
-  await db.query(
-    "update public.sessions set commit_deadline=now()-interval '1 minute' where id=$1",
-    [past],
-  );
-  await actor(b);
-  await expect(
-    manage(
-      past,
-      "edit",
-      metadata(await current(past), {
-        commit_deadline: "2099-01-01T00:00:00Z",
-        starts_at: "2099-01-01T00:00:00Z",
-      }),
-    ),
-  ).rejects.toThrow(/hạn chốt/);
+it("finalized metadata is locked while an overdue reminder does not lock an open schedule",async()=>{
+ await actor(c);const sid=(await db.query<{id:string}>("select public.create_session($1,'Locked','Court',now()-interval '1 hour',now()-interval '1 hour',true,$2,'100000',true) id",[group,[memberB,memberC]])).rows[0].id;
+ const s=await current(sid);await expect(manage(sid,'edit',metadata(s,{venue:'Changed'}))).rejects.toThrow(/lịch đã khóa/);expect(await current(sid)).toEqual(s);
+ const open=await session();await db.exec('reset role');await db.query("update public.sessions set commit_deadline=now()-interval '1 minute' where id=$1",[open]);await actor(d);
+ await manage(open,'edit',metadata(await current(open),{starts_at:'2099-01-01T00:00:00Z',commit_deadline:'2099-01-01T00:00:00Z'}));
+ expect((await current(open)).status).toBe('planned');
 });
 
 it("cancelling retains history, closes pending requests and reopening requires future self commitments", async () => {

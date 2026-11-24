@@ -45,7 +45,9 @@ export default async function Group({
     .from("guest_bank_accounts")
     .select("member_id,bank_bin,bank_account_no,bank_account_name")
     .eq("group_id", id);
-  const { data: invites } = admin
+  const { data: invites } = members?.some(
+    (m) => m.user_id === user.id && m.status === "active",
+  )
     ? await db
         .from("invites")
         .select("id,expires_at,max_uses,uses,revoked_at")
@@ -66,7 +68,7 @@ export default async function Group({
       <Link href="/groups">Các nhóm</Link>
       <h1>{group.name}</h1>
       <p>{group.sport}</p>
-      {admin && (
+      {members?.some((m) => m.user_id === user.id && m.status === "active") && (
         <section className="panel">
           <h2>Mời bạn</h2>
           <ActionForm action={createInvite} label="Tạo link mời">

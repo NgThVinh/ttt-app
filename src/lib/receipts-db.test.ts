@@ -177,7 +177,7 @@ it("invoices are group-readable but upload remains restricted to the author/coll
   ).toHaveLength(1);
   await expect(
     db.query("select public.reserve_expense_receipt($1)", [expense]),
-  ).rejects.toThrow(/quyền/);
+  ).rejects.toThrow(/quyền|người tính tiền/);
 });
 it("30-day expiry denies reads immediately and queues deletion without deleting history", async () => {
   await db.exec("reset role");

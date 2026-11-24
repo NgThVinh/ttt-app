@@ -24,7 +24,7 @@ it("blocks unknown and privileged operations independently of prompt", () => {
 it("requires self-only facts for T1 and app approval for collected money", () => {
   expect(classifyTool("draft_rsvp", facts)).toBe("T4");
   expect(classifyTool("draft_rsvp", { ...facts, selfOnly: true })).toBe("T1");
-  expect(classifyTool("draft_expense", facts)).toBe("T3");
+  expect(classifyTool("draft_expense", facts)).toBe("T4");
   expect(classifyTool("draft_expense", { ...facts, collector: true })).toBe(
     "T2",
   );

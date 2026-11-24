@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { expenseInputSchema, expenseDraftSchema } from "@/lib/session-data";
-import { moneySchema } from "@/lib/schemas";
 import {
   courtInputSchema,
   vndInputSchema,
@@ -13,6 +12,7 @@ import {
 import type { FormResult } from "@/components/action-form";
 import { detailSchema } from "@/lib/session-data";
 import { runFinancialCommand } from "@/lib/financial-command";
+import { meetingSchema } from "@/lib/meeting";
 import { expenseToolsSchema, expenseEditorSchema } from "@/lib/expense-tools";
 import {
   sessionCalendarFormSchema,
@@ -25,6 +25,65 @@ async function identity() {
   } = await db.auth.getUser();
   if (!user) redirect("/login");
   return db;
+}
+export async function scheduleMeeting(
+  _state: FormResult,
+  form: FormData,
+): Promise<FormResult> {
+  const db = await identity();
+  const parsed = meetingSchema.safeParse({
+    ...Object.fromEntries(form),
+    invitees: form.getAll("invitees"),
+  });
+  if (!parsed.success) return { message: parsed.error.issues[0].message };
+  const p = parsed.data;
+  const { data, error } = await db.rpc("schedule_meeting", {
+    request_key: p.request_key,
+    body: {
+      g: p.groupId,
+      title_text: p.title,
+      venue_text: p.venue,
+      start_time: p.starts,
+      ends_at: p.ends,
+      deadline: p.starts,
+      note: p.note,
+      be_collector: p.collectorMode === "self",
+      nominee: p.collectorMode === "nominee" ? p.nominee : "",
+      invitees: p.invitees,
+    },
+  });
+  const result = z.object({ id: z.uuid() }).safeParse(data);
+  if (error || !result.success)
+    return {
+      message: error?.message?.includes("ngân hàng")
+        ? "Chưa lưu: bổ sung ngân hàng trong Hồ sơ trước khi nhận tính tiền."
+        : "Chưa lưu lịch. Kiểm tra giờ trong tương lai, thành viên được mời và thử lại.",
+    };
+  for (const path of ["/", "/sessions", "/notifications"]) revalidatePath(path);
+  redirect(`/sessions/${result.data.id}`);
+}
+export async function inviteToSession(
+  _state: FormResult,
+  form: FormData,
+): Promise<FormResult> {
+  const db = await identity();
+  const parsed = z
+    .object({ sid: z.uuid(), people: z.array(z.uuid()).min(1).max(100) })
+    .safeParse({ sid: form.get("sid"), people: form.getAll("people") });
+  if (!parsed.success)
+    return { message: "Chọn ít nhất một thành viên trong nhóm." };
+  const { error } = await db.rpc("invite_session_members", parsed.data);
+  if (error)
+    return {
+      message:
+        "Chưa mời được. Buổi có thể đã chốt chi phí hoặc thành viên không còn trong nhóm.",
+    };
+  revalidatePath(`/sessions/${parsed.data.sid}`);
+  revalidatePath("/notifications");
+  return {
+    ok: true,
+    message: "Đã gửi lời mời. Người được mời cần tự nhận lời tham gia.",
+  };
 }
 export async function manageSession(
   _state: FormResult,
@@ -41,6 +100,7 @@ export async function manageSession(
           venue: form.get("venue"),
           note: form.get("note"),
           starts_at: form.get("starts_at"),
+          ...(form.has("ends_at") ? { ends_at: form.get("ends_at") } : {}),
           commit_deadline: form.get("commit_deadline"),
           reason: form.get("reason"),
         };
@@ -199,7 +259,7 @@ export async function sessionCommand(
       sid: z.uuid(),
       revision: z.string().regex(/^\d+$/),
       operation: z.enum(["going", "not_going", "claim", "finish"]),
-      court: moneySchema.optional(),
+      court: courtInputSchema.optional(),
     })
     .safeParse(Object.fromEntries(form));
   if (!input.success) return { message: "Thông tin buổi không hợp lệ." };
@@ -218,9 +278,11 @@ export async function sessionCommand(
   if (error)
     return {
       message:
-        "Chưa thực hiện được. Kiểm tra hạn chốt, ngân hàng, quyền và tải lại buổi nếu dữ liệu đã đổi.",
+        "Chưa thực hiện được. Buổi có thể đã chốt chi phí hoặc đã thay đổi; kiểm tra ngân hàng và tải lại trước khi thử lại.",
     };
   revalidatePath(`/sessions/${p.sid}`);
+  revalidatePath("/sessions");
+  revalidatePath("/");
   return { ok: true, message: "Đã cập nhật buổi." };
 }
 export async function addExpense(

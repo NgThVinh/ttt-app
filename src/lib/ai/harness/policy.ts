@@ -47,9 +47,7 @@ export function classifyTool(name: string, facts: PolicyFacts): Tier {
   if (selfWrites.has(name)) return facts.selfOnly ? "T1" : "T4";
   if (requests.has(name)) return "T3";
   if (name === "draft_expense")
-    return facts.hasPayments || (!facts.collector && facts.affectsOthers)
-      ? "T3"
-      : "T2";
+    return !facts.collector ? "T4" : facts.hasPayments ? "T3" : "T2";
   if (name === "draft_edit_attendance")
     return facts.collector && !facts.hasPayments ? "T2" : "T3";
   if (sharedWrites.has(name)) return "T2";

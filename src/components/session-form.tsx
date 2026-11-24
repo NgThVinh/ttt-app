@@ -12,6 +12,7 @@ import { Table, TableHead, TableCell } from "./ui/table";
 import SuggestedSessionDetails, {
   type SessionSuggestion,
 } from "./suggested-session-details";
+import MeetingForm, { type MeetingEvent } from "./meeting-form";
 import {
   courtInputSchema,
   formatVndInput,
@@ -36,6 +37,7 @@ export default function SessionForm({
   initialTime,
   suggestions = {},
   bankReady = true,
+  events = [],
 }: {
   groups: { id: string; name: string }[];
   members: {
@@ -49,9 +51,10 @@ export default function SessionForm({
   initialTime: string;
   suggestions?: Record<string, SessionSuggestion>;
   bankReady?: boolean;
+  events?: MeetingEvent[];
 }) {
   const [group, setGroup] = useState(groups[0].id),
-    [flow, setFlow] = useState("played"),
+    [flow, setFlow] = useState("planned"),
     [selected, setSelected] = useState<string[]>([]),
     [amount, setAmount] = useState("");
   const fieldId = useId();
@@ -184,6 +187,32 @@ export default function SessionForm({
   }
   const name = (id: string) =>
     inGroup.find((m) => m.id === id)?.display_name || "Thành viên";
+  if (flow === "planned")
+    return (
+      <>
+        <div className="meeting-mode" role="group" aria-label="Loại buổi">
+          <button type="button" aria-pressed={true}>
+            Đặt lịch
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            aria-pressed={false}
+            onClick={() => setFlow("played")}
+          >
+            Nhập buổi đã chơi
+          </button>
+        </div>
+        <MeetingForm
+          groups={groups}
+          members={members}
+          initialTime={initialTime}
+          suggestions={suggestions}
+          bankReady={bankReady}
+          events={events}
+        />
+      </>
+    );
   return (
     <section className="panel session-form">
       {needsBank && (

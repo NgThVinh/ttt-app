@@ -120,6 +120,58 @@ async function draft(command: string, body: Record<string, unknown>) {
     )
   ).rows[0].r;
 }
+it("AI nomination never assigns another person before that person's acceptance", async () => {
+  await enable();
+  await actor(b);
+  const sid = (
+    await db.query<{ id: string }>(
+      "select public.create_session($1,'AI nomination','Court',now()+interval '1 day',now()+interval '1 day',false,'{}','0',false) id",
+      [group],
+    )
+  ).rows[0].id;
+  const d = await draft("session_request", {
+    sid,
+    kind: "collector_nomination",
+    request: { member_id: am, reason: "A là người tính tiền nè" },
+  });
+  expect(d.tier).toBe("T3");
+  const collector = async () =>
+    (
+      await db.query<{ collector_member_id: string | null }>(
+        "select collector_member_id from public.sessions where id=$1",
+        [sid],
+      )
+    ).rows[0].collector_member_id;
+  expect(await collector()).toBeNull();
+  await db.query("select public.decide_ai_draft($1,$2,true)", [d.id, d.hash]);
+  expect(await collector()).toBeNull();
+  const r = (
+    await db.query<{ id: string; payload_hash: string }>(
+      "select id,payload_hash from public.approval_requests where session_id=$1 and type='collector_nomination'",
+      [sid],
+    )
+  ).rows[0];
+  await expect(
+    db.query("select public.decide_session_request($1,true,$2)", [
+      r.id,
+      r.payload_hash,
+    ]),
+  ).rejects.toThrow(/tự xác nhận/);
+  await actor(a);
+  await db.query("select public.decide_session_request($1,true,$2)", [
+    r.id,
+    r.payload_hash,
+  ]);
+  expect(await collector()).toBe(am);
+});
+it("AI cannot draft an invoice for a member who is not the collector", async () => {
+  await enable();
+  const sid = await session();
+  await actor(b);
+  await expect(
+    draft("expense", await body(sid, { payer: bm })),
+  ).rejects.toThrow(/người tính tiền/);
+});
 it("creates no payment effects until the requester explicitly confirms, then retries once", async () => {
   await enable();
   const sid = await session();

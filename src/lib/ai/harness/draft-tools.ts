@@ -135,11 +135,11 @@ export function draftTools(
     }),
     draft_claim_collector: tool({
       description:
-        "Bản nháp tự nhận tính tiền khi chưa có người thu; cần hồ sơ ngân hàng và revision hiện tại.",
+        "Bản nháp tự nhận tính tiền cho chính người hỏi khi chưa có người thu; cần ngân hàng và revision. Chưa nhập hóa đơn ở bước này. Đề cử người khác phải dùng collector_nomination và chờ họ xác nhận.",
       inputSchema: z.object({
         session_id: z.uuid(),
         revision: z.string().regex(/^\d+$/),
-        court: z.string().regex(/^\d+$/),
+        court: z.string().regex(/^\d+$/).default("0"),
       }),
       execute: ({ session_id, revision, court }) =>
         draft("claim_collector", {
