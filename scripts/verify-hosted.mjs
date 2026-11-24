@@ -748,16 +748,19 @@ try {
   await db.query("select public.vote_poll($1,'yes')", [option]);
   assert(
     await denied("select public.close_poll($1,$2)", [poll, option]),
-    "poll member cannot close creator poll",
+    "legacy poll close cannot create a session",
   );
   await actor(a);
   assert(
     await denied("select public.close_poll($1,$2)", [poll, option]),
-    "poll minimum enforced on hosted database",
+    "manual form required instead of legacy poll close",
   );
   await db.query("select public.vote_poll($1,'yes')", [option]);
   const scheduled = (
-    await db.query("select public.close_poll($1,$2) id", [poll, option])
+    await db.query(
+      "select public.schedule_poll_meeting($1,$2,$3,jsonb_build_object('g',$4::uuid,'title_text','Manual poll review','venue_text','Test court','start_time',now()+interval '2 days','ends_at',now()+interval '2 days 2 hours','deadline',now()+interval '2 days','note','','be_collector',false,'nominee','','invitees','[]'::jsonb))->>'id' id",
+      [randomUUID(), poll, option, g],
+    )
   ).rows[0].id;
   assert(
     (

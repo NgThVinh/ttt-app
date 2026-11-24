@@ -1,6 +1,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync, readdirSync } from "node:fs";
 import { beforeAll, afterAll, it, expect } from "vitest";
+import { randomUUID } from "node:crypto";
 let db: PGlite;
 let group: string;
 let poll: string;
@@ -122,7 +123,7 @@ it("outsiders cannot read polls/votes/notifications or vote", async () => {
     db.query("select public.vote_poll($1,'yes')", [options[0]]),
   ).rejects.toThrow(/quyền/);
 });
-it("votes are self-only and minimum attendees is enforced", async () => {
+it("votes are self-only and the legacy close cannot bypass the manual form", async () => {
   await actor(b);
   await db.query("select public.vote_poll($1,'yes')", [options[0]]);
   expect(
@@ -134,29 +135,48 @@ it("votes are self-only and minimum attendees is enforced", async () => {
   ).toEqual([memberB]);
   await expect(
     db.query("select public.close_poll($1,$2)", [poll, options[0]]),
-  ).rejects.toThrow(/Chỉ/);
+  ).rejects.toThrow(/form/);
   await actor(a);
   await expect(
     db.query("select public.close_poll($1,$2)", [poll, options[0]]),
-  ).rejects.toThrow(/tối thiểu/);
+  ).rejects.toThrow(/form/);
   await db.query("select public.vote_poll($1,'yes')", [options[0]]);
 });
-it("closing is idempotent and votes do not become attendance commitments", async () => {
+it("manual creation is idempotent and votes do not become attendance commitments", async () => {
   await actor(a);
-  const sid = (
-    await db.query<{ id: string }>("select public.close_poll($1,$2) id", [
-      poll,
-      options[0],
-    ])
-  ).rows[0].id;
-  expect(
-    (
-      await db.query<{ id: string }>("select public.close_poll($1,$2) id", [
-        poll,
-        options[1],
-      ])
-    ).rows[0].id,
-  ).toBe(sid);
+  const option = (
+    await db.query<{ starts_at: string; ends_at: string }>(
+      "select starts_at,ends_at from public.poll_options where id=$1",
+      [options[0]],
+    )
+  ).rows[0];
+  const body = {
+    g: group,
+    title_text: "Chosen poll",
+    venue_text: "Court",
+    start_time: option.starts_at,
+    ends_at: option.ends_at,
+    deadline: option.starts_at,
+    note: "",
+    be_collector: false,
+    nominee: "",
+    invitees: [memberA, memberB],
+  };
+  const key = randomUUID();
+  const first = (
+    await db.query<{ r: { id: string } }>(
+      "select public.schedule_poll_meeting($1,$2,$3,$4) r",
+      [key, poll, options[0], body],
+    )
+  ).rows[0].r;
+  const sid = first.id;
+  const retry = (
+    await db.query<{ r: { id: string; replayed: boolean } }>(
+      "select public.schedule_poll_meeting($1,$2,$3,$4) r",
+      [key, poll, options[0], body],
+    )
+  ).rows[0].r;
+  expect(retry).toMatchObject({ id: sid, replayed: true });
   const session = (
     await db.query<{ collector_member_id: null; status: string }>(
       "select collector_member_id,status from public.sessions where id=$1",

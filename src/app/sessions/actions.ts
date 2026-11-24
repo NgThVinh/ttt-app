@@ -39,26 +39,45 @@ export async function scheduleMeeting(
   });
   if (!parsed.success) return { message: parsed.error.issues[0].message };
   const p = parsed.data;
-  const { data, error } = await db.rpc("schedule_meeting", {
-    request_key: p.request_key,
-    body: {
-      g: p.groupId,
-      title_text: p.title,
-      venue_text: p.venue,
-      start_time: p.starts,
-      ends_at: p.ends,
-      deadline: p.starts,
-      note: p.note,
-      be_collector: p.collectorMode === "self",
-      nominee: p.collectorMode === "nominee" ? p.nominee : "",
-      invitees: p.invitees,
-    },
-  });
+  const source = z
+    .object({ poll_id: z.uuid(), poll_option: z.uuid() })
+    .safeParse({
+      poll_id: form.get("poll_id"),
+      poll_option: form.get("poll_option"),
+    });
+  if ((form.has("poll_id") || form.has("poll_option")) && !source.success)
+    return {
+      message: "Nguồn thăm dò không hợp lệ. Hãy mở lại từ kết quả thăm dò.",
+    };
+  const body = {
+    g: p.groupId,
+    title_text: p.title,
+    venue_text: p.venue,
+    start_time: p.starts,
+    ends_at: p.ends,
+    deadline: p.starts,
+    note: p.note,
+    be_collector: p.collectorMode === "self",
+    nominee: p.collectorMode === "nominee" ? p.nominee : "",
+    invitees: p.invitees,
+  };
+  const { data, error } = source.success
+    ? await db.rpc("schedule_poll_meeting", {
+        request_key: p.request_key,
+        target_poll: source.data.poll_id,
+        chosen_option: source.data.poll_option,
+        body,
+      })
+    : await db.rpc("schedule_meeting", { request_key: p.request_key, body });
   const result = z.object({ id: z.uuid() }).safeParse(data);
   if (error?.code === "PGRST202" || error?.code === "42883")
     return {
       message:
         "Chưa lưu lịch: hệ thống chưa cập nhật chức năng đặt lịch. Hãy báo quản trị ứng dụng; thông tin bạn nhập vẫn được giữ.",
+    };
+  if (error?.message?.includes("Thăm dò đã có buổi"))
+    return {
+      message: "Thăm dò đã có buổi chơi. Quay lại kết quả để mở buổi đã tạo.",
     };
   if (error || !result.success)
     return {
@@ -66,7 +85,8 @@ export async function scheduleMeeting(
         ? "Chưa lưu: bổ sung ngân hàng trong Hồ sơ trước khi nhận tính tiền."
         : "Chưa lưu lịch. Kiểm tra giờ trong tương lai, thành viên được mời và thử lại.",
     };
-  for (const path of ["/", "/sessions", "/notifications"]) revalidatePath(path);
+  for (const path of ["/", "/sessions", "/notifications", "/polls"])
+    revalidatePath(path);
   redirect(`/sessions/${result.data.id}`);
 }
 export async function inviteToSession(

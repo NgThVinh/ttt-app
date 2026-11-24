@@ -137,7 +137,7 @@ it("session creation reuses an explicit request key while distinct keys remain d
   expect((await command("create_session", body)).id).not.toBe(first.id);
 });
 
-it("two independently closed identical polls still produce distinct sessions", async () => {
+it("two independently reviewed identical polls still produce distinct sessions", async () => {
   await actor(a);
   const slots = [
     {
@@ -160,14 +160,27 @@ it("two independently closed identical polls still produce distinct sessions", a
       )
     ).rows[0].id;
     await db.query("select public.vote_poll($1,'yes')", [option]);
-    sessions.push(
-      (
-        await db.query<{ id: string }>("select public.close_poll($1,$2) id", [
-          poll,
-          option,
-        ])
-      ).rows[0].id,
+    const result = await db.query<{ r: { id: string } }>(
+      "select public.schedule_poll_meeting($1,$2,$3,$4) r",
+      [
+        randomUUID(),
+        poll,
+        option,
+        {
+          g: group,
+          title_text: "Same poll",
+          venue_text: "Court",
+          start_time: slots[0].starts_at,
+          ends_at: slots[0].ends_at,
+          deadline: slots[0].starts_at,
+          note: "",
+          be_collector: false,
+          nominee: "",
+          invitees: [],
+        },
+      ],
     );
+    sessions.push(result.rows[0].r.id);
   }
   expect(sessions[0]).not.toBe(sessions[1]);
 });

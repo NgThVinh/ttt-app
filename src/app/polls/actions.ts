@@ -27,7 +27,6 @@ export async function createPoll(
       group: z.uuid(),
       title: z.string().trim().min(1).max(160),
       venue: z.string().trim().min(1).max(200),
-      minimum: z.coerce.number().int().min(1).max(100),
       deadline: date,
     })
     .safeParse(Object.fromEntries(form));
@@ -45,7 +44,7 @@ export async function createPoll(
     g: p.group,
     title_text: p.title,
     venue_text: p.venue,
-    minimum: p.minimum,
+    minimum: 1,
     deadline: p.deadline.toISOString(),
     options: starts.data.map((d, i) => ({
       starts_at: d.toISOString(),
@@ -81,28 +80,25 @@ export async function votePoll(
   return {
     ok: true,
     message:
-      "Đã lưu lựa chọn. Khi chốt lịch, bạn vẫn cần tự chốt tham gia buổi.",
+      "Đã lưu lựa chọn. Đây là phiếu thăm dò, chưa nhận lời tham gia buổi.",
   };
 }
-export async function closePoll(
+export async function finishPoll(
   _state: FormResult,
   form: FormData,
 ): Promise<FormResult> {
   const db = await identity();
-  const input = z
-    .object({ id: z.uuid(), option: z.uuid() })
-    .safeParse(Object.fromEntries(form));
-  if (!input.success) return { message: "Khung giờ không hợp lệ." };
-  const { data, error } = await db.rpc("close_poll", {
-    target: input.data.id,
-    chosen: input.data.option,
-  });
+  const id = z.uuid().safeParse(form.get("id"));
+  if (!id.success) return { message: "Thăm dò không hợp lệ." };
+  const { error } = await db.rpc("finish_poll", { target: id.data });
   if (error)
     return {
       message:
-        "Chưa chốt được: kiểm tra quyền, số người tối thiểu và giờ bắt đầu.",
+        "Chưa đóng được. Chỉ người tạo hoặc admin nhóm được đóng thăm dò.",
     };
-  redirect(`/sessions/${data}`);
+  revalidatePath("/polls", "layout");
+  revalidatePath("/sessions");
+  return { ok: true, message: "Đã đóng thăm dò, giữ nguyên kết quả." };
 }
 export async function readNotification(
   _state: FormResult,

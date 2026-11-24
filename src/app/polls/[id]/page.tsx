@@ -5,7 +5,9 @@ import { supabase } from "@/lib/supabase";
 import ActionForm from "@/components/action-form";
 import ShareButton from "@/components/share-button";
 import LiveUpdates from "@/components/live-updates";
-import { votePoll, closePoll } from "../actions";
+import PollVoteButtons from "@/components/poll-vote-buttons";
+import { finishPoll } from "../actions";
+import { pollStatus } from "@/lib/poll-draft";
 export default async function Poll({
   params,
 }: {
@@ -21,12 +23,15 @@ export default async function Poll({
   const { data: p } = await db
     .from("polls")
     .select(
-      "id,group_id,title,venue,status,closes_at,min_attendees,created_by,resulting_session_id",
+      "id,group_id,title,venue,status,closes_at,created_by,resulting_session_id",
     )
     .eq("id", id)
     .maybeSingle();
   if (!p) notFound();
-  const [{ data: options }, { data: members }] = await Promise.all([
+  const [
+    { data: options, error: optionsError },
+    { data: members, error: membersError },
+  ] = await Promise.all([
     db
       .from("poll_options")
       .select("id,starts_at,ends_at")
@@ -38,7 +43,7 @@ export default async function Poll({
       .eq("group_id", p.group_id)
       .eq("status", "active"),
   ]);
-  const { data: votes } = options?.length
+  const { data: votes, error: votesError } = options?.length
     ? await db
         .from("poll_votes")
         .select("option_id,member_id,answer")
@@ -46,117 +51,191 @@ export default async function Poll({
           "option_id",
           options.map((o) => o.id),
         )
-    : { data: [] };
-  const active = new Set(members?.map((m) => m.id));
-  const count = (option: string, answer: string) =>
+    : { data: [], error: null };
+  const active = new Set(members?.map((m) => m.id)),
+    mine = members?.find((m) => m.user_id === user.id),
+    now = new Date().getTime(),
+    open = p.status === "open" && Date.parse(p.closes_at) > now;
+  const count = (oid: string, answer: string) =>
     votes?.filter(
       (v) =>
-        v.option_id === option &&
-        v.answer === answer &&
-        active.has(v.member_id),
+        v.option_id === oid && v.answer === answer && active.has(v.member_id),
     ).length || 0;
-  const ranked = [...(options || [])].sort(
-    (a, b) =>
-      count(b.id, "yes") - count(a.id, "yes") ||
-      count(b.id, "maybe") - count(a.id, "maybe") ||
-      a.starts_at.localeCompare(b.starts_at),
-  );
-  const mine = members?.find((m) => m.user_id === user.id);
-  const canClose = p.created_by === user.id || mine?.role === "admin";
-  const date = (s: string) =>
-    new Date(s).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
+  const max = Math.max(0, ...(options || []).map((o) => count(o.id, "yes")));
+  const date = (v: string) =>
+    new Date(v).toLocaleString("vi-VN", {
+      weekday: "short",
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Asia/Ho_Chi_Minh",
+    });
+  const loadError = optionsError || membersError || votesError;
   return (
-    <main>
+    <main className="poll-workspace">
       <Link href="/polls">Các thăm dò</Link>
-      <h1>{p.title}</h1>
-      <p>
-        {p.venue} · Hạn trả lời {date(p.closes_at)} · Tối thiểu{" "}
-        {p.min_attendees} người đồng ý
-      </p>
+      <div className="page-heading">
+        <div>
+          <h1>{p.title}</h1>
+          <p>
+            {p.venue !== "Chưa chọn sân" ? p.venue + " · " : ""}
+            {pollStatus(p.status, p.closes_at, !!p.resulting_session_id, now)}
+          </p>
+        </div>
+        <ShareButton
+          title={p.title}
+          text={`Cùng chọn lúc rảnh: ${p.title}.`}
+          path={`/polls/${p.id}`}
+        />
+      </div>
       <LiveUpdates tables={["polls", "poll_votes"]} />
-      <ShareButton
-        title={p.title}
-        text={`Cùng chọn lịch ${p.title} tại ${p.venue}. Hạn trả lời ${date(p.closes_at)}.`}
-        path={`/polls/${p.id}`}
-      />
+      <div className="poll-help">
+        <span>
+          {open
+            ? `Trả lời trước ${date(p.closes_at)}`
+            : "Thăm dò đã ngừng nhận phiếu."}
+        </span>
+        <span>Vote để thăm dò; bạn sẽ nhận lời tham gia sau khi có buổi.</span>
+      </div>
+      {loadError && (
+        <p role="alert">
+          Chưa tải đủ kết quả. Hãy tải lại trước khi chọn lịch.
+        </p>
+      )}
       {p.resulting_session_id && (
-        <p>
+        <div className="poll-session-link">
+          <strong>Đã tạo buổi từ thăm dò này</strong>
           <Link
             className="primary"
             href={`/sessions/${p.resulting_session_id}`}
           >
-            Xem buổi đã chốt — nhớ tự chốt tham gia
+            Xem buổi chơi
           </Link>
-        </p>
+        </div>
       )}
-      {ranked.map((o, i) => (
-        <section className="panel" key={o.id}>
-          <h2>
-            {date(o.starts_at)} đến {date(o.ends_at)}
-          </h2>
-          <p>
-            {i === 0 ? "Khung có nhiều người đồng ý nhất · " : ""}
-            {count(o.id, "yes")} đi được · {count(o.id, "maybe")} có thể ·{" "}
-            {count(o.id, "no")} không đi
-          </p>
-          <p>
-            {members
-              ?.filter((m) =>
-                votes?.some(
-                  (v) =>
-                    v.option_id === o.id &&
-                    v.member_id === m.id &&
-                    v.answer === "yes",
-                ),
-              )
-              .map((m) => m.display_name)
-              .join(", ") || "Chưa ai chọn đi được"}
-          </p>
-          <p>
-            Chưa trả lời:{" "}
-            {members
-              ?.filter(
-                (m) =>
-                  !votes?.some(
-                    (v) => v.option_id === o.id && v.member_id === m.id,
-                  ),
-              )
-              .map((m) => m.display_name)
-              .join(", ") || "Cả nhóm đã trả lời"}
-          </p>
-          {p.status === "open" && (
-            <ActionForm action={votePoll} label="Lưu lựa chọn">
-              <input type="hidden" name="id" value={o.id} />
-              <select
-                aria-label="Khả năng tham gia"
-                name="answer"
-                defaultValue={
-                  votes?.find(
-                    (v) => v.option_id === o.id && v.member_id === mine?.id,
-                  )?.answer || "maybe"
-                }
-              >
-                <option value="yes">Tôi đi được</option>
-                <option value="maybe">Có thể</option>
-                <option value="no">Tôi không đi được</option>
-              </select>
-            </ActionForm>
-          )}
-          {canClose && p.status === "open" && (
-            <ActionForm
-              action={closePoll}
-              label="Chốt khung giờ này và tạo buổi"
+      <div className="poll-choice-list">
+        {options?.map((o, i) => {
+          const yes = count(o.id, "yes"),
+            answered =
+              votes?.filter(
+                (v) => v.option_id === o.id && active.has(v.member_id),
+              ).length || 0;
+          return (
+            <section
+              className="panel poll-choice"
+              key={o.id}
+              aria-label={`Khung giờ ${i + 1}`}
             >
-              <input type="hidden" name="id" value={p.id} />
-              <input type="hidden" name="option" value={o.id} />
-              <p>
-                Phiếu đồng ý chỉ điền sẵn ý định. Mỗi người vẫn tự chốt đi trong
-                buổi mới.
-              </p>
-            </ActionForm>
-          )}
-        </section>
-      ))}
+              <div className="poll-choice-heading">
+                <div>
+                  <small>Lựa chọn {i + 1}</small>
+                  <h2>
+                    {date(o.starts_at)} – {date(o.ends_at)}
+                  </h2>
+                </div>
+                {yes > 0 && yes === max && (
+                  <span className="poll-best">Nhiều người chọn</span>
+                )}
+              </div>
+              <div
+                className="poll-meter"
+                role="meter"
+                aria-label="Số người đi được"
+                aria-valuenow={yes}
+                aria-valuemin={0}
+                aria-valuemax={Math.max(1, active.size)}
+              >
+                <span
+                  style={{
+                    width: `${(yes / Math.max(1, active.size)) * 100}%`,
+                  }}
+                />
+              </div>
+              <div className="poll-result-summary">
+                <strong>{yes} đi được</strong>
+                <span>{count(o.id, "maybe")} có thể</span>
+                <span>{count(o.id, "no")} không đi</span>
+                <span>{active.size - answered} chưa trả lời</span>
+              </div>
+              {open && !loadError ? (
+                <PollVoteButtons
+                  key={`${o.id}:${votes?.find((v) => v.option_id === o.id && v.member_id === mine?.id)?.answer || ""}`}
+                  optionId={o.id}
+                  answer={
+                    votes?.find(
+                      (v) => v.option_id === o.id && v.member_id === mine?.id,
+                    )?.answer
+                  }
+                />
+              ) : (
+                <p className="field-hint">
+                  Lựa chọn của bạn:{" "}
+                  {(
+                    {
+                      yes: "Đi được",
+                      maybe: "Có thể",
+                      no: "Không đi",
+                    } as Record<string, string>
+                  )[
+                    votes?.find(
+                      (v) => v.option_id === o.id && v.member_id === mine?.id,
+                    )?.answer || ""
+                  ] || "Chưa trả lời"}
+                </p>
+              )}
+              <details className="poll-voters">
+                <summary>Ai đã chọn?</summary>
+                {[
+                  ["yes", "Đi được"],
+                  ["maybe", "Có thể"],
+                  ["no", "Không đi"],
+                  ["pending", "Chưa trả lời"],
+                ].map(([answer, label]) => (
+                  <p key={answer}>
+                    <strong>{label}: </strong>
+                    {members
+                      ?.filter((m) =>
+                        answer === "pending"
+                          ? !votes?.some(
+                              (v) =>
+                                v.option_id === o.id && v.member_id === m.id,
+                            )
+                          : votes?.some(
+                              (v) =>
+                                v.option_id === o.id &&
+                                v.member_id === m.id &&
+                                v.answer === answer,
+                            ),
+                      )
+                      .map((m) => m.display_name)
+                      .join(", ") || "—"}
+                  </p>
+                ))}
+              </details>
+              {!p.resulting_session_id &&
+                Date.parse(o.starts_at) > now &&
+                !loadError && (
+                  <Link
+                    className="secondary poll-create-session"
+                    href={`/sessions/new?poll=${p.id}&option=${o.id}`}
+                  >
+                    Tạo buổi với khung giờ này
+                  </Link>
+                )}
+            </section>
+          );
+        })}
+      </div>
+      {open && (p.created_by === user.id || mine?.role === "admin") && (
+        <ActionForm action={finishPoll} label="Đóng thăm dò">
+          <input type="hidden" name="id" value={p.id} />
+          <small>
+            Ngừng nhận phiếu, giữ kết quả. Bạn vẫn có thể dùng kết quả để tạo
+            buổi.
+          </small>
+        </ActionForm>
+      )}
     </main>
   );
 }

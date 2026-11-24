@@ -310,7 +310,7 @@ try {
     );
     passed.push(stage);
   }
-  stage = "poll closing";
+  stage = "manual poll scheduling";
   {
     const poll = (
       await user(a, (db) =>
@@ -322,7 +322,7 @@ try {
     ).rows[0].id;
     const slots = (
       await owner.query(
-        "select id from public.poll_options where poll_id=$1 order by starts_at",
+        "select id,starts_at,ends_at from public.poll_options where poll_id=$1 order by starts_at",
         [poll],
       )
     ).rows;
@@ -330,17 +330,39 @@ try {
       await user(a, (db) =>
         db.query("select public.vote_poll($1,'yes')", [slot.id]),
       );
+    const pollBody = (slot) => ({
+      g: group,
+      title_text: "Manual race",
+      venue_text: "Court",
+      start_time: slot.starts_at,
+      ends_at: slot.ends_at,
+      deadline: slot.starts_at,
+      note: "",
+      be_collector: false,
+      nominee: "",
+      invitees: [],
+    });
     const r = await race(
       a,
       b,
       (db) =>
-        db.query("select public.close_poll($1,$2) id", [poll, slots[0].id]),
+        db.query("select public.schedule_poll_meeting($1,$2,$3,$4)->>'id' id", [
+          randomUUID(),
+          poll,
+          slots[0].id,
+          pollBody(slots[0]),
+        ]),
       (db) =>
-        db.query("select public.close_poll($1,$2) id", [poll, slots[1].id]),
+        db.query("select public.schedule_poll_meeting($1,$2,$3,$4)->>'id' id", [
+          randomUUID(),
+          poll,
+          slots[1].id,
+          pollBody(slots[1]),
+        ]),
     );
     assert(
-      r.second.ok && r.first.rows[0].id === r.second.value.rows[0].id,
-      "competing poll closes return one resulting session",
+      !r.second.ok,
+      "competing manual poll forms cannot create a second session",
     );
     assert(
       (
@@ -349,7 +371,7 @@ try {
           [r.first.rows[0].id],
         )
       ).rows[0].collector_member_id === null,
-      "poll close does not assign collector",
+      "manual poll form does not assign collector",
     );
     assert(
       (
@@ -358,7 +380,7 @@ try {
           [r.first.rows[0].id],
         )
       ).rows.every((x) => x.committed_at === null),
-      "poll close does not commit attendance",
+      "manual poll form does not commit attendance",
     );
     passed.push(stage);
   }

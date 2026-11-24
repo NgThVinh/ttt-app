@@ -1,66 +1,92 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import PollForm from "@/components/poll-form";
 import LiveUpdates from "@/components/live-updates";
+import { pollStatus } from "@/lib/poll-draft";
 export default async function Polls() {
   const db = await supabase();
   const {
     data: { user },
   } = await db.auth.getUser();
   if (!user) redirect("/login");
-  const [{ data: groups }, { data, error }, { data: recent }] =
-    await Promise.all([
-      db.from("groups").select("id,name"),
-      db
-        .from("polls")
-        .select("id,title,status,closes_at")
-        .order("created_at", { ascending: false }),
-      db
-        .from("sessions")
-        .select("group_id,venue")
-        .order("created_at", { ascending: false })
-        .limit(100),
-    ]);
-  const suggestions: Record<string, { venue: string }> = {};
-  for (const session of recent || []) {
-    if (
-      !suggestions[session.group_id] &&
-      session.venue &&
-      session.venue !== "Chưa chọn sân"
-    )
-      suggestions[session.group_id] = { venue: session.venue };
+  const [{ data: groups }, { data: polls, error }] = await Promise.all([
+    db.from("groups").select("id,name"),
+    db
+      .from("polls")
+      .select("id,group_id,title,venue,status,closes_at,resulting_session_id")
+      .order("created_at", { ascending: false }),
+  ]);
+  const now = new Date().getTime(),
+    active = (polls || []).filter(
+      (p) =>
+        p.status === "open" &&
+        Date.parse(p.closes_at) > now &&
+        !p.resulting_session_id,
+    ),
+    past = (polls || []).filter((p) => !active.some((a) => a.id === p.id));
+  function rows(list: typeof active) {
+    return list.map((p) => (
+      <Link className="poll-list-row" key={p.id} href={`/polls/${p.id}`}>
+        <div>
+          <h3>{p.title}</h3>
+          <p>
+            {groups?.find((g) => g.id === p.group_id)?.name}
+            {p.venue !== "Chưa chọn sân" ? ` · ${p.venue}` : ""}
+          </p>
+        </div>
+        <div className="poll-list-meta">
+          <span
+            className={active.some((a) => a.id === p.id) ? "poll-open" : ""}
+          >
+            {pollStatus(p.status, p.closes_at, !!p.resulting_session_id, now)}
+          </span>
+          <small>
+            {active.some((a) => a.id === p.id) ? "Trả lời trước " : ""}
+            {new Date(p.closes_at).toLocaleString("vi-VN", {
+              day: "2-digit",
+              month: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              timeZone: "Asia/Ho_Chi_Minh",
+            })}
+          </small>
+        </div>
+      </Link>
+    ));
   }
   return (
-    <main>
-      <Link href="/">Trang chủ</Link> · <Link href="/sessions">Buổi chơi</Link>
-      <h1>Hẹn lịch chơi</h1>
+    <main className="poll-workspace">
+      <div className="page-heading">
+        <div>
+          <h1>Thăm dò lịch chơi</h1>
+          <p>Chọn lúc rảnh cùng nhóm, tạo buổi khi đã thống nhất.</p>
+        </div>
+        <Link className="primary" href="/polls/new">
+          + Tạo thăm dò
+        </Link>
+      </div>
       <LiveUpdates tables={["polls"]} />
-      {!!groups?.length && (
-        <>
-          <h2>Tạo thăm dò</h2>
-          <PollForm groups={groups} suggestions={suggestions} />
-        </>
-      )}
-      <h2>Lịch nhóm đã tạo</h2>
-      {error && <p role="alert">Chưa tải được thăm dò.</p>}
-      {data?.map((p) => (
-        <section className="panel" key={p.id}>
-          <Link href={`/polls/${p.id}`}>
-            <h2>{p.title}</h2>
-            <p>
-              {p.status === "closed"
-                ? "Đã chốt"
-                : "Hạn trả lời: " +
-                  new Date(p.closes_at).toLocaleString("vi-VN", {
-                    timeZone: "Asia/Ho_Chi_Minh",
-                  })}
-            </p>
-          </Link>
+      {error && <p role="alert">Chưa tải được thăm dò. Hãy tải lại trang.</p>}
+      {!!active.length && (
+        <section aria-label="Thăm dò đang mở">
+          <h2>
+            Đang thăm dò <small>({active.length})</small>
+          </h2>
+          <div className="poll-list">{rows(active)}</div>
         </section>
-      ))}
-      {!data?.length && !error && (
-        <p>Chưa có thăm dò. Tạo lịch để cả nhóm cùng chọn nhé.</p>
+      )}
+      {!error && !active.length && (
+        <section className="panel poll-empty">
+          <h2>Chưa có thăm dò đang mở</h2>
+          <p>Đưa ra vài khung giờ để mọi người chọn lúc đi được.</p>
+          <Link href="/polls/new">Tạo thăm dò đầu tiên</Link>
+        </section>
+      )}
+      {!!past.length && (
+        <details className="poll-archive">
+          <summary>Đã kết thúc · {past.length}</summary>
+          <div className="poll-list">{rows(past)}</div>
+        </details>
       )}
     </main>
   );

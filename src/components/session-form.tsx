@@ -13,6 +13,7 @@ import SuggestedSessionDetails, {
   type SessionSuggestion,
 } from "./suggested-session-details";
 import MeetingForm, { type MeetingEvent } from "./meeting-form";
+import type { PollMeetingDraft } from "@/lib/poll-draft";
 import {
   courtInputSchema,
   formatVndInput,
@@ -38,6 +39,7 @@ export default function SessionForm({
   suggestions = {},
   bankReady = true,
   events = [],
+  pollDraft,
 }: {
   groups: { id: string; name: string }[];
   members: {
@@ -52,6 +54,7 @@ export default function SessionForm({
   suggestions?: Record<string, SessionSuggestion>;
   bankReady?: boolean;
   events?: MeetingEvent[];
+  pollDraft?: PollMeetingDraft;
 }) {
   const [group, setGroup] = useState(groups[0].id),
     [flow, setFlow] = useState("planned"),
@@ -190,19 +193,21 @@ export default function SessionForm({
   if (flow === "planned")
     return (
       <>
-        <div className="meeting-mode" role="group" aria-label="Loại buổi">
-          <button type="button" aria-pressed={true}>
-            Đặt lịch
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            aria-pressed={false}
-            onClick={() => setFlow("played")}
-          >
-            Nhập buổi đã chơi
-          </button>
-        </div>
+        {!pollDraft && (
+          <div className="meeting-mode" role="group" aria-label="Loại buổi">
+            <button type="button" aria-pressed={true}>
+              Đặt lịch
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              aria-pressed={false}
+              onClick={() => setFlow("played")}
+            >
+              Nhập buổi đã chơi
+            </button>
+          </div>
+        )}
         <MeetingForm
           groups={groups}
           members={members}
@@ -210,6 +215,7 @@ export default function SessionForm({
           suggestions={suggestions}
           bankReady={bankReady}
           events={events}
+          pollDraft={pollDraft}
         />
       </>
     );

@@ -2,8 +2,14 @@
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import SessionForm from "@/components/session-form";
+import { z } from "zod";
+import { pollDraftSchema, type PollMeetingDraft } from "@/lib/poll-draft";
 import { expenseToolsSchema, type ExpenseTools } from "@/lib/expense-tools";
-export default async function NewSession() {
+export default async function NewSession({
+  searchParams,
+}: {
+  searchParams: Promise<{ poll?: string; option?: string }>;
+}) {
   const db = await supabase();
   const {
     data: { user },
@@ -39,6 +45,67 @@ export default async function NewSession() {
       .order("starts_at")
       .limit(150),
   ]);
+  const query = await searchParams;
+  let pollDraft: PollMeetingDraft | undefined,
+    draftError = "";
+  if (query.poll || query.option) {
+    const source = z
+      .object({ poll: z.uuid(), option: z.uuid() })
+      .safeParse(query);
+    if (!source.success)
+      draftError = "Link thăm dò không hợp lệ. Hãy mở lại từ thăm dò.";
+    else {
+      const [{ data: poll }, { data: option }] = await Promise.all([
+        db
+          .from("polls")
+          .select("id,group_id,title,venue,resulting_session_id")
+          .eq("id", source.data.poll)
+          .maybeSingle(),
+        db
+          .from("poll_options")
+          .select("id,poll_id,starts_at,ends_at")
+          .eq("id", source.data.option)
+          .eq("poll_id", source.data.poll)
+          .maybeSingle(),
+      ]);
+      if (poll?.resulting_session_id)
+        redirect(`/sessions/${poll.resulting_session_id}`);
+      if (
+        !poll ||
+        !option ||
+        Date.parse(option.starts_at) <= new Date().getTime()
+      )
+        draftError =
+          "Thăm dò hoặc khung giờ không còn khả dụng. Hãy chọn lại khung tương lai.";
+      else {
+        const { data: votes, error: voteError } = await db
+          .from("poll_votes")
+          .select("member_id")
+          .eq("option_id", option.id)
+          .eq("answer", "yes");
+        const allowed = new Set(
+          (members || [])
+            .filter((m) => m.group_id === poll.group_id)
+            .map((m) => m.id),
+        );
+        const parsed = pollDraftSchema.safeParse({
+          pollId: poll.id,
+          optionId: option.id,
+          groupId: poll.group_id,
+          title: poll.title,
+          venue: poll.venue,
+          starts: option.starts_at,
+          ends: option.ends_at,
+          invitees: (votes || [])
+            .map((v) => v.member_id)
+            .filter((id) => allowed.has(id)),
+        });
+        if (voteError || !parsed.success)
+          draftError = "Chưa tải được kết quả để điền sẵn. Hãy thử lại.";
+        else pollDraft = parsed.data;
+      }
+    }
+  }
   const suggestions: Record<string, { venue: string }> = {};
   for (const session of recent || []) {
     if (
@@ -64,7 +131,12 @@ export default async function NewSession() {
           Về lịch nhóm
         </Link>
       </div>
-      {error ? (
+      {draftError ? (
+        <section className="panel">
+          <p role="alert">{draftError}</p>
+          <Link href="/polls">Về thăm dò</Link>
+        </section>
+      ) : error ? (
         <p role="alert">Chưa tải được nhóm.</p>
       ) : !groups?.length ? (
         <p>
@@ -79,7 +151,20 @@ export default async function NewSession() {
               lưu ở cấu hình hiện tại; vui lòng báo quản trị ứng dụng.
             </p>
           )}
+          {pollDraft && (
+            <aside className="poll-prefill-notice">
+              <strong>Điền sẵn từ thăm dò</strong>
+              <p>
+                Kiểm tra lại giờ, địa điểm và người được mời. Chỉ khi bấm Tạo
+                lịch mới lưu buổi; người được mời vẫn tự nhận lời.
+              </p>
+              <Link href={`/polls/${pollDraft.pollId}`}>
+                Về kết quả thăm dò
+              </Link>
+            </aside>
+          )}
           <SessionForm
+            pollDraft={pollDraft}
             userId={user.id}
             groups={groups}
             members={members || []}
