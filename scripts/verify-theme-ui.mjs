@@ -30,7 +30,7 @@ try {
   await page.getByLabel("Nhóm", { exact: true }).selectOption(group);
   step = "disclosure-keyboard-and-form-state";
   const advanced = page.getByRole("button", {
-    name: "Người tính tiền & ghi chú",
+    name: "Thêm ghi chú",
     exact: true,
   });
   await expect(advanced).toHaveAttribute("aria-expanded", "false");
@@ -115,6 +115,16 @@ try {
           () => document.documentElement.scrollWidth <= innerWidth,
         ),
         "NO_HORIZONTAL_OVERFLOW",
+      );
+      check(
+        await page
+          .locator(".meeting-editor .form-submit")
+          .evaluate(
+            (el) =>
+              el.getBoundingClientRect().bottom <
+              (innerWidth > 900 ? 940 : 1150),
+          ),
+        "COMPOSER_PRIMARY_ACTION_WITHIN_COMPACT_FLOW",
       );
       await page.screenshot({
         path: `.tools/theme-ui/meeting-${theme}-${width}.png`,

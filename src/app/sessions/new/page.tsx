@@ -58,8 +58,12 @@ export default async function NewSession() {
   );
   return (
     <main>
-      <Link href="/sessions">Buổi chơi</Link>
-      <h1>Tạo buổi chơi</h1>
+      <div className="page-heading">
+        <h1>Tạo buổi chơi</h1>
+        <Link className="quiet-link" href="/sessions">
+          Về lịch nhóm
+        </Link>
+      </div>
       {error ? (
         <p role="alert">Chưa tải được nhóm.</p>
       ) : !groups?.length ? (

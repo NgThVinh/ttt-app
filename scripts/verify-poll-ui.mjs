@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { setRsvp } from "./ui-helpers.mjs";
 import { localBrowser, check } from "./local-browser.mjs";
 let app,
   step = "start";
@@ -136,13 +137,7 @@ try {
   );
   step = "rsvp";
   await member.page.goto(origin + "/sessions/" + sid);
-  await member.page.getByLabel("Tôi tham gia").selectOption("going");
-  await member.page
-    .getByRole("button", { name: "Chốt lựa chọn của tôi", exact: true })
-    .click();
-  await member.page
-    .getByText("Poll member · Đã chốt đi", { exact: false })
-    .waitFor();
+  await setRsvp(member.page);
   check(
     (
       await db.query(

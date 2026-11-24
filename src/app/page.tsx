@@ -5,6 +5,7 @@ import { moneySchema } from "@/lib/schemas";
 import { redirect } from "next/navigation";
 import { profileName } from "@/lib/profile-name";
 import { appName } from "@/lib/config";
+import { loadSessionOverview } from "@/lib/load-session-overview";
 export const metadata = { title: { absolute: `Trang chủ · ${appName}` } };
 export default async function Home() {
   const db = await supabase();
@@ -14,11 +15,7 @@ export default async function Home() {
   if (!user) redirect("/login");
   const [groups, sessions, wallet, profile] = await Promise.all([
     db.from("groups").select("id,name,sport"),
-    db
-      .from("sessions")
-      .select("id,title,venue,starts_at,status")
-      .order("starts_at", { ascending: false })
-      .limit(30),
+    loadSessionOverview(db, user.id),
     db.rpc("my_settlements"),
     db.from("profiles").select("display_name").eq("id", user.id).maybeSingle(),
   ]);
@@ -56,8 +53,10 @@ export default async function Home() {
       }
       summary={summary}
       groups={groups.data || []}
-      sessions={sessions.data || []}
-      setupError={!!groups.error}
+      sessions={sessions.sessions}
+      setupError={
+        !!groups.error || sessions.error || !!wallet.error || !parsed.success
+      }
     />
   );
 }

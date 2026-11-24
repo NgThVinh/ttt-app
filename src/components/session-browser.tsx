@@ -1,40 +1,46 @@
 "use client";
-import Link from "next/link";
 import { useId, useState } from "react";
-import { CalendarDays, List, MapPin, Clock } from "lucide-react";
+import { CalendarDays, List, ChevronLeft, ChevronRight } from "lucide-react";
 import { Calendar } from "./ui/calendar";
-import { Badge } from "./ui/badge";
 import { SlidingTabs } from "./ui/sliding-tabs";
-type Session = {
-  id: string;
-  title: string;
-  venue: string;
-  starts_at: string;
-  status: string;
-};
-const dayKey = (instant: string) =>
-  new Date(new Date(instant).getTime() + 7 * 3600000)
-    .toISOString()
-    .slice(0, 10);
+import SessionListItem from "./session-list-item";
+import { shiftDate } from "@/lib/calendar";
+import {
+  sessionDay as dayKey,
+  type SessionOverview,
+} from "@/lib/session-overview";
 export default function SessionBrowser({
   sessions,
   today,
 }: {
-  sessions: Session[];
+  sessions: SessionOverview[];
   today: string;
 }) {
   const [mode, setMode] = useState("calendar");
+  const showGroup = new Set(sessions.map((s) => s.group_name)).size > 1;
   const panelId = useId();
   const [day, setDay] = useState<string>();
+  const [week, setWeek] = useState(today);
+  const [monthOpen, setMonthOpen] = useState(false);
+  const weekday = (new Date(week + "T12:00:00Z").getUTCDay() + 6) % 7;
+  const weekStart = shiftDate(week, -weekday);
   const counts: Record<string, number> = {};
   for (const session of sessions) {
     const key = dayKey(session.starts_at);
     counts[key] = (counts[key] || 0) + 1;
   }
-  const rows =
+  const filtered =
     mode === "calendar" && day
       ? sessions.filter((s) => dayKey(s.starts_at) === day)
       : sessions;
+  const rows = [...filtered].sort((a, b) => {
+    const aPast = dayKey(a.starts_at) < today,
+      bPast = dayKey(b.starts_at) < today;
+    if (aPast !== bPast) return aPast ? 1 : -1;
+    return aPast
+      ? b.starts_at.localeCompare(a.starts_at)
+      : a.starts_at.localeCompare(b.starts_at);
+  });
   return (
     <section className="session-browser">
       <SlidingTabs
@@ -65,13 +71,76 @@ export default function SessionBrowser({
       >
         {mode === "calendar" && (
           <section className="calendar-card">
-            <Calendar
-              today={today}
-              value={day}
-              onChange={setDay}
-              counts={counts}
-            />
-            <p className="field-hint">Dấu chấm là ngày có buổi chơi.</p>
+            <div className="mobile-week">
+              <div className="week-toolbar">
+                <button
+                  type="button"
+                  className="secondary"
+                  aria-label="Tuần trước"
+                  onClick={() => setWeek(shiftDate(week, -7))}
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  aria-expanded={monthOpen}
+                  aria-label={monthOpen ? "Thu gọn lịch" : "Xem lịch tháng"}
+                  aria-controls={`${panelId}-month`}
+                  onClick={() => setMonthOpen(!monthOpen)}
+                >
+                  <CalendarDays size={16} aria-hidden />
+                  {weekStart.slice(5).split("-").reverse().join("/")}–
+                  {shiftDate(weekStart, 6)
+                    .slice(5)
+                    .split("-")
+                    .reverse()
+                    .join("/")}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  aria-label="Tuần sau"
+                  onClick={() => setWeek(shiftDate(week, 7))}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+              <div className="week-days" aria-label="Lịch tuần">
+                {Array.from({ length: 7 }, (_, i) => {
+                  const d = shiftDate(weekStart, i);
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      aria-pressed={day === d}
+                      aria-current={d === today ? "date" : undefined}
+                      aria-label={`${d.split("-").reverse().join("/")}, ${counts[d] || 0} buổi`}
+                      onClick={() => setDay(day === d ? undefined : d)}
+                    >
+                      <small>
+                        {["T2", "T3", "T4", "T5", "T6", "T7", "CN"][i]}
+                      </small>
+                      <strong>{Number(d.slice(8))}</strong>
+                      <span
+                        className={counts[d] ? "week-dot filled" : "week-dot"}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div
+              className={`month-calendar${monthOpen ? " is-open" : ""}`}
+              id={`${panelId}-month`}
+            >
+              <Calendar
+                today={today}
+                value={day}
+                onChange={setDay}
+                counts={counts}
+              />
+            </div>
           </section>
         )}
         <div className="session-agenda">
@@ -79,7 +148,7 @@ export default function SessionBrowser({
             <h2>
               {mode === "calendar" && day
                 ? `Ngày ${day.split("-").reverse().join("/")}`
-                : "Các buổi của nhóm"}
+                : "Lịch của nhóm"}
             </h2>
             {day && mode === "calendar" && (
               <button
@@ -99,39 +168,11 @@ export default function SessionBrowser({
             </p>
           )}
           {rows.map((session) => (
-            <article className="session-agenda-item" key={session.id}>
-              <Link href={`/sessions/${session.id}`}>
-                <h3>{session.title}</h3>
-              </Link>
-              <Badge
-                tone={
-                  session.status === "settled"
-                    ? "success"
-                    : session.status === "cancelled"
-                      ? "danger"
-                      : session.status === "played"
-                        ? "warning"
-                        : "neutral"
-                }
-              >
-                {{
-                  planned: "Sắp tới",
-                  settled: "Đã thu đủ",
-                  cancelled: "Đã hủy",
-                  played: "Đang thu tiền",
-                }[session.status] || session.status}
-              </Badge>
-              <p>
-                <Clock size={15} />
-                {new Date(session.starts_at).toLocaleString("vi-VN", {
-                  timeZone: "Asia/Ho_Chi_Minh",
-                })}
-              </p>
-              <p>
-                <MapPin size={15} />
-                {session.venue}
-              </p>
-            </article>
+            <SessionListItem
+              key={session.id}
+              session={session}
+              showGroup={showGroup}
+            />
           ))}
         </div>
       </div>

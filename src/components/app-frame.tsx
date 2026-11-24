@@ -87,9 +87,7 @@ export default function AppFrame({
       <aside className="app-sidebar">
         <Link href="/" className="app-brand" aria-label="3T · Trang chủ">
           <span>3T</span>
-          <div>
-            Thích Tính Tiền<small>CHƠI VUI, CHIA GỌN.</small>
-          </div>
+          <div>Thích Tính Tiền</div>
         </Link>
         <nav aria-label="Điều hướng chính">
           {mainLinks.map(({ href, label, icon: Icon }) => (
@@ -124,7 +122,7 @@ export default function AppFrame({
             3T
           </Link>
           <span className="app-breadcrumb">
-            Không gian của bạn <span>/</span> <strong>{title}</strong>
+            <strong>{title}</strong>
           </span>
           {localDevelopment && (
             <Link

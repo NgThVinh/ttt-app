@@ -11,6 +11,7 @@ export default function ActionForm({
   disabledReason,
   hideSubmit = false,
   onInvalidCapture,
+  className,
 }: {
   action: (state: FormResult, form: FormData) => Promise<FormResult>;
   children: React.ReactNode;
@@ -19,6 +20,7 @@ export default function ActionForm({
   disabledReason?: string;
   hideSubmit?: boolean;
   onInvalidCapture?: React.FormEventHandler<HTMLFormElement>;
+  className?: string;
 }) {
   const reasonId = useId();
   const request = useRef<{ fingerprint: string; key: string } | null>(null);
@@ -48,14 +50,17 @@ export default function ActionForm({
     if (state.ok) router.refresh();
   }, [state, router]);
   return (
-    <form action={submit} onInvalidCapture={onInvalidCapture}>
+    <form
+      action={submit}
+      onInvalidCapture={onInvalidCapture}
+      className={className}
+    >
       {children}
       {!hideSubmit && (
         <Button
           disabled={pending || disabled}
           aria-describedby={disabled && disabledReason ? reasonId : undefined}
-          className="rounded-lg"
-          style={{ marginTop: 16 }}
+          className="rounded-lg form-submit"
         >
           {pending ? "Đang xử lý…" : label}
         </Button>

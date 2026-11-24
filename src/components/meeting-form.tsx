@@ -2,9 +2,8 @@
 import { useId, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarDays, Clock3, MapPin, Users, NotebookPen } from "lucide-react";
+import { Clock3, MapPin, Users, NotebookPen } from "lucide-react";
 import ActionForm from "./action-form";
-import DateTimeField from "./ui/date-time-field";
 import { Calendar } from "./ui/calendar";
 import { vietnamToday } from "@/lib/calendar";
 import { scheduleMeeting } from "@/app/sessions/actions";
@@ -98,16 +97,9 @@ export default function MeetingForm({
   return (
     <div className="meeting-layout">
       <section className="meeting-editor panel">
-        <div className="meeting-heading">
-          <CalendarDays aria-hidden size={22} />
-          <div>
-            <h2>Lên lịch buổi chơi</h2>
-            <p>Gửi lời mời, mỗi người tự nhận lời.</p>
-          </div>
-        </div>
         <ActionForm
           action={scheduleMeeting}
-          label="Gửi lời mời và tạo lịch"
+          label="Tạo lịch"
           disabled={badTime || missingBank}
           disabledReason={
             badTime
@@ -117,57 +109,101 @@ export default function MeetingForm({
                 : undefined
           }
         >
-          <label htmlFor={`${id}-group`}>Nhóm</label>
-          <select
-            id={`${id}-group`}
-            name="groupId"
-            value={group}
-            onChange={(e) => {
-              setGroup(e.target.value);
-              setSelected([]);
-              setTitle("");
-              setVenue("");
-            }}
-          >
-            {groups.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-          <label htmlFor={`${id}-title`}>Tên buổi</label>
-          <input
-            id={`${id}-title`}
-            name="title"
-            value={actualTitle}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-            maxLength={160}
-          />
-          <div className="meeting-field">
-            <Clock3 aria-hidden size={20} />
-            <div className="meeting-time-row">
-              <DateTimeField
-                id={`${id}-start`}
-                name="starts"
-                label="Bắt đầu"
-                value={starts}
-                onChange={moveStart}
+          <div className="meeting-basics">
+            <div>
+              <label htmlFor={`${id}-group`}>Nhóm</label>
+              <select
+                id={`${id}-group`}
+                name="groupId"
+                value={group}
+                onChange={(e) => {
+                  setGroup(e.target.value);
+                  setSelected([]);
+                  setTitle("");
+                  setVenue("");
+                  setSearch("");
+                }}
+              >
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor={`${id}-title`}>Tên buổi</label>
+              <input
+                id={`${id}-title`}
+                name="title"
+                value={actualTitle}
+                onChange={(e) => setTitle(e.target.value)}
                 required
-              />
-              <DateTimeField
-                id={`${id}-end`}
-                name="ends"
-                label="Kết thúc"
-                value={ends}
-                onChange={setEnds}
-                required
+                maxLength={160}
               />
             </div>
           </div>
-          <p className="field-hint">
-            Giờ Việt Nam · Đổi giờ bắt đầu sẽ giữ thời lượng buổi.
-          </p>
+          <div className="meeting-field">
+            <Clock3 aria-hidden size={20} />
+            <div className="meeting-when">
+              <label htmlFor={`${id}-day`}>
+                Ngày chơi
+                <input
+                  id={`${id}-day`}
+                  type="date"
+                  value={day}
+                  required
+                  onChange={(e) =>
+                    moveStart(e.target.value + "T" + starts.slice(11))
+                  }
+                />
+              </label>
+              <label htmlFor={`${id}-start`}>
+                Bắt đầu
+                <input
+                  id={`${id}-start`}
+                  type="time"
+                  value={starts.slice(11)}
+                  required
+                  onChange={(e) => moveStart(day + "T" + e.target.value)}
+                />
+              </label>
+              <label htmlFor={`${id}-end`}>
+                Kết thúc
+                <input
+                  id={`${id}-end`}
+                  type="time"
+                  value={ends.slice(11)}
+                  required
+                  onChange={(e) =>
+                    setEnds(ends.slice(0, 10) + "T" + e.target.value)
+                  }
+                />
+              </label>
+              <details className="meeting-end-date">
+                <summary>
+                  {ends.slice(0, 10) !== day
+                    ? `Kết thúc ${ends.slice(0, 10).split("-").reverse().join("/")}`
+                    : "Kết thúc vào ngày khác"}
+                </summary>
+                <label htmlFor={`${id}-end-day`}>
+                  Ngày kết thúc
+                  <input
+                    id={`${id}-end-day`}
+                    type="date"
+                    value={ends.slice(0, 10)}
+                    min={day}
+                    required
+                    onChange={(e) =>
+                      setEnds(e.target.value + "T" + ends.slice(11))
+                    }
+                  />
+                </label>
+              </details>
+              <input type="hidden" name="starts" value={starts} />
+              <input type="hidden" name="ends" value={ends} />
+            </div>
+          </div>
           <div className="meeting-field">
             <MapPin aria-hidden size={20} />
             <label htmlFor={`${id}-venue`}>
@@ -188,12 +224,14 @@ export default function MeetingForm({
               <legend>
                 Mời tham gia <small>({selected.length} người)</small>
               </legend>
-              <input
-                aria-label="Tìm thành viên để mời"
-                placeholder="Tìm tên thành viên…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+              {inGroup.length > 8 && (
+                <input
+                  aria-label="Tìm thành viên để mời"
+                  placeholder="Tìm tên thành viên…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              )}
               <div className="meeting-person-list">
                 {inGroup
                   .filter((m) =>
@@ -214,16 +252,13 @@ export default function MeetingForm({
                           )
                         }
                       />
-                      <span className="meeting-avatar" aria-hidden>
-                        {m.display_name.slice(0, 1)}
-                      </span>
                       <span>{m.display_name}</span>
                     </label>
                   ))}
               </div>
               <button
                 type="button"
-                className="secondary"
+                className="secondary invite-all"
                 onClick={() =>
                   setSelected(
                     selected.length === inGroup.length
@@ -240,15 +275,11 @@ export default function MeetingForm({
                 <input key={v} type="hidden" name="invitees" value={v} />
               ))}
               <p className="field-hint">
-                Lời mời chưa phải xác nhận đi. Thành viên cũng có thể tham gia
-                qua link buổi.
+                Mỗi người tự xác nhận tham gia sau khi nhận lời mời.
               </p>
             </fieldset>
           </div>
-          <AnimatedDisclosure
-            className="meeting-options"
-            title="Người tính tiền & ghi chú"
-          >
+          <div className="meeting-collector">
             <label htmlFor={`${id}-collector`}>Người tính tiền</label>
             <select
               id={`${id}-collector`}
@@ -256,7 +287,7 @@ export default function MeetingForm({
               value={collector}
               onChange={(e) => setCollector(e.target.value)}
             >
-              <option value="unknown">Chọn sau — ai cũng có thể tự nhận</option>
+              <option value="unknown">Chọn sau</option>
               <option value="self">Tôi nhận tính tiền</option>
               <option value="nominee">Đề cử một người</option>
             </select>
@@ -293,13 +324,15 @@ export default function MeetingForm({
                 </button>
               </p>
             )}
+          </div>
+          <AnimatedDisclosure className="meeting-options" title="Thêm ghi chú">
             <label htmlFor={`${id}-note`}>
               <NotebookPen size={16} aria-hidden /> Ghi chú
             </label>
             <textarea
               id={`${id}-note`}
               name="note"
-              rows={3}
+              rows={2}
               maxLength={2000}
               placeholder="Mang vợt, đến sớm 10 phút…"
             />
@@ -314,40 +347,31 @@ export default function MeetingForm({
           counts={counts}
           onChange={(d) => moveStart(d + "T" + (starts.slice(11) || "18:00"))}
         />
-        <div className="meeting-summary">
-          <strong>{actualTitle}</strong>
-          <p>
-            {starts.slice(11)} – {ends.slice(11)} · {actualVenue}
-          </p>
-          <p>{selected.length} lời mời · Chờ người nhận trả lời</p>
-        </div>
         <h3>Các buổi cùng ngày</h3>
-        {dayEvents.length ? (
-          dayEvents.map((e) => {
-            const overlap =
-              asUtc(starts) < Date.parse(e.ends_at || e.starts_at) &&
-              asUtc(ends) > Date.parse(e.starts_at);
-            return (
-              <div className="meeting-agenda" key={e.id}>
-                <time>{local(e.starts_at).slice(11)}</time>
-                <div>
-                  <Link href={`/sessions/${e.id}`}>{e.title}</Link>
-                  {overlap && (
-                    <small className="field-error">
-                      Trùng giờ với lịch đang chọn
-                    </small>
-                  )}
+        <div className="meeting-day-events">
+          {dayEvents.length ? (
+            dayEvents.map((e) => {
+              const overlap =
+                asUtc(starts) < Date.parse(e.ends_at || e.starts_at) &&
+                asUtc(ends) > Date.parse(e.starts_at);
+              return (
+                <div className="meeting-agenda" key={e.id}>
+                  <time>{local(e.starts_at).slice(11)}</time>
+                  <div>
+                    <Link href={`/sessions/${e.id}`}>{e.title}</Link>
+                    {overlap && (
+                      <small className="field-error">
+                        Trùng giờ với lịch đang chọn
+                      </small>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })
-        ) : (
-          <p className="field-hint">Nhóm chưa có buổi nào trong ngày này.</p>
-        )}
-        <p className="field-hint">
-          Lịch và danh sách tham gia chỉ khóa khi người tính tiền chốt chi phí.
-          Đây là lịch nhóm trong 3T.
-        </p>
+              );
+            })
+          ) : (
+            <p className="field-hint">Nhóm chưa có buổi nào trong ngày này.</p>
+          )}
+        </div>
       </aside>
     </div>
   );

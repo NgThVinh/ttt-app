@@ -279,6 +279,9 @@ try {
   await page.screenshot({ path: ".tools/minimal-ux/debt-table-360.png" });
   await page.goto(origin + "/sessions");
   await page.getByRole("tab", { name: "Lịch tháng", exact: true }).waitFor();
+  await page
+    .getByRole("button", { name: "Xem lịch tháng", exact: true })
+    .click();
   await page.locator(`.calendar [data-date="${originalDate}"]`).click();
   check(
     await page.evaluate(

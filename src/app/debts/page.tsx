@@ -35,7 +35,10 @@ export default async function Debts() {
         </p>
       </main>
     );
-  const rows = parsed.data;
+  const rows = [...parsed.data].sort(
+    (a, b) =>
+      Number(a.status === "confirmed") - Number(b.status === "confirmed"),
+  );
   const owe = rows
       .filter((r) => r.mine_is_sender && r.status !== "confirmed")
       .reduce((n, r) => n + BigInt(r.amount), 0n),
@@ -44,21 +47,31 @@ export default async function Debts() {
       .reduce((n, r) => n + BigInt(r.amount), 0n);
   return (
     <main>
-      <Link href="/">Trang chủ</Link>
-      <h1>Công nợ của tôi</h1>
-      <section className="panel">
-        <h2>Tôi cần trả: {formatMoney(owe)}</h2>
-        <h2>Tôi cần thu: {formatMoney(owed)}</h2>
-      </section>
+      <div className="page-heading">
+        <h1>Công nợ của tôi</h1>
+        <small>
+          {rows.filter((r) => r.status !== "confirmed").length} khoản chưa xong
+        </small>
+      </div>
+      <dl className="session-facts debt-facts">
+        <div>
+          <dt>Cần trả</dt>
+          <dd className="money">{formatMoney(owe)}</dd>
+        </div>
+        <div>
+          <dt>Cần thu</dt>
+          <dd className="money">{formatMoney(owed)}</dd>
+        </div>
+      </dl>
       {!rows.length && <p>Bạn chưa có khoản thanh toán.</p>}
       {!!rows.length && (
         <Table aria-label="Bảng công nợ">
-          <caption>
+          <caption className="sr-only">
             Các khoản thanh toán · bấm tên buổi để xem và thanh toán
           </caption>
           <thead>
             <tr>
-              <TableHead>Buổi / Người chuyển → nhận</TableHead>
+              <TableHead>Buổi chơi · Người chuyển → nhận</TableHead>
               <TableHead className="money">Số tiền</TableHead>
               <TableHead>Trạng thái</TableHead>
             </tr>

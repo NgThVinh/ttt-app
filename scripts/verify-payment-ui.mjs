@@ -225,10 +225,7 @@ try {
   for (let i = 0; i < 100 && (await paymentState()) !== "confirmed"; i++)
     await new Promise((resolve) => setTimeout(resolve, 100));
   check((await paymentState()) === "confirmed", "CONFIRM_SUCCESS");
-  await receivedPanel
-    .locator("p")
-    .filter({ hasText: /^Đã nhận$/ })
-    .waitFor();
+  await receivedPanel.getByText("Đã nhận", { exact: true }).waitFor();
   await receiver.page.screenshot({
     path: ".tools/payment-ui/confirmed.png",
     fullPage: true,
@@ -257,13 +254,11 @@ try {
   await receiver.page
     .getByText("Thêm khoản chi hoặc giảm giá", { exact: true })
     .click();
-  const expensePanel = receiver.page
-    .locator("details.panel")
-    .filter({
-      has: receiver.page.getByText("Thêm khoản chi hoặc giảm giá", {
-        exact: true,
-      }),
-    });
+  const expensePanel = receiver.page.locator("details.panel").filter({
+    has: receiver.page.getByText("Thêm khoản chi hoặc giảm giá", {
+      exact: true,
+    }),
+  });
   await expensePanel
     .getByLabel("Tên khoản chi", { exact: true })
     .fill("Hoàn giảm giá sân");

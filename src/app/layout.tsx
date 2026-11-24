@@ -24,6 +24,7 @@ import "./globals.css";
 import "./frame.css";
 import "./motion.css";
 import "./theme.css";
+import "./workspace.css";
 export const metadata: Metadata = {
   title: { default: appName, template: `%s · ${appName}` },
   robots: { index: false, follow: false },

@@ -54,8 +54,8 @@ export default function FinishSessionForm({
         ))}
       </div>
       <p>
-        Chỉ người đã tự nhận lời tham gia được tính vào bảng chia. Sau khi chốt,
-        lịch và danh sách tham gia sẽ khóa; mọi người không thể rút.
+        Chia cho người đã nhận lời. Chốt chi phí sẽ khóa lịch và việc tham
+        gia/rút khỏi buổi.
       </p>
       {shares.length > 0 && (
         <button

@@ -4,7 +4,7 @@ Vietnamese sports group expense tracker. **Implementation in progress; not ready
 
 Production: https://thichtinhtien.online. Login and Google authorization redirect have been checked on the deployed app; full Google consent/SMTP and remaining acceptance work are tracked in docs. Production AI remains temporarily disabled.
 
-New accounts see one waiting-for-invitation page until they join a group through a valid link. Feature URLs/APIs remain unavailable without active membership; removal from the last group restores this page. The member home focuses on balances, the next session and creating a session, with secondary tools/forms disclosed when needed. `npm run test:invite-gate` verifies this flow locally.
+New accounts see one waiting-for-invitation page until they join a group through a valid link. Feature URLs/APIs remain unavailable without active membership; removal from the last group restores this page. Member overviews show balances, session times, venues and attendance together, with one-click RSVP from the agenda. Mobile calendars start with a compact week and can expand to a month. Session details show personal costs and the collector first; allocation details, history and recurring settings open when needed. `npm run test:invite-gate` verifies the membership gate locally.
 
 ## Local development
 

@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseEnv } from "node:util";
 import { randomUUID } from "node:crypto";
+import { setRsvp } from "./ui-helpers.mjs";
 import pg from "pg";
 import {
   allowsLocalLogin,
@@ -74,9 +75,7 @@ try {
   const title = "Lịch kiểm tra local · " + randomUUID().slice(0, 6);
   await page.getByLabel("Tên buổi", { exact: true }).fill(title);
   await page.getByRole("button", { name: "Mời cả nhóm", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Gửi lời mời và tạo lịch", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Tạo lịch", exact: true }).click();
   await page.waitForURL(/\/sessions\/[a-f0-9-]{36}$/);
   const sid = new URL(page.url()).pathname.split("/").at(-1);
   const saved = (
@@ -99,10 +98,7 @@ try {
     .click();
   await page.waitForURL(origin + "/");
   await page.goto(origin + "/sessions/" + sid);
-  await page.getByLabel("Tôi tham gia", { exact: true }).selectOption("going");
-  await page
-    .getByRole("button", { name: "Chốt lựa chọn của tôi", exact: true })
-    .click();
+  await setRsvp(page);
   await expect
     .poll(
       async () =>

@@ -1,13 +1,9 @@
 import Link from "next/link";
-import { Plus, ArrowRight, CalendarDays } from "lucide-react";
+import { Plus, ArrowRight, CheckCheck } from "lucide-react";
 import { formatMoney } from "@/lib/money";
-type Session = {
-  id: string;
-  title: string;
-  venue: string;
-  starts_at: string;
-  status: string;
-};
+import SessionListItem from "./session-list-item";
+import { vietnamToday } from "@/lib/calendar";
+import { sessionDay, type SessionOverview } from "@/lib/session-overview";
 export default function HomeOverview({
   name = "bạn",
   sessions = [],
@@ -16,7 +12,7 @@ export default function HomeOverview({
 }: {
   name?: string;
   groups?: { id: string; name: string; sport: string }[];
-  sessions?: Session[];
+  sessions?: SessionOverview[];
   setupError?: boolean;
   demo?: boolean;
   summary?: {
@@ -26,23 +22,20 @@ export default function HomeOverview({
     receiveCount: number;
   } | null;
 }) {
+  const today = vietnamToday();
+  const showGroup = new Set(sessions.map((s) => s.group_name)).size > 1;
   const upcoming = sessions
-    .filter((s) => s.status === "planned")
-    .sort((a, b) => a.starts_at.localeCompare(b.starts_at))[0];
-  const date = (value: string) =>
-    new Intl.DateTimeFormat("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "Asia/Ho_Chi_Minh",
-    }).format(new Date(value));
+    .filter((s) => s.status === "planned" && sessionDay(s.starts_at) >= today)
+    .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+  const recent = sessions
+    .filter((s) => !upcoming.some((u) => u.id === s.id))
+    .sort((a, b) => b.starts_at.localeCompare(a.starts_at))
+    .slice(0, 3);
   return (
     <main className="minimal-home">
       <div className="page-heading">
         <div>
           <h1>Chào {name}</h1>
-          <p>Lịch chơi và tiền sân của bạn.</p>
         </div>
         <Link href="/sessions/new" className="primary">
           <Plus size={18} />
@@ -52,63 +45,61 @@ export default function HomeOverview({
       {setupError && (
         <p role="alert">Chưa tải được dữ liệu. Vui lòng thử lại.</p>
       )}
-      <section className="simple-balances" aria-label="Công nợ của tôi">
+      <section
+        className="simple-balances overview-balances"
+        aria-label="Công nợ của tôi"
+      >
         <Link href="/debts">
           <span>Cần trả</span>
           <strong>{summary ? formatMoney(summary.owe) : "—"}</strong>
+          <small>
+            {summary ? `${summary.payCount} khoản` : "Chưa tải được"}
+          </small>
         </Link>
         <Link href="/debts">
           <span>Cần thu</span>
           <strong>{summary ? formatMoney(summary.owed) : "—"}</strong>
+          <small>
+            {summary ? `${summary.receiveCount} khoản` : "Chưa tải được"}
+          </small>
         </Link>
       </section>
-      <section className="panel">
-        <h2>Buổi tiếp theo</h2>
-        {upcoming ? (
-          <>
-            <p className="simple-date">
-              <CalendarDays size={17} />
-              {date(upcoming.starts_at)}
-            </p>
-            <h3>{upcoming.title}</h3>
-            <p>{upcoming.venue || "Chưa chọn địa điểm"}</p>
-            <Link className="secondary" href={`/sessions/${upcoming.id}`}>
-              Xem buổi chơi
-              <ArrowRight size={16} />
+      <div className={`home-columns${recent.length ? "" : " home-single"}`}>
+        <section>
+          <div className="section-heading">
+            <h2>Lịch sắp tới</h2>
+            <Link href="/sessions">
+              Tất cả <ArrowRight size={15} aria-hidden />
             </Link>
-          </>
-        ) : (
-          <>
-            <p>Chưa có lịch chơi sắp tới.</p>
-            <Link href="/polls" className="secondary">
-              Hẹn lịch cùng nhóm
-            </Link>
-          </>
+          </div>
+          {upcoming.length ? (
+            upcoming
+              .slice(0, 5)
+              .map((s) => (
+                <SessionListItem key={s.id} session={s} showGroup={showGroup} />
+              ))
+          ) : (
+            <div className="panel">
+              <p>Chưa có lịch chơi sắp tới.</p>
+              <Link href="/polls">Hẹn lịch cùng nhóm</Link>
+            </div>
+          )}
+        </section>
+        {recent.length > 0 && (
+          <section>
+            <div className="section-heading">
+              <h2>Buổi gần đây</h2>
+            </div>
+            {recent.map((s) => (
+              <SessionListItem key={s.id} session={s} showGroup={showGroup} />
+            ))}
+          </section>
         )}
-      </section>
+      </div>
       <Link className="simple-review-link" href="/approvals">
-        Chờ tôi duyệt <ArrowRight size={16} />
+        <CheckCheck size={18} aria-hidden />
+        Chờ tôi duyệt <ArrowRight size={16} aria-hidden />
       </Link>
-      <details className="home-history">
-        <summary>Buổi chơi gần đây</summary>
-        {sessions.length ? (
-          sessions.slice(0, 5).map((s) => (
-            <Link
-              className="home-session"
-              key={s.id}
-              href={`/sessions/${s.id}`}
-            >
-              <span>
-                <strong>{s.title}</strong>
-                <small>{date(s.starts_at)}</small>
-              </span>
-              <ArrowRight size={16} />
-            </Link>
-          ))
-        ) : (
-          <p>Chưa có buổi chơi.</p>
-        )}
-      </details>
     </main>
   );
 }

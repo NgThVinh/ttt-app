@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Share2 } from "lucide-react";
 export default function ShareButton({
   title,
   text,
@@ -35,8 +36,13 @@ export default function ShareButton({
   }
   return (
     <div>
-      <button className="secondary" type="button" onClick={share}>
-        Chia sẻ lên Messenger / chat nhóm
+      <button
+        className="secondary"
+        type="button"
+        onClick={share}
+        aria-label="Chia sẻ buổi chơi"
+      >
+        <Share2 size={16} aria-hidden /> Chia sẻ
       </button>
       {message && <p role="status">{message}</p>}
     </div>

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { expect } from "@playwright/test";
 import { localBrowser, check } from "./local-browser.mjs";
+import { setRsvp } from "./ui-helpers.mjs";
 let app,
   step = "setup";
 try {
@@ -21,7 +22,7 @@ try {
   await expect(
     empty.page.getByRole("tab", { name: "Lịch tháng", exact: true }),
   ).toBeVisible();
-  await expect(empty.page.locator(".calendar")).toBeVisible();
+  await expect(empty.page.locator(".calendar-card")).toBeVisible();
   await expect(
     empty.page.getByText(
       "Chưa có buổi chơi. Tạo buổi đầu tiên để hiện trên lịch.",
@@ -62,7 +63,7 @@ try {
   await page.goto(origin + "/sessions/new");
   await page.getByLabel("Nhóm", { exact: true }).selectOption(group);
   await expect(
-    page.getByRole("heading", { name: "Lên lịch buổi chơi" }),
+    page.getByRole("heading", { name: "Tạo buổi chơi", exact: true }),
   ).toBeVisible();
   await expect(page.getByLabel("Tên buổi", { exact: true })).toHaveValue(
     /Lịch nhóm thử nghiệm/,
@@ -74,9 +75,10 @@ try {
   const start = page.getByLabel("Bắt đầu", { exact: true }),
     end = page.getByLabel("Kết thúc", { exact: true });
   const original = await start.inputValue();
-  const changed = original.slice(0, 11) + "19:00";
+  const changed = "19:00";
   await start.fill(changed);
-  await expect(end).toHaveValue(original.slice(0, 11) + "21:00");
+  await expect(end).toHaveValue("21:00");
+  check(original === "18:00", "DEFAULT_START_TIME");
   await page.getByRole("button", { name: "Mời cả nhóm", exact: true }).click();
   for (const width of [360, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
@@ -106,15 +108,30 @@ try {
       "NO_PAGE_OVERFLOW",
     );
   }
-  await page
-    .getByRole("button", { name: "Gửi lời mời và tạo lịch", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Tạo lịch", exact: true }).click();
   await page.waitForURL(/\/sessions\/[a-f0-9-]{36}$/);
   const sid = new URL(page.url()).pathname.split("/").at(-1);
   step = "created-meeting-visible-on-calendar";
   await page.goto(origin + "/sessions");
-  await expect(page.locator(".calendar")).toBeVisible();
+  await expect(page.locator(".calendar-card")).toBeVisible();
   await expect(page.locator(`a[href="/sessions/${sid}"]`)).toBeVisible();
+  for (const width of [360, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    check(
+      await page
+        .locator(".agenda-row")
+        .first()
+        .evaluate((el) => el.getBoundingClientRect().top < 500),
+      "AGENDA_VISIBLE_WITHOUT_SCROLLING",
+    );
+    check(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+      "AGENDA_NO_HORIZONTAL_OVERFLOW",
+    );
+  }
   await page.locator(`a[href="/sessions/${sid}"]`).click();
   check(
     (
@@ -152,19 +169,49 @@ try {
     "JOINING_GROUP_DOES_NOT_ACCEPT_SESSION",
   );
   step = "self-rsvp";
-  await page.getByLabel("Tôi tham gia", { exact: true }).selectOption("going");
-  await page
-    .getByRole("button", { name: "Chốt lựa chọn của tôi", exact: true })
-    .click();
+  await setRsvp(page);
+  step = "rsvp-network-rollback";
+  const interruptRsvp = async (route) => {
+    if (route.request().method() === "POST") await route.abort("failed");
+    else await route.continue();
+  };
+  await page.route("**/sessions/" + sid, interruptRsvp);
+  await page.getByRole("button", { name: "Không đi", exact: true }).click();
+  await expect(page.locator(".rsvp-control").getByRole("alert")).toHaveText(
+    "Chưa nhận được kết quả. Kiểm tra kết nối và thử lại.",
+  );
   await expect(
-    page.getByText("Đã cập nhật buổi.", { exact: true }),
-  ).toBeVisible();
-  await page
-    .getByLabel("Tôi tham gia", { exact: true })
-    .selectOption("not_going");
-  await page
-    .getByRole("button", { name: "Chốt lựa chọn của tôi", exact: true })
-    .click();
+    page.getByRole("button", { name: "Tham gia", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  check(
+    (
+      await db.query(
+        "select a.rsvp from public.session_attendees a join public.group_members m on m.id=a.member_id where a.session_id=$1 and m.user_id=$2",
+        [sid, actors[1].user.id],
+      )
+    ).rows[0].rsvp === "going",
+    "FAILED_RSVP_PRESERVES_SAVED_CHOICE",
+  );
+  await page.unroute("**/sessions/" + sid, interruptRsvp);
+  step = "list-overview-and-direct-rsvp";
+  await page.goto(origin + "/sessions");
+  const row = page
+    .locator(".agenda-row")
+    .filter({ has: page.locator(`a[href="/sessions/${sid}"]`) });
+  await expect(row.getByText("1 đi · 2 chờ", { exact: true })).toBeVisible();
+  const listSave = page.waitForResponse((r) => r.request().method() === "POST");
+  await row.getByRole("button", { name: "Không đi", exact: true }).click();
+  await listSave;
+  await expect(
+    row.getByRole("group", { name: "Tôi tham gia" }),
+  ).toHaveAttribute("aria-busy", "false");
+  await page.goto(origin + "/sessions/" + sid);
+  await expect(
+    page.getByRole("button", { name: "Không đi", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await setRsvp(page);
+  step = "withdrawal";
+  await setRsvp(page, false);
   await expect
     .poll(
       async () =>
@@ -176,10 +223,7 @@ try {
         ).rows[0].rsvp,
     )
     .toBe("not_going");
-  await page.getByLabel("Tôi tham gia", { exact: true }).selectOption("going");
-  await page
-    .getByRole("button", { name: "Chốt lựa chọn của tôi", exact: true })
-    .click();
+  await setRsvp(page);
   await expect
     .poll(
       async () =>
@@ -194,15 +238,7 @@ try {
   step = "claim-collector";
   const collector = actors[2].page;
   await collector.goto(origin + "/sessions/" + sid);
-  await collector
-    .getByLabel("Tôi tham gia", { exact: true })
-    .selectOption("going");
-  await collector
-    .getByRole("button", { name: "Chốt lựa chọn của tôi", exact: true })
-    .click();
-  await expect(
-    collector.getByText("Đã cập nhật buổi.", { exact: true }),
-  ).toBeVisible();
+  await setRsvp(collector);
   await collector
     .getByRole("button", { name: "Nhận vai trò người tính tiền", exact: true })
     .click();
@@ -240,7 +276,7 @@ try {
     await actor.page.goto(origin + "/sessions/" + sid);
     await expect(actor.page.locator(".booking-lock")).toBeVisible();
     await expect(
-      actor.page.getByLabel("Tôi tham gia", { exact: true }),
+      actor.page.getByRole("group", { name: "Tôi tham gia", exact: true }),
     ).toHaveCount(0);
     await expect(
       actor.page.getByText("Thêm khoản chi hoặc giảm giá", { exact: true }),
@@ -262,6 +298,8 @@ try {
         "meeting composer at 360/1440",
         "time duration",
         "self RSVP and withdrawal",
+        "network rollback",
+        "direct RSVP from agenda",
         "collector claim",
         "finalization lock",
         "collector-only invoice UI",
