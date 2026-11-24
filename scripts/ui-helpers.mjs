@@ -11,8 +11,7 @@ export async function setRsvp(page, going = true) {
       r.request().method() === "POST" &&
       r.url().startsWith(new URL(page.url()).origin),
   );
-  await button.click();
-  await response;
+  await Promise.all([button.click(), response]);
   await expect(group).toHaveAttribute("aria-busy", "false");
   await expect(button).toHaveAttribute("aria-pressed", "true");
   await expect(button).toBeEnabled();

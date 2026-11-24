@@ -6,6 +6,7 @@ export type FinancialCommand =
   | "add_expense"
   | "save_expense"
   | "apply_financial_change"
+  | "finish_session_bundle"
   | "finish_session"
   | "claim_collector"
   | "payment_action"

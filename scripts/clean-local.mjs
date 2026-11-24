@@ -16,6 +16,7 @@ const fixtureOwners = new Map([
   ["Poll browser fixture", /^poll-admin@3t\.test$/],
   ["Invite gate fixture", /^invite-owner@3t\.test$/],
   ["Account onboarding fixture", /^onboarding-owner@3t\.test$/],
+  ["Session workspace fixture", /^workspace-owner@3t\.test$/],
   ["Profile UI fixture", /^ui-acceptance@3t\.test$/],
   ["UX minimal fixture", /^minimal-owner@3t\.test$/],
   ["First group UI fixture", new RegExp(`^first-group-${uuid}@3t\\.test$`)],

@@ -13,6 +13,8 @@ import type { FormResult } from "@/components/action-form";
 import { detailSchema } from "@/lib/session-data";
 import { runFinancialCommand } from "@/lib/financial-command";
 import { meetingSchema } from "@/lib/meeting";
+import { finishExtrasSchema, expenseCommand } from "@/lib/session-costs";
+import { historyPageSchema } from "@/lib/session-history";
 import { expenseToolsSchema, expenseEditorSchema } from "@/lib/expense-tools";
 import {
   sessionCalendarFormSchema,
@@ -271,14 +273,31 @@ export async function sessionCommand(
   const p = input.data;
   if (p.operation === "finish" && form.get("reviewed") !== "yes")
     return { message: "Vui lòng xem trước bảng chia trước khi chốt tiền sân." };
+  let extras: ReturnType<typeof expenseCommand>[] = [];
+  if (p.operation === "finish") {
+    try {
+      extras = finishExtrasSchema
+        .parse(JSON.parse(String(form.get("extras") || "[]")))
+        .map(expenseCommand);
+    } catch {
+      return {
+        message: "Kiểm tra tên, số tiền, người ứng và người chịu của phụ phí.",
+      };
+    }
+  }
   const { error } =
     p.operation === "going" || p.operation === "not_going"
       ? await db.rpc("set_rsvp", { sid: p.sid, going: p.operation === "going" })
       : await runFinancialCommand(
           db,
           form.get("request_key"),
-          p.operation === "claim" ? "claim_collector" : "finish_session",
-          { sid: p.sid, expected_revision: p.revision, court: p.court || "0" },
+          p.operation === "claim" ? "claim_collector" : "finish_session_bundle",
+          {
+            sid: p.sid,
+            expected_revision: p.revision,
+            court: p.court || "0",
+            ...(p.operation === "finish" ? { extras } : {}),
+          },
         );
   if (error)
     return {
@@ -491,5 +510,36 @@ export async function applyChange(
   return {
     ok: true,
     message: "Đã lưu thay đổi, giữ lịch sử và tính lại công nợ.",
+  };
+}
+
+export async function loadSessionHistory(
+  sid: string,
+  cursor: { created_at: string; id: string } | null,
+) {
+  const db = await identity();
+  const parsed = z
+    .object({
+      sid: z.uuid(),
+      cursor: z
+        .object({ created_at: z.iso.datetime({ offset: true }), id: z.uuid() })
+        .nullable(),
+    })
+    .safeParse({ sid, cursor });
+  if (!parsed.success) return { message: "Trang lịch sử không hợp lệ." };
+  const { data, error } = await db.rpc("session_history_page", {
+    sid,
+    before_time: cursor?.created_at || null,
+    before_id: cursor?.id || null,
+    page_size: 20,
+  });
+  const result = historyPageSchema.safeParse(data);
+  if (error || !result.success)
+    return {
+      message: "Chưa tải được lịch sử hoặc bạn không còn quyền xem buổi.",
+    };
+  return {
+    items: result.data.items.slice(0, 20),
+    has_more: result.data.has_more,
   };
 }

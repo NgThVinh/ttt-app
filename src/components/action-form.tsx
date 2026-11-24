@@ -12,6 +12,7 @@ export default function ActionForm({
   hideSubmit = false,
   onInvalidCapture,
   className,
+  onSuccess,
 }: {
   action: (state: FormResult, form: FormData) => Promise<FormResult>;
   children: React.ReactNode;
@@ -21,6 +22,7 @@ export default function ActionForm({
   hideSubmit?: boolean;
   onInvalidCapture?: React.FormEventHandler<HTMLFormElement>;
   className?: string;
+  onSuccess?: () => void;
 }) {
   const reasonId = useId();
   const request = useRef<{ fingerprint: string; key: string } | null>(null);
@@ -47,8 +49,11 @@ export default function ActionForm({
   });
   const router = useRouter();
   useEffect(() => {
-    if (state.ok) router.refresh();
-  }, [state, router]);
+    if (state.ok) {
+      router.refresh();
+      onSuccess?.();
+    }
+  }, [state, router, onSuccess]);
   return (
     <form
       action={submit}

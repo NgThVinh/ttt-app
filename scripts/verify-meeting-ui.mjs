@@ -150,6 +150,7 @@ try {
   const link = page.locator('a[href*="/join/"][href*="?session="]');
   await expect(link).toBeVisible();
   const invite = await link.getAttribute("href");
+  await page.keyboard.press("Escape");
   const newcomer = await app.login("meeting-newcomer@3t.test");
   await newcomer.page.goto(invite);
   await newcomer.page
@@ -245,24 +246,22 @@ try {
   await collector.goto(origin + "/sessions/" + sid);
   await setRsvp(collector);
   await collector
-    .getByRole("button", { name: "Nhận vai trò người tính tiền", exact: true })
+    .getByRole("button", { name: "Gán cho tôi", exact: true })
     .click();
   await expect(
     collector.getByRole("heading", {
-      name: "Chốt chi phí buổi chơi",
+      name: "Chi phí buổi chơi",
       exact: true,
     }),
   ).toBeVisible();
   step = "finalize";
-  await collector
-    .getByLabel("Tổng tiền sân (đ)", { exact: true })
-    .fill("100000");
+  await collector.getByLabel("Tiền sân (đ)", { exact: true }).fill("100000");
   await collector
     .getByRole("button", { name: "Tôi đã xem bảng chia", exact: true })
     .click();
   await collector
     .getByRole("button", {
-      name: "Chốt tiền sân và phát hành khoản thu",
+      name: "Chốt toàn bộ chi phí",
       exact: true,
     })
     .click();

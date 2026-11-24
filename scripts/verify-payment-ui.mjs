@@ -254,7 +254,7 @@ try {
   await receiver.page
     .getByText("Thêm khoản chi hoặc giảm giá", { exact: true })
     .click();
-  const expensePanel = receiver.page.locator("details.panel").filter({
+  const expensePanel = receiver.page.locator(".cost-adjust").filter({
     has: receiver.page.getByText("Thêm khoản chi hoặc giảm giá", {
       exact: true,
     }),

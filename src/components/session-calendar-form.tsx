@@ -14,10 +14,12 @@ export default function SessionCalendarForm({
   session: s,
   note,
   canCancel,
+  onSaved,
 }: {
   session: SessionDetail;
   note: string | null;
   canCancel: boolean;
+  onSaved?: () => void;
 }) {
   const reopen = s.status === "cancelled";
   const canMove = reopen || s.status === "planned";
@@ -28,14 +30,10 @@ export default function SessionCalendarForm({
   const [deadline, setDeadline] = useState(initialDeadline);
   const moved = starts !== initialStart || deadline !== initialDeadline;
   return (
-    <details className="panel" open={reopen}>
-      <summary>{reopen ? "Mở lại buổi" : "Sửa thông tin buổi"}</summary>
-      <p>
-        Thay đổi chỉ áp dụng cho buổi này. Các buổi lặp khác giữ lịch đã đặt.
-      </p>
-      <p>Các yêu cầu đang chờ có thể cần rút và gửi lại sau khi cập nhật.</p>
+    <div className="session-inline-edit">
       <ActionForm
         action={manageSession}
+        onSuccess={onSaved}
         label={
           reopen ? "Mở lại và mời mọi người tự chốt" : "Lưu thông tin buổi"
         }
@@ -70,17 +68,15 @@ export default function SessionCalendarForm({
           name="starts_at"
           value={starts === initialStart ? s.starts_at : `${starts}:00+07:00`}
         />
-        {ends && (
-          <label>
-            Giờ kết thúc (giờ Việt Nam)
-            <input
-              type="datetime-local"
-              required
-              value={ends}
-              onChange={(e) => setEnds(e.target.value)}
-            />
-          </label>
-        )}
+        <label>
+          Giờ kết thúc (giờ Việt Nam)
+          <input
+            type="datetime-local"
+            value={ends}
+            onChange={(e) => setEnds(e.target.value)}
+            disabled={!canMove}
+          />
+        </label>
         {ends && (
           <input type="hidden" name="ends_at" value={`${ends}:00+07:00`} />
         )}
@@ -110,7 +106,12 @@ export default function SessionCalendarForm({
         </label>
         <label>
           Lý do thay đổi
-          <input name="reason" required maxLength={500} />
+          <input
+            name="reason"
+            required
+            maxLength={500}
+            defaultValue="Cập nhật thông tin buổi"
+          />
         </label>
         {(reopen || moved) && (
           <p role="status">
@@ -147,6 +148,6 @@ export default function SessionCalendarForm({
             lý các khoản bằng điều chỉnh.
           </p>
         ))}
-    </details>
+    </div>
   );
 }

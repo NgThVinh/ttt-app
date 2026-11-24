@@ -1,7 +1,9 @@
 ﻿import FinishSessionForm from "@/components/finish-session-form";
 import PaymentQr from "@/components/payment-qr";
 import ReceiptPanel from "@/components/receipt-panel";
-import SessionCalendarForm from "@/components/session-calendar-form";
+import SessionHeader from "@/components/session-header";
+import SessionCollector from "@/components/session-collector";
+import SessionInvite from "@/components/session-invite";
 import AdminSessionPanel from "@/components/admin-session-panel";
 import ExpenseEditButton from "@/components/expense-edit-button";
 import { expenseToolsSchema, expenseEditorSchema } from "@/lib/expense-tools";
@@ -14,19 +16,12 @@ import { formatMoney } from "@/lib/money";
 import { bankLabel } from "@/lib/banks";
 import ActionForm from "@/components/action-form";
 import ExpenseForm from "@/components/expense-form";
-import SessionRequestForm from "@/components/session-request-form";
-import ShareButton from "@/components/share-button";
 import { weeklySeries } from "@/app/polls/actions";
-import { sessionCommand, changePayment, inviteToSession } from "../actions";
+import { changePayment, inviteToSession } from "../actions";
 import { remindPayment } from "@/app/notifications/actions";
 import { createInvite } from "@/app/groups/actions";
 import RsvpButtons from "@/components/rsvp-buttons";
 import { Badge } from "@/components/ui/badge";
-import {
-  sessionDate,
-  sessionTime,
-  sessionStatus,
-} from "@/lib/session-overview";
 export default async function Session({
   params,
 }: {
@@ -86,7 +81,6 @@ export default async function Session({
     .select("id")
     .eq("session_id", id)
     .limit(1);
-  const canManage = s.status === "planned" || s.status === "cancelled";
   const locked = s.calendar_locked;
   const [toolsResult, editorsResult] = await Promise.all([
     db.rpc("expense_tools", { g: s.group_id }),
@@ -109,73 +103,43 @@ export default async function Session({
   const myAttendance = activeAttendees.find(
     (a) => a.member_id === s.my_member_id,
   );
-  const total = s.expenses.reduce((n, e) => n + BigInt(e.amount), 0n);
-  const myShare = s.expenses.reduce(
-    (n, e) =>
-      n +
-      BigInt(
-        e.allocations.find((a) => a.member_id === s.my_member_id)?.amount ||
-          "0",
-      ),
-    0n,
+  const inviteCandidates = (members || []).filter(
+    (m) => !s.attendees.some((a) => a.member_id === m.id),
   );
-  const showBilling =
-    s.status === "planned" && (!s.collector_member_id || collector);
+  const total = s.expenses.reduce((n, e) => n + BigInt(e.amount), 0n);
+  const { data: nominations } = await db
+    .from("approval_requests")
+    .select("id,payload_hash,required_authority,payload")
+    .eq("session_id", s.id)
+    .eq("type", "collector_nomination")
+    .eq("status", "pending")
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const nomination = z
+    .object({
+      id: z.uuid(),
+      payload_hash: z.string(),
+      required_authority: z.string(),
+      payload: z.object({ member_id: z.uuid().optional() }),
+    })
+    .safeParse(nominations?.[0]);
   return (
     <main className="session-detail">
       <Link href="/sessions">Các buổi chơi</Link>
-      <div className="page-heading detail-heading">
-        <div>
-          <h1>{s.title}</h1>
-          <p className="inline-meta">
-            <span>
-              {sessionDate(s.starts_at)} · {sessionTime(s.starts_at)}
-              {s.ends_at ? `–${sessionTime(s.ends_at)}` : ""}
-            </span>
-            <span>{s.venue}</span>
-            <Badge>{sessionStatus[s.status]}</Badge>
-          </p>
-        </div>
-        <ShareButton
-          title={s.title}
-          text={`${s.title} tại ${s.venue}. Xem lịch, chốt tham gia và phần tiền của bạn trong app.`}
-          path={`/sessions/${s.id}`}
-        />
-      </div>
-      <dl className="session-facts">
-        <div>
-          <dt>Tham gia</dt>
-          <dd>
-            {going.length}
-            <small> / {activeAttendees.length} người</small>
-          </dd>
-        </div>
-        <div>
-          <dt>Phần của tôi</dt>
-          <dd className="money">
-            {s.status === "planned" ? "Chưa chốt" : formatMoney(myShare)}
-            {s.status !== "planned" && <small>Tổng {formatMoney(total)}</small>}
-          </dd>
-        </div>
-        <div>
-          <dt>Người tính tiền</dt>
-          <dd>
-            {members?.find((m) => m.id === s.collector_member_id)
-              ?.display_name || "Chưa có"}
-          </dd>
-        </div>
-      </dl>
-      {metadata?.note && (
-        <p style={{ whiteSpace: "pre-wrap" }}>{metadata.note}</p>
-      )}
+      <SessionHeader
+        key={s.revision}
+        session={s}
+        note={metadata?.note || null}
+        canCancel={canCancel}
+        now={new Date().getTime()}
+      />
       {s.booking_locked && s.status !== "cancelled" && (
         <p className="booking-lock">
           Đã chốt chi phí · Lịch và danh sách tham gia đã khóa.
         </p>
       )}
-      <div
-        className={`session-detail-grid${showBilling ? "" : " single-column"}`}
-      >
+      <div className="session-detail-grid single-column">
         <div className="detail-main">
           {s.settlements.length > 0 && (
             <section className="panel payment-list">
@@ -306,101 +270,171 @@ export default async function Session({
                 ))}
             </section>
           )}
-          <section className="panel">
+          <section className="panel session-participants">
             <div className="section-heading">
               <h2>Người tham gia</h2>
-              <small>
-                {going.length} đi ·{" "}
-                {
-                  activeAttendees.filter(
-                    (a) =>
-                      a.rsvp !== "not_going" &&
-                      !(a.rsvp === "going" && a.committed_at),
-                  ).length
-                }{" "}
-                chờ
-              </small>
+              {s.status === "planned" && (
+                <SessionInvite>
+                  {" "}
+                  {!!inviteCandidates.length ? (
+                    <ActionForm action={inviteToSession} label="Gửi lời mời">
+                      <input type="hidden" name="sid" value={s.id} />
+                      <fieldset className="participant-list">
+                        <legend>Thành viên trong nhóm</legend>
+                        {inviteCandidates.map((m) => (
+                          <label key={m.id}>
+                            <input type="checkbox" name="people" value={m.id} />
+                            {m.display_name}
+                          </label>
+                        ))}
+                      </fieldset>
+                    </ActionForm>
+                  ) : (
+                    <p className="field-hint">
+                      Mọi thành viên trong nhóm đã được mời.
+                    </p>
+                  )}
+                  <ActionForm
+                    action={createInvite}
+                    label="Tạo link mời bạn mới vào buổi"
+                  >
+                    <input type="hidden" name="groupId" value={s.group_id} />
+                    <input type="hidden" name="session_id" value={s.id} />
+                    <input type="hidden" name="days" value="7" />
+                    <input type="hidden" name="uses" value="30" />
+                    <p>
+                      Bạn mới vào nhóm qua link này, rồi tự nhận lời tham gia
+                      buổi. Link có hiệu lực 7 ngày, tối đa 30 lượt.
+                    </p>
+                  </ActionForm>
+                </SessionInvite>
+              )}
             </div>
-            {s.status === "planned" && (
-              <RsvpButtons
-                key={`rsvp-${s.revision}`}
-                sid={s.id}
-                revision={s.revision}
-                value={
-                  myAttendance?.rsvp === "going" && myAttendance.committed_at
-                    ? "going"
+            <div className="my-attendance">
+              <div>
+                <strong>Lựa chọn của bạn</strong>
+                <p>
+                  {myAttendance?.rsvp === "going" && myAttendance.committed_at
+                    ? "Bạn đã nhận lời"
                     : myAttendance?.rsvp === "not_going"
-                      ? "not_going"
-                      : "pending"
-                }
-              />
-            )}
-            <ul className="attendee-chips" aria-label="Danh sách tham gia">
-              {activeAttendees.map((a) => {
-                const status =
-                  a.rsvp === "going" && a.committed_at
-                    ? "going"
-                    : a.rsvp === "not_going"
-                      ? "declined"
-                      : "waiting";
-                return (
-                  <li key={a.member_id} className={status}>
-                    <span aria-hidden className="attendee-dot" />
-                    {a.name}
-                    <small>
-                      {status === "going"
-                        ? "Đã nhận lời"
-                        : status === "declined"
-                          ? "Không đi"
-                          : "Chờ trả lời"}
-                      {Number(a.weight) !== 1 ? ` · ×${a.weight}` : ""}
-                    </small>
-                  </li>
-                );
-              })}
-            </ul>
-            {s.status === "planned" && (
-              <details>
-                <summary>Mời thêm người tham gia</summary>
-                <ActionForm action={inviteToSession} label="Gửi lời mời">
-                  <input type="hidden" name="sid" value={s.id} />
-                  <fieldset className="participant-list">
-                    <legend>Thành viên trong nhóm</legend>
-                    {(members || [])
-                      .filter(
-                        (m) => !s.attendees.some((a) => a.member_id === m.id),
-                      )
-                      .map((m) => (
-                        <label key={m.id}>
-                          <input type="checkbox" name="people" value={m.id} />
-                          {m.display_name}
-                        </label>
-                      ))}
-                  </fieldset>
-                </ActionForm>
-                <ActionForm
-                  action={createInvite}
-                  label="Tạo link mời bạn mới vào buổi"
-                >
-                  <input type="hidden" name="groupId" value={s.group_id} />
-                  <input type="hidden" name="session_id" value={s.id} />
-                  <input type="hidden" name="days" value="7" />
-                  <input type="hidden" name="uses" value="30" />
-                  <p>
-                    Bạn mới vào nhóm qua link này, rồi tự nhận lời tham gia
-                    buổi. Link có hiệu lực 7 ngày, tối đa 30 lượt.
-                  </p>
-                </ActionForm>
-              </details>
-            )}
-          </section>
-          {s.expenses.length > 0 && (
-            <section className="panel expense-summary">
-              <div className="section-heading">
-                <h2>Chi phí</h2>
-                <strong className="money">{formatMoney(total)}</strong>
+                      ? "Bạn chọn không đi"
+                      : "Bạn chưa trả lời"}
+                </p>
               </div>
-              {s.expenses.map((e) => (
+              {s.status === "planned" ? (
+                <RsvpButtons
+                  key={s.revision}
+                  sid={s.id}
+                  revision={s.revision}
+                  value={
+                    myAttendance?.rsvp === "going" && myAttendance.committed_at
+                      ? "going"
+                      : myAttendance?.rsvp === "not_going"
+                        ? "not_going"
+                        : "pending"
+                  }
+                />
+              ) : (
+                <small>Danh sách đã khóa</small>
+              )}
+            </div>
+            <div className="attendance-groups">
+              <div>
+                <h3>
+                  Đã nhận lời <span>{going.length}</span>
+                </h3>
+                <ul className="people-chips">
+                  {going.map((a) => (
+                    <li key={a.member_id} className="going">
+                      <span className="person-avatar" aria-hidden="true">
+                        {a.name.slice(0, 1)}
+                      </span>
+                      {a.name}
+                      {Number(a.weight) !== 1 && <small>×{a.weight}</small>}
+                    </li>
+                  ))}
+                </ul>
+                {!going.length && (
+                  <p className="field-hint">Chưa có ai nhận lời.</p>
+                )}
+              </div>
+              <div>
+                <h3>
+                  Được mời <span>{activeAttendees.length - going.length}</span>
+                </h3>
+                <ul className="people-chips">
+                  {activeAttendees
+                    .filter((a) => !(a.rsvp === "going" && a.committed_at))
+                    .map((a) => (
+                      <li
+                        key={a.member_id}
+                        className={
+                          a.rsvp === "not_going" ? "declined" : "waiting"
+                        }
+                      >
+                        <span className="person-avatar" aria-hidden="true">
+                          {a.name.slice(0, 1)}
+                        </span>
+                        {a.name}
+                        <small>
+                          {a.rsvp === "not_going" ? "Không đi" : "Chờ trả lời"}
+                        </small>
+                      </li>
+                    ))}
+                </ul>
+                {activeAttendees.length === going.length && (
+                  <p className="field-hint">Mọi người đã trả lời.</p>
+                )}
+              </div>
+            </div>
+          </section>
+          <section className="panel expense-summary">
+            <div className="section-heading">
+              <h2>Chi phí buổi chơi</h2>
+              {s.status !== "planned" && (
+                <strong className="money">{formatMoney(total)}</strong>
+              )}
+            </div>
+            <SessionCollector
+              key={s.revision}
+              session={s}
+              members={members || []}
+              request={nomination.success ? nomination.data : undefined}
+            />
+            {s.status === "planned" &&
+              (collector ? (
+                <FinishSessionForm
+                  key={s.revision}
+                  session={s}
+                  tools={tools.success ? tools.data : undefined}
+                />
+              ) : (
+                <p className="field-hint">
+                  Chỉ người đã nhận tính tiền được nhập và chốt hóa đơn.{" "}
+                  {s.collector_member_id
+                    ? "Chờ người tính tiền hoàn tất."
+                    : "Gán cho tôi hoặc mời một người nhận tính tiền để bắt đầu."}
+                </p>
+              ))}
+            {s.status !== "planned" &&
+              s.status !== "cancelled" &&
+              collector &&
+              !locked && (
+                <details className="cost-adjust">
+                  <summary>Thêm khoản chi hoặc giảm giá</summary>
+                  <ExpenseForm
+                    session={s}
+                    tools={tools.success ? tools.data : undefined}
+                  />
+                </details>
+              )}
+            {s.expenses
+              .filter(
+                (e) =>
+                  s.status !== "planned" ||
+                  (e.kind ? e.kind !== "court" : e.title !== "Tiền sân"),
+              )
+              .map((e) => (
                 <div className="session-row" key={e.id}>
                   <div>
                     <div className="section-heading">
@@ -458,34 +492,8 @@ export default async function Session({
                   </div>
                 </div>
               ))}
-            </section>
-          )}
+          </section>
         </div>
-        {showBilling && (
-          <aside className="detail-sidebar">
-            {!s.collector_member_id && s.status === "planned" && (
-              <section className="panel">
-                <h2>Người tính tiền</h2>
-                <p>
-                  Lưu ngân hàng trong <Link href="/me">hồ sơ</Link> trước khi
-                  nhận vai trò.
-                </p>
-                <ActionForm
-                  action={sessionCommand}
-                  label="Nhận vai trò người tính tiền"
-                >
-                  <input type="hidden" name="sid" value={s.id} />
-                  <input type="hidden" name="revision" value={s.revision} />
-                  <input type="hidden" name="operation" value="claim" />
-                  <input type="hidden" name="court" value="0" />
-                </ActionForm>
-              </section>
-            )}
-            {collector && s.status === "planned" && (
-              <FinishSessionForm session={s} />
-            )}
-          </aside>
-        )}
       </div>
       {replaced.success && replaced.data.length > 0 && (
         <section className="panel">
@@ -509,41 +517,6 @@ export default async function Session({
             </article>
           ))}
         </section>
-      )}
-      {s.status !== "planned" &&
-        s.status !== "cancelled" &&
-        collector &&
-        !locked && (
-          <>
-            <details className="panel">
-              <summary>Thêm khoản chi hoặc giảm giá</summary>
-              <ExpenseForm
-                session={s}
-                tools={tools.success ? tools.data : undefined}
-              />
-            </details>
-          </>
-        )}
-      {s.status === "planned" && (
-        <details className="panel">
-          <summary>Gửi đề nghị thay đổi</summary>
-          <SessionRequestForm
-            session={s}
-            members={members || []}
-            canNominate={true}
-          />
-        </details>
-      )}
-      <p>
-        <Link href="/approvals">Chờ tôi duyệt và các yêu cầu đã gửi</Link>
-      </p>
-      {canManage && !locked && (
-        <SessionCalendarForm
-          key={s.revision}
-          session={s}
-          note={metadata?.note || null}
-          canCancel={canCancel}
-        />
       )}
       {admin && <AdminSessionPanel key={`admin-${s.revision}`} session={s} />}
       {metadata?.created_by === user.id && s.status === "planned" && (
@@ -580,61 +553,6 @@ export default async function Session({
           )}
         </details>
       )}
-      <details className="panel session-history">
-        <summary>
-          Lịch sử <small>({s.history.length})</small>
-        </summary>
-        {s.history.map((h, i) => (
-          <p key={i}>
-            {new Date(h.created_at).toLocaleString("vi-VN", {
-              timeZone: "Asia/Ho_Chi_Minh",
-            })}{" "}
-            · {h.actor_name || "Thành viên"} ·{" "}
-            {h.action === "session_metadata_updated"
-              ? "Sửa thông tin buổi"
-              : h.action === "session_cancelled"
-                ? "Hủy buổi"
-                : h.action === "session_reopened"
-                  ? "Mở lại buổi"
-                  : h.action === "rsvp_reset"
-                    ? "Mời tự chốt lại sau khi đổi lịch"
-                    : h.action === "approval_requested"
-                      ? "Gửi yêu cầu duyệt"
-                      : h.action === "approval_approved"
-                        ? "Duyệt yêu cầu"
-                        : h.action === "approval_rejected"
-                          ? "Từ chối yêu cầu"
-                          : h.action === "collector_transfer_consented"
-                            ? "Đồng ý chuyển người tính tiền"
-                            : h.action === "committed_going"
-                              ? "Chốt đi"
-                              : h.action === "committed_not_going"
-                                ? "Chốt không đi"
-                                : h.action === "added_by_collector" ||
-                                    h.action === "added" ||
-                                    h.action === "join_approved"
-                                  ? "Thêm người tham gia"
-                                  : h.action === "removed" ||
-                                      h.action === "leave_approved"
-                                    ? "Rút khỏi buổi"
-                                    : h.action === "weight_changed" ||
-                                        h.action === "weight_approved"
-                                      ? "Đổi hệ số"
-                                      : h.action === "money_recalculated"
-                                        ? "Tính lại tiền"
-                                        : h.action === "session_created"
-                                          ? "Tạo buổi"
-                                          : h.action === "confirm"
-                                            ? "Xác nhận đã nhận"
-                                            : h.action === "mark"
-                                              ? "Báo đã chuyển"
-                                              : h.action === "collector_claimed"
-                                                ? "Nhận vai trò tính tiền"
-                                                : "Cập nhật buổi"}
-            {h.reason ? ` · ${h.reason}` : ""}
-          </p>
-        ))}
-      </details>
     </main>
   );
 }

@@ -30,6 +30,7 @@ export const detailSchema = z.object({
     z.object({
       id: z.uuid(),
       title: z.string(),
+      kind: z.enum(["court", "extra"]).optional(),
       amount: moneySchema,
       paid_by: z.uuid().nullable(),
       split_mode: z.string(),
