@@ -5,3 +5,9 @@ node_modules/
 .next/
 coverage/
 *.tsbuildinfo
+
+.secrets/
+.vercel/
+
+.agents/
+skills-lock.json
