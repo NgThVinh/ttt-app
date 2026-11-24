@@ -233,7 +233,7 @@ try {
   await expect(costs.locator(".expense-summary")).toContainText("Giảm giá");
   check(
     (await costs
-      .getByRole("button", { name: "Tham gia", exact: true })
+      .getByRole("group", { name: "Tôi tham gia", exact: true })
       .count()) === 0,
     "RSVP_LOCKED",
   );

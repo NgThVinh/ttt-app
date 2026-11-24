@@ -179,12 +179,12 @@ try {
     else await route.continue();
   };
   await page.route("**/sessions/" + sid, interruptRsvp);
-  await page.getByRole("button", { name: "Không đi", exact: true }).click();
+  await page.getByRole("button", { name: "Đã tham gia", exact: true }).click();
   await expect(page.locator(".rsvp-control").getByRole("alert")).toHaveText(
     "Chưa nhận được kết quả. Kiểm tra kết nối và thử lại.",
   );
   await expect(
-    page.getByRole("button", { name: "Tham gia", exact: true }),
+    page.getByRole("button", { name: "Đã tham gia", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   check(
     (
@@ -208,15 +208,20 @@ try {
     row.getByRole("button", { name: "2 chờ · Chờ trả lời", exact: true }),
   ).toBeVisible();
   const listSave = page.waitForResponse((r) => r.request().method() === "POST");
-  await row.getByRole("button", { name: "Không đi", exact: true }).click();
+  await expect(
+    row
+      .getByRole("group", { name: "Tôi tham gia", exact: true })
+      .getByRole("button"),
+  ).toHaveCount(1);
+  await row.getByRole("button", { name: "Đã tham gia", exact: true }).click();
   await listSave;
   await expect(
     row.getByRole("group", { name: "Tôi tham gia" }),
   ).toHaveAttribute("aria-busy", "false");
   await page.goto(origin + "/sessions/" + sid);
   await expect(
-    page.getByRole("button", { name: "Không đi", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
+    page.getByRole("button", { name: "Tham gia", exact: true }),
+  ).toHaveAttribute("aria-pressed", "false");
   await setRsvp(page);
   step = "withdrawal";
   await setRsvp(page, false);

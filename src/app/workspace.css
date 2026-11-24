@@ -295,6 +295,11 @@
   gap: 4px;
 }
 .rsvp-buttons button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 132px;
   padding: 8px 12px;
   min-height: 44px;
   font-size: 13px;

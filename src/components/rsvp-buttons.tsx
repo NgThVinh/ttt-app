@@ -3,6 +3,7 @@ import { useState, useTransition } from "react";
 import { useRouter, unstable_rethrow } from "next/navigation";
 import { sessionCommand } from "@/app/sessions/actions";
 import type { Rsvp } from "@/lib/session-overview";
+import { Check, Plus } from "lucide-react";
 
 export default function RsvpButtons({
   sid,
@@ -51,21 +52,20 @@ export default function RsvpButtons({
       >
         <button
           type="button"
-          className="secondary"
+          className="secondary rsvp-toggle"
           aria-pressed={choice === "going"}
+          title={
+            choice === "going" ? "Rút khỏi buổi chơi" : "Tham gia buổi chơi"
+          }
           disabled={pending}
-          onClick={() => choose("going")}
+          onClick={() => choose(choice === "going" ? "not_going" : "going")}
         >
-          Tham gia
-        </button>
-        <button
-          type="button"
-          className="secondary"
-          aria-pressed={choice === "not_going"}
-          disabled={pending}
-          onClick={() => choose("not_going")}
-        >
-          Không đi
+          {choice === "going" ? (
+            <Check size={16} aria-hidden="true" />
+          ) : (
+            <Plus size={16} aria-hidden="true" />
+          )}
+          {choice === "going" ? "Đã tham gia" : "Tham gia"}
         </button>
       </div>
       {pending && <small role="status">Đang lưu…</small>}
