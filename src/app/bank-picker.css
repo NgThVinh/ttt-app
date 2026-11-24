@@ -1,0 +1,116 @@
+.bank-field {
+  min-width: 0;
+}
+.bank-picker {
+  position: relative;
+}
+.bank-picker input[role="combobox"] {
+  padding-right: 70px;
+  min-height: 44px;
+}
+.bank-chevron {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+.bank-clear {
+  position: absolute;
+  top: 0;
+  right: 28px;
+  width: 40px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 6px;
+}
+.bank-clear:hover {
+  color: var(--ink);
+  background: var(--soft);
+}
+.bank-menu {
+  position: fixed;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 8px 30px #17243a24;
+}
+.bank-options {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.bank-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.bank-option.is-active {
+  background: var(--soft);
+}
+.bank-option[aria-selected="true"] {
+  color: var(--accent);
+}
+.bank-monogram {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.bank-option-name {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.bank-option-name strong {
+  font-size: 14px;
+}
+.bank-option-name small {
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.bank-empty {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.bank-field .field-error {
+  font-size: 13px;
+  color: var(--ink);
+}
+@media (max-width: 620px) {
+  .profile-bank-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bank-picker input[role="combobox"] {
+    font-size: 16px;
+  }
+  .bank-option {
+    min-height: 60px;
+    padding-inline: 8px;
+  }
+}

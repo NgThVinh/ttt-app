@@ -167,7 +167,7 @@ export async function saveProfile(
   if (!input.success)
     return {
       message:
-        "Tên tối đa 100 ký tự. Điền đủ ba thông tin ngân hàng hoặc để trống cả ba; mã BIN gồm 6 số.",
+        "Tên hiển thị tối đa 100 ký tự. Chọn ngân hàng và điền số tài khoản, tên chủ tài khoản; hoặc để trống cả ba.",
     };
   const { error } = await db
     .from("profiles")

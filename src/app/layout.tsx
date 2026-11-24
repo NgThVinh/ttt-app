@@ -26,6 +26,7 @@ import "./motion.css";
 import "./theme.css";
 import "./workspace.css";
 import "./calendar-ux.css";
+import "./bank-picker.css";
 export const metadata: Metadata = {
   title: { default: appName, template: `%s · ${appName}` },
   robots: { index: false, follow: false },

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import ActionForm from "@/components/action-form";
 import ExpenseCatalogManager from "@/components/expense-catalog-manager";
+import BankPicker from "@/components/bank-picker";
 import { expenseToolsSchema } from "@/lib/expense-tools";
 import {
   createInvite,
@@ -159,18 +160,13 @@ export default async function Group({
                         label="Lưu ngân hàng thành viên khách"
                       >
                         <input type="hidden" name="target" value={m.id} />
-                        <label>
-                          Mã BIN ngân hàng
-                          <input
-                            name="bank_bin"
-                            pattern="[0-9]{6}"
-                            required
-                            defaultValue={
-                              guestBanks?.find((x) => x.member_id === m.id)
-                                ?.bank_bin || ""
-                            }
-                          />
-                        </label>
+                        <BankPicker
+                          required
+                          defaultValue={
+                            guestBanks?.find((x) => x.member_id === m.id)
+                              ?.bank_bin || ""
+                          }
+                        />
                         <label>
                           Số tài khoản
                           <input

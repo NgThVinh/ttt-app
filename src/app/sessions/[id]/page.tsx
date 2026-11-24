@@ -11,6 +11,7 @@ import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { detailSchema } from "@/lib/session-data";
 import { formatMoney } from "@/lib/money";
+import { bankLabel } from "@/lib/banks";
 import ActionForm from "@/components/action-form";
 import ExpenseForm from "@/components/expense-form";
 import SessionRequestForm from "@/components/session-request-form";
@@ -247,7 +248,7 @@ export default async function Session({
                           <>
                             {p.bank_account_no ? (
                               <p>
-                                Ngân hàng BIN {p.bank_bin} · Tài khoản{" "}
+                                {bankLabel(p.bank_bin)} · Tài khoản{" "}
                                 {p.bank_account_no} · {p.bank_account_name}
                               </p>
                             ) : (

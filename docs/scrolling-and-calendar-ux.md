@@ -38,6 +38,8 @@ Các vùng độc lập dùng `overscroll-behavior` để không kéo vùng cha 
 
 ## Kiểm chứng
 
+Bộ chọn ngân hàng ở hồ sơ/ngân hàng khách có dropdown nổi giới hạn trong workspace và viewport. Chỉ danh sách ngân hàng cuộn bên trong, không kéo vùng hồ sơ hoặc document theo; xem [bộ chọn ngân hàng](bank-picker.md).
+
 `npm run test:calendar-ux` dùng Auth và database Supabase local, không gọi LLM. Kiểm tra dấu cá nhân/chốt/vote, loại thăm dò hết hạn và nhóm đã rời, lọc theo ngày, tên người đi/chờ, hover/focus/chạm, Escape, danh sách 30 người, reduced motion, vùng cuộn độc lập và lịch tháng điện thoại. Có ảnh tại `.tools/calendar-ux/`.
 
 Browser Chromium đã kiểm tra desktop 1440×900, điện thoại 390×844 và viewport thấp 360×600. Cần kiểm tra thêm trên thiết bị iOS/Android thật.

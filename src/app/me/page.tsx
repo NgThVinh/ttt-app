@@ -9,6 +9,7 @@ import InstallApp from "@/components/install-app";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { profileName } from "@/lib/profile-name";
+import BankPicker from "@/components/bank-picker";
 export const metadata = { title: "Hồ sơ của tôi" };
 import {
   Card,
@@ -58,29 +59,28 @@ export default async function Me() {
               Chỉ người nhận tiền cần điền ngân hàng. Thông tin này không được
               đưa vào chat AI.
             </p>
-            <label htmlFor="bank_bin">Mã BIN ngân hàng (6 số)</label>
-            <Input
-              id="bank_bin"
-              name="bank_bin"
-              inputMode="numeric"
-              maxLength={6}
-              defaultValue={p?.bank_bin || ""}
-            />
-            <label htmlFor="bank_account_no">Số tài khoản</label>
-            <Input
-              id="bank_account_no"
-              name="bank_account_no"
-              inputMode="numeric"
-              maxLength={30}
-              defaultValue={p?.bank_account_no || ""}
-            />
-            <label htmlFor="bank_account_name">Tên chủ tài khoản</label>
-            <Input
-              id="bank_account_name"
-              name="bank_account_name"
-              maxLength={100}
-              defaultValue={p?.bank_account_name || ""}
-            />
+            <BankPicker id="profile-bank" defaultValue={p?.bank_bin || ""} />
+            <div className="compact-fields profile-bank-fields">
+              <div>
+                <label htmlFor="bank_account_no">Số tài khoản</label>
+                <Input
+                  id="bank_account_no"
+                  name="bank_account_no"
+                  inputMode="numeric"
+                  maxLength={30}
+                  defaultValue={p?.bank_account_no || ""}
+                />
+              </div>
+              <div>
+                <label htmlFor="bank_account_name">Tên chủ tài khoản</label>
+                <Input
+                  id="bank_account_name"
+                  name="bank_account_name"
+                  maxLength={100}
+                  defaultValue={p?.bank_account_name || ""}
+                />
+              </div>
+            </div>
           </ActionForm>
         </CardContent>
       </Card>
