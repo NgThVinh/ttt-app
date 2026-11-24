@@ -48,7 +48,13 @@ function currentTheme() {
     ? "dark"
     : "light";
 }
-export default function AppFrame({ children }: { children: React.ReactNode }) {
+export default function AppFrame({
+  children,
+  localDevelopment = false,
+}: {
+  children: React.ReactNode;
+  localDevelopment?: boolean;
+}) {
   const path = usePathname();
   const theme = useSyncExternalStore(
     subscribeTheme,
@@ -120,6 +126,15 @@ export default function AppFrame({ children }: { children: React.ReactNode }) {
           <span className="app-breadcrumb">
             Không gian của bạn <span>/</span> <strong>{title}</strong>
           </span>
+          {localDevelopment && (
+            <Link
+              className="local-development-badge"
+              href="/login"
+              title="Supabase chạy trên máy, dữ liệu thử riêng"
+            >
+              Local · Đổi vai
+            </Link>
+          )}
           <div className="app-header-actions">
             <button
               type="button"

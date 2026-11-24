@@ -2,6 +2,7 @@
 import type { Metadata, Viewport } from "next";
 import PWARuntime from "@/components/pwa-runtime";
 import AppFrame from "@/components/app-frame";
+import { localDevelopmentEnabled } from "@/lib/local-development";
 import localFont from "next/font/local";
 const beVietnam = localFont({
   src: [
@@ -43,7 +44,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <html lang="vi" className={beVietnam.variable}>
       <body>
         <PWARuntime />
-        <AppFrame>{children}</AppFrame>
+        <AppFrame localDevelopment={localDevelopmentEnabled()}>
+          {children}
+        </AppFrame>
       </body>
     </html>
   );

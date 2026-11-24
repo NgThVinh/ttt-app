@@ -1,4 +1,45 @@
 /* App surfaces share the palette in frame.css. Skill recipes stay in motion.css. */
+.local-development-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+.local-login-options {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  margin-block: 20px;
+  background: var(--bg);
+}
+.local-login-options h2 {
+  font-size: 16px;
+  margin-top: 0;
+}
+.local-login-options p {
+  font-size: 13px;
+}
+.local-login-options a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.local-login-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.local-login-grid .full {
+  margin: 0;
+}
+@media (max-width: 420px) {
+  .local-login-grid {
+    grid-template-columns: 1fr;
+  }
+}
 :root {
   --tabs-dur: var(--duration-fast);
   --tabs-ease: var(--ease-smooth-out);

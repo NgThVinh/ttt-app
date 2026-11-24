@@ -5,7 +5,7 @@ import { parseEnv } from "node:util";
 // Compare actual private values locally; errors expose variable names, never values.
 const sources = [
   process.env,
-  ...[".env", ".env.local"]
+  ...[".env", ".env.local", ".env.development.local"]
     .filter(existsSync)
     .map((file) => parseEnv(readFileSync(file, "utf8"))),
 ];
@@ -21,6 +21,7 @@ const names = [
   "VERCEL_TOKEN",
   "SUPABASE_ACCESS_TOKEN",
   "GOOGLE_CLIENT_SECRET",
+  "THREE_T_LOCAL_AUTH_PASSWORD",
 ];
 const secrets = sources.flatMap((source) =>
   names.flatMap((name) =>
@@ -77,6 +78,7 @@ function scanClient(directory) {
   }
 }
 scanClient(".next/static");
+scanClient(".next/dev/static");
 console.log(
   JSON.stringify({
     passed: failures.length === 0,

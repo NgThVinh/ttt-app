@@ -8,7 +8,7 @@ New accounts see one waiting-for-invitation page until they join a group through
 
 ## Local development
 
-Use Node.js 24 LTS. Run `npm ci`, `npm run dev`, then visit http://localhost:3000. Copy `.env.example` to `.env` only when an environment file does not already exist. Never commit credentials.
+Use Node.js 24 LTS and Docker Desktop. Run `npm ci`, then `npm run dev:local` and visit http://localhost:3000. The setup uses the workspace's Supabase CLI under `.tools/supabase`, starts the local stack if needed, applies local migrations and writes ignored `.env.development.local`; it preserves `.env` and hosted data. Choose An, Bình or Chi on the local login screen. See [local development](docs/local-development.md). `npm run dev` also uses the generated dev environment when the stack is already running. Never commit credentials.
 
 Commands: `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:concurrency` (Docker), `npm run build`, `npm run security:check`. After a production build, `npm run test:pwa` uses Playwright Chromium (`npx playwright install chromium`). If browsers are installed in `.tools/browsers`, set `PLAYWRIGHT_BROWSERS_PATH` to that absolute directory.
 

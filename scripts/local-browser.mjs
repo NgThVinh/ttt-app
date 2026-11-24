@@ -66,6 +66,8 @@ export async function localBrowser(port, directory, options = {}) {
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: pub,
       SUPABASE_SECRET_KEY: status.SECRET_KEY || status.SERVICE_ROLE_KEY,
       AI_KILL_SWITCH: "1",
+      THREE_T_LOCAL_DEVELOPMENT: "0",
+      THREE_T_LOCAL_AUTH_PASSWORD: "",
       GEMINI_API_KEY: "",
       OPENROUTER_API_KEY: "",
       SUPABASE_DB_URL: "",
