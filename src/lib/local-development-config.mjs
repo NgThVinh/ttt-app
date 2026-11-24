@@ -16,7 +16,7 @@ export const localAccounts = [
     id: "guest",
     email: "guest@local.3t.test",
     name: "Khách",
-    label: "Khách · Chưa có nhóm",
+    label: "Khách · Vai thử",
   },
 ];
 

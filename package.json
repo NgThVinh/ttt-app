@@ -20,6 +20,7 @@
     "test:concurrency": "node scripts/test-concurrency.mjs",
     "test:pwa": "node scripts/verify-pwa.mjs",
     "test:auth-ui": "node scripts/verify-auth-ui.mjs",
+    "test:account-onboarding": "node scripts/verify-account-onboarding.mjs",
     "test:payment-ui": "node scripts/verify-payment-ui.mjs",
     "test:poll-ui": "node scripts/verify-poll-ui.mjs",
     "test:invite-gate": "node scripts/verify-invite-gate.mjs",

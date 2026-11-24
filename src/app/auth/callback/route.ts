@@ -36,7 +36,12 @@ export async function GET(request: NextRequest) {
     const { data, error } = await db.auth.getUser();
     if (!error && data.user) return redirect(next);
   }
-  const target = new URL("/login", origin);
+  const target = new URL(
+    request.nextUrl.searchParams.get("mode") === "register"
+      ? "/register"
+      : "/login",
+    origin,
+  );
   target.searchParams.set("error", reason);
   if (next !== "/") target.searchParams.set("next", next);
   return redirect(target.pathname + target.search);

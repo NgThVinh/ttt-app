@@ -1,4 +1,8 @@
 const messages = {
+  registration_failed:
+    "Chưa tạo được tài khoản. Hãy thử lại bằng Google hoặc email.",
+  rate_limited:
+    "Bạn vừa yêu cầu email. Chờ một chút rồi thử lại để tránh gửi nhiều link.",
   used_link:
     "Link đăng nhập đã được dùng. Hãy bấm Tiếp tục với Google hoặc yêu cầu một link email mới.",
   expired_link:

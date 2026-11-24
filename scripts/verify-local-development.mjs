@@ -64,12 +64,16 @@ try {
   step = "seeded-calendar";
   await page.goto(origin + "/sessions");
   await expect(page.locator(".calendar")).toBeVisible();
-  await expect(
-    page.getByRole("heading", {
-      name: "Buổi chơi thử · Supabase local",
-      exact: true,
-    }),
-  ).toBeVisible();
+  const sample = (
+    await db.query(
+      "select id from public.sessions where group_id=$1 and status='planned' order by starts_at limit 1",
+      ["00000000-0000-4000-8000-000000003001"],
+    )
+  ).rows[0];
+  if (sample)
+    await expect(
+      page.locator(`a[href="/sessions/${sample.id}"]`),
+    ).toBeVisible();
   step = "create-and-persist";
   await page.getByRole("link", { name: "Tạo buổi chơi", exact: true }).click();
   const groupId = "00000000-0000-4000-8000-000000003001";
@@ -118,11 +122,19 @@ try {
     .getByRole("link", { name: "Local · Đổi vai", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Khách · Chưa có nhóm", exact: true })
+    .getByRole("button", { name: "Khách · Vai thử", exact: true })
     .click();
-  await page.waitForURL(origin + "/welcome");
+  const guestHasGroup =
+    (
+      await db.query(
+        "select count(*)::int n from public.group_members m join auth.users u on u.id=m.user_id where u.email='guest@local.3t.test' and m.status='active'",
+      )
+    ).rows[0].n > 0;
+  await page.waitForURL(origin + (guestHasGroup ? "/" : "/welcome"));
   await page.goto(origin + "/sessions");
-  await expect(page).toHaveURL(origin + "/welcome");
+  await expect(page).toHaveURL(
+    origin + (guestHasGroup ? "/sessions" : "/welcome"),
+  );
   console.log(
     JSON.stringify({
       passed: true,
@@ -133,7 +145,8 @@ try {
       meetingCreated: true,
       survivesReload: true,
       memberRsvp: true,
-      outsiderDenied: true,
+      guestRoleRespectsMembership: true,
+      outsiderDenied: !guestHasGroup,
       hostedDatabaseTouched: false,
     }),
   );

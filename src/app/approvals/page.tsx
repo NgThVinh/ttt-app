@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import ApprovalCard from "@/components/approval-card";
+import MemberClaimReview from "@/components/member-claim-review";
 import { z } from "zod";
 const schema = z.array(
   z.object({
@@ -23,7 +24,12 @@ export default async function Approvals() {
     data: { user },
   } = await db.auth.getUser();
   if (!user) redirect("/login");
-  const [{ data, error }, { data: members }] = await Promise.all([
+  const [
+    { data, error },
+    { data: members },
+    { data: ownClaims, error: claimError },
+    { data: groups },
+  ] = await Promise.all([
     db
       .from("approval_requests")
       .select(
@@ -34,7 +40,17 @@ export default async function Approvals() {
       .neq("type", "admin_fallback")
       .gt("expires_at", new Date().toISOString())
       .order("created_at"),
-    db.from("group_members").select("id,user_id,display_name,status"),
+    db
+      .from("group_members")
+      .select("id,user_id,display_name,status,group_id,role"),
+    db
+      .from("approval_requests")
+      .select("id,group_id,expires_at")
+      .eq("type", "member_claim")
+      .eq("requested_by", user.id)
+      .eq("status", "pending")
+      .gt("expires_at", new Date().toISOString()),
+    db.from("groups").select("id,name"),
   ]);
   const parsed = schema.safeParse(data);
   const mine = new Set(
@@ -47,14 +63,89 @@ export default async function Approvals() {
         (r) => mine.has(r.required_authority) || r.requested_by === user.id,
       )
     : [];
+  const adminGroups = [
+    ...new Set(
+      members
+        ?.filter(
+          (m) =>
+            m.user_id === user.id &&
+            m.status === "active" &&
+            m.role === "admin",
+        )
+        .map((m) => m.group_id),
+    ),
+  ];
+  const claimSchema = z.array(
+    z.object({
+      id: z.uuid(),
+      member_id: z.uuid(),
+      email: z.string().nullable(),
+      email_verified: z.boolean(),
+    }),
+  );
+  const claimReviews = await Promise.all(
+    adminGroups.map(async (g) => {
+      const { data, error } = await db.rpc("member_claim_reviews", { g });
+      const parsed = claimSchema.safeParse(data);
+      return {
+        groupId: g,
+        reviews: parsed.success ? parsed.data : [],
+        error: !!error || !parsed.success,
+      };
+    }),
+  );
+  const hasClaims = claimReviews.some((g) => g.reviews.length);
   return (
     <main>
       <Link href="/">Trang chủ</Link>
       <h1>Chờ tôi duyệt và yêu cầu đã gửi</h1>
       {(error || !parsed.success) && <p role="alert">Chưa tải được yêu cầu.</p>}
-      {!error && parsed.success && !requests.length && (
-        <p>Chưa có yêu cầu còn hạn đang chờ bạn.</p>
+      {!error &&
+        !claimError &&
+        parsed.success &&
+        !requests.length &&
+        !hasClaims &&
+        !ownClaims?.length && <p>Chưa có yêu cầu còn hạn đang chờ bạn.</p>}
+      {claimError && <p role="alert">Chưa tải được yêu cầu liên kết đã gửi.</p>}
+      {!!ownClaims?.length && (
+        <section className="panel">
+          <h2>Yêu cầu liên kết đã gửi</h2>
+          {ownClaims.map((r) => (
+            <p key={r.id}>
+              <Link href={`/groups/${r.group_id}#link-account`}>
+                {groups?.find((g) => g.id === r.group_id)?.name || "Mở nhóm"}
+              </Link>{" "}
+              · Chờ admin xác minh.{" "}
+              <small>
+                Hết hạn{" "}
+                {new Date(r.expires_at).toLocaleString("vi-VN", {
+                  timeZone: "Asia/Ho_Chi_Minh",
+                })}
+                .
+              </small>
+            </p>
+          ))}
+        </section>
       )}
+      {claimReviews.map((g) => (
+        <div key={g.groupId}>
+          {g.error && (
+            <p role="alert">
+              Chưa tải được yêu cầu liên kết tài khoản.{" "}
+              <Link href={`/groups/${g.groupId}`}>Mở nhóm</Link>
+            </p>
+          )}
+          {!!g.reviews.length && (
+            <>
+              <Link href={`/groups/${g.groupId}`}>
+                {groups?.find((group) => group.id === g.groupId)?.name ||
+                  "Xem nhóm liên quan"}
+              </Link>
+              <MemberClaimReview reviews={g.reviews} members={members || []} />
+            </>
+          )}
+        </div>
+      ))}
       {requests.map((r) => (
         <div key={r.id}>
           <Link href={`/sessions/${r.session_id}`}>Xem buổi liên quan</Link>

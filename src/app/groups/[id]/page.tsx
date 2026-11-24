@@ -5,13 +5,13 @@ import { supabase } from "@/lib/supabase";
 import ActionForm from "@/components/action-form";
 import ExpenseCatalogManager from "@/components/expense-catalog-manager";
 import BankPicker from "@/components/bank-picker";
+import MemberClaimPanel from "@/components/member-claim-panel";
+import MemberClaimReview from "@/components/member-claim-review";
 import { expenseToolsSchema } from "@/lib/expense-tools";
 import {
   createInvite,
   revokeInvite,
   manageMember,
-  requestClaim,
-  decideClaim,
   saveGuestBank,
 } from "../actions";
 export default async function Group({
@@ -56,19 +56,50 @@ export default async function Group({
         .order("created_at", { ascending: false })
         .limit(20)
     : { data: [] };
-  const { data: claims } = admin
-    ? await db
-        .from("approval_requests")
-        .select("id,payload,requested_by,expires_at")
-        .eq("group_id", id)
-        .eq("type", "member_claim")
-        .eq("status", "pending")
-    : { data: [] };
+  const [{ data: ownClaims }, reviewResult] = await Promise.all([
+    db
+      .from("approval_requests")
+      .select("id,payload,status,expires_at")
+      .eq("group_id", id)
+      .eq("requested_by", user.id)
+      .eq("type", "member_claim")
+      .order("created_at", { ascending: false })
+      .limit(1),
+    admin
+      ? db.rpc("member_claim_reviews", { g: id })
+      : Promise.resolve({ data: [] }),
+  ]);
+  const reviewSchema = z.array(
+    z.object({
+      id: z.uuid(),
+      member_id: z.uuid(),
+      email: z.string().nullable(),
+      email_verified: z.boolean(),
+    }),
+  );
+  const reviews = reviewSchema.safeParse(reviewResult.data);
   return (
     <main>
       <Link href="/groups">Các nhóm</Link>
       <h1>{group.name}</h1>
       <p>{group.sport}</p>
+      <MemberClaimPanel
+        now={new Date().getTime()}
+        email={user.email}
+        admin={!!admin}
+        claims={ownClaims || []}
+        guests={(members || []).filter(
+          (m) => !m.user_id && m.status === "active",
+        )}
+      />
+      {admin && reviews.success && (
+        <MemberClaimReview reviews={reviews.data} members={members || []} />
+      )}
+      {admin && !reviews.success && (
+        <p role="alert">
+          Chưa tải được yêu cầu liên kết. Vui lòng tải lại trang.
+        </p>
+      )}
       {members?.some((m) => m.user_id === user.id && m.status === "active") && (
         <section className="panel">
           <h2>Mời bạn</h2>
@@ -141,12 +172,6 @@ export default async function Group({
               </small>
               {!m.user_id && m.status === "active" && (
                 <>
-                  <ActionForm
-                    action={requestClaim}
-                    label="Đây là tôi — gửi yêu cầu xác minh"
-                  >
-                    <input type="hidden" name="target" value={m.id} />
-                  </ActionForm>
                   {admin && (
                     <details>
                       <summary>Ngân hàng của {m.display_name}</summary>
@@ -230,35 +255,6 @@ export default async function Group({
       </section>
       {admin && (
         <>
-          {!!claims?.length && (
-            <section className="panel">
-              <h2>Chờ admin xác minh thành viên</h2>
-              {!claims?.length && <p>Không có yêu cầu đang chờ.</p>}
-              {claims?.map((r) => (
-                <div className="session-row" key={r.id}>
-                  <div>
-                    <p>
-                      {members?.find((m) => m.user_id === r.requested_by)
-                        ?.display_name || "Thành viên"}{" "}
-                      muốn nhận lại{" "}
-                      {members?.find((m) => m.id === r.payload.member_id)
-                        ?.display_name || "thành viên cũ"}
-                      . Hãy xác minh đúng người trước khi duyệt.
-                    </p>
-                    <ActionForm action={decideClaim} label="Xử lý yêu cầu">
-                      <input type="hidden" name="id" value={r.id} />
-                      <select name="decision" aria-label="Quyết định xác minh">
-                        <option value="reject">Từ chối</option>
-                        <option value="approve">
-                          Đã xác minh — đồng ý liên kết
-                        </option>
-                      </select>
-                    </ActionForm>
-                  </div>
-                </div>
-              ))}
-            </section>
-          )}
           <details className="panel">
             <summary>Thêm người chưa có tài khoản</summary>
             <ActionForm action={manageMember} label="Thêm thành viên">

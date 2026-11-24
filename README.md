@@ -52,4 +52,6 @@ Shared forms/profile/loading use shadcn/ui components with the 3T palette and 44
 
 Pending: full permission/tool eval acceptance, remaining UI flow/accessibility checks, production OAuth/SMTP, push/Realtime on real devices, and hosted website deployment. Stale requests must be withdrawn and resubmitted; they are not silently rebased. The canonical requirements are in `docs/handoff_prompt.md`; milestone progress and acceptance gaps are tracked in [docs/implementation-status.md](docs/implementation-status.md).
 
+See [account onboarding](docs/account-onboarding.md) for login, registration and admin-approved guest member linking; run `npm run test:account-onboarding` to verify email signup through local Auth and Mailpit.
+
 See DEPLOY.md for infrastructure prerequisites and DECISIONS.md for design choices.

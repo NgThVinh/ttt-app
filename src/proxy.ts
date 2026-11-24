@@ -40,6 +40,7 @@ export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const open =
     path === "/login" ||
+    path === "/register" ||
     path === "/welcome" ||
     path.startsWith("/join/") ||
     path.startsWith("/auth/") ||

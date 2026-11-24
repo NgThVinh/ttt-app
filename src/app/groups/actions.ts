@@ -2,6 +2,7 @@
 import { randomBytes, createHash } from "node:crypto";
 import { z } from "zod";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { supabase } from "@/lib/supabase";
 import { groupSchema, inviteSchema, bankSchema } from "@/lib/group-schemas";
 import type { FormResult } from "@/components/action-form";
@@ -132,19 +133,22 @@ export async function acceptInvite(
   const input = z
     .object({
       token: z.string().regex(/^[a-f0-9]{64}$/),
+      claim_member: z.uuid().optional(),
       name: z.string().trim().min(1).max(100),
     })
     .safeParse(Object.fromEntries(form));
   if (!input.success) return { message: "Thông tin tham gia không hợp lệ." };
-  const { data, error } = await db.rpc("accept_invite", {
+  const { data, error } = await db.rpc("accept_invite_with_claim", {
     hashed_token: createHash("sha256").update(input.data.token).digest("hex"),
     member_name: input.data.name,
+    claim_member: input.data.claim_member || null,
   });
   if (error)
     return {
       message:
-        "Link đã hết hạn, hết lượt, bị thu hồi hoặc bạn đã được gỡ khỏi nhóm.",
+        "Chưa tham gia được. Kiểm tra hiệu lực link mời và tên cũ; tên có thể đã được liên kết hoặc bạn có yêu cầu khác đang chờ.",
     };
+  if (input.data.claim_member) redirect(`/groups/${data}#link-account`);
   const sessionId = form.get("session_id");
   if (z.uuid().safeParse(sessionId).success) {
     const { data: session } = await db
@@ -223,8 +227,15 @@ export async function requestClaim(
   const { error } = await db.rpc("request_member_claim", {
     target: target.data,
   });
+  if (!error) {
+    revalidatePath("/groups", "layout");
+    revalidatePath("/approvals");
+  }
   return error
-    ? { message: "Chưa gửi được. Bạn có thể đang có yêu cầu chờ duyệt." }
+    ? {
+        message:
+          "Chưa gửi được. Kiểm tra email đã xác nhận, tên cũ hoặc yêu cầu đang chờ duyệt.",
+      }
     : { ok: true, message: "Đã gửi yêu cầu cho admin xác minh." };
 }
 export async function decideClaim(
@@ -240,10 +251,42 @@ export async function decideClaim(
     request_id: input.data.id,
     approve: input.data.decision === "approve",
   });
+  if (!error) {
+    revalidatePath("/groups", "layout");
+    revalidatePath("/approvals");
+  }
   return error
     ? {
         message:
           "Không thể duyệt: yêu cầu hết hạn, người tham gia đã thay đổi hoặc tài khoản mới đã có lịch sử cần xử lý thủ công.",
       }
     : { ok: true, message: "Đã xử lý yêu cầu." };
+}
+
+export async function cancelClaim(
+  _state: FormResult,
+  form: FormData,
+): Promise<FormResult> {
+  const { db, user } = await identity();
+  const id = z.uuid().safeParse(form.get("id"));
+  if (!id.success) return { message: "Yêu cầu không hợp lệ." };
+  const { data } = await db
+    .from("approval_requests")
+    .select("id")
+    .eq("id", id.data)
+    .eq("type", "member_claim")
+    .eq("requested_by", user.id)
+    .maybeSingle();
+  if (!data) return { message: "Không tìm thấy yêu cầu của bạn." };
+  const { error } = await db.rpc("cancel_session_request", {
+    request_id: id.data,
+  });
+  if (error)
+    return {
+      message:
+        "Yêu cầu đã được xử lý hoặc bạn không còn trong nhóm. Hãy tải lại trang.",
+    };
+  revalidatePath("/groups", "layout");
+  revalidatePath("/approvals");
+  return { ok: true, message: "Đã hủy yêu cầu. Bạn có thể chọn lại tên." };
 }

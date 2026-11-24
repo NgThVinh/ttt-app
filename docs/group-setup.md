@@ -25,4 +25,4 @@ Mọi thành viên đang hoạt động đều tạo được link mời, không
 
 Mở nhóm → **Thêm người chưa có tài khoản** → nhập tên → **Thêm thành viên**. Đây là thành viên khách để tính phần tiền; thao tác không tạo tài khoản hoặc gửi email.
 
-Khi người đó dùng app, gửi link mời. Việc nhận lại thành viên khách cần admin xác minh/duyệt; app không tự ghép tài khoản theo tên.
+Khi người đó dùng app, gửi link mời. Họ đăng ký/đăng nhập bằng email thật, chọn **Đã có, tôi muốn nhận lại tên cũ** rồi gửi yêu cầu. Admin mở nhóm hoặc **Chờ tôi duyệt**, xác minh email và đúng người trước khi đồng ý liên kết. Lịch sử và mã thành viên cũ được giữ nguyên. Nếu đã vào nhóm bằng tên mới, dùng **Bạn đã có tên trong nhóm?** ở đầu trang nhóm. Xem [luồng tài khoản và liên kết thành viên khách](account-onboarding.md).

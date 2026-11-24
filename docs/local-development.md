@@ -4,7 +4,7 @@ Mở Docker Desktop, rồi chạy `npm run dev:local`. Lệnh này kiểm tra Su
 
 Cấu hình được ghi vào `.env.development.local`, đã nằm ngoài Git. `next dev` ưu tiên file này; `next build`/`next start` và Vercel không đọc file dành cho development. `.env` và cấu hình hosted hiện có giữ nguyên. Supabase API local ở **http://127.0.0.1:54321**; PostgreSQL ở port 54322. `npm run local:setup` chỉ chuẩn bị backend/env mà không khởi động Next.
 
-Tại `/login`, chọn **An · Admin nhóm**, **Bình · Thành viên** hoặc **Chi · Thành viên**. Nhóm **Nhóm chơi thử · Local** và một buổi chưa chốt được tạo sẵn; mỗi người tự nhận lời tham gia. Chọn **Khách · Chưa có nhóm** để kiểm tra trang chờ link mời. Tài khoản dùng Supabase Auth thật và JWT/RLS thật, chỉ khác nguồn dữ liệu. Thông tin ngân hàng có nhãn thử và số tài khoản giả.
+Tại `/login`, chọn **An · Admin nhóm**, **Bình · Thành viên** hoặc **Chi · Thành viên**. Nhóm **Nhóm chơi thử · Local** và một buổi chưa chốt được tạo sẵn; mỗi người tự nhận lời tham gia. Chọn **Khách · Vai thử** để thử vai người mới. Ban đầu vai này chưa có nhóm; nếu đã nhận lời mời thì quyền đi theo membership hiện tại. Đây là email giả local, không phải tên khách được thêm hộ; để dùng email riêng hãy đăng ký tài khoản mới. Tài khoản dùng Supabase Auth thật và JWT/RLS thật, chỉ khác nguồn dữ liệu. Thông tin ngân hàng có nhãn thử và số tài khoản giả.
 
 Chọn **Local · Đổi vai** trên thanh đầu trang để đổi tài khoản thử. Tạo buổi ở `/sessions/new`, mở `/sessions` để xem lịch, tải lại trang để kiểm tra dữ liệu đã lưu. Có thể nhập email và xem magic link ở hộp thư **http://127.0.0.1:54324**; Google OAuth không được cấu hình trên stack local này. AI và push tắt trong cấu hình dev.
 

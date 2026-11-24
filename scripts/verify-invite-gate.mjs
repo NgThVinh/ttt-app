@@ -70,12 +70,14 @@ try {
   step = "invalid-invite";
   await newcomer.page.goto(origin + "/join/" + "0".repeat(64));
   await newcomer.page
-    .getByLabel("Tên trong nhóm", { exact: true })
-    .fill("New member");
-  await newcomer.page
-    .getByRole("button", { name: "Tham gia nhóm", exact: true })
-    .click();
-  await newcomer.page.getByRole("alert").waitFor();
+    .getByRole("heading", { name: "Không mở được lời mời", exact: true })
+    .waitFor();
+  check(
+    (await newcomer.page
+      .getByRole("button", { name: "Tham gia nhóm", exact: true })
+      .count()) === 0,
+    "INVALID_INVITE_NO_JOIN_FORM",
+  );
   check(
     (
       await db.query(

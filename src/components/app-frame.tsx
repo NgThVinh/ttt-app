@@ -75,7 +75,12 @@ export default function AppFrame({
     }
     window.dispatchEvent(new Event("3t-theme"));
   }
-  if (path === "/login" || path === "/welcome" || path.startsWith("/join/"))
+  if (
+    path === "/login" ||
+    path === "/register" ||
+    path === "/welcome" ||
+    path.startsWith("/join/")
+  )
     return <>{children}</>;
   const active = (href: string) =>
     href === "/" ? path === "/" : path === href || path.startsWith(href + "/");
