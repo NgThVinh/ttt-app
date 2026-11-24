@@ -20,6 +20,7 @@
     "test:invite-gate": "node scripts/verify-invite-gate.mjs",
     "test:minimal-ux": "node scripts/verify-minimal-ux.mjs",
     "test:meeting-ui": "node scripts/verify-meeting-ui.mjs",
+    "test:theme-ui": "node scripts/verify-theme-ui.mjs",
     "security:check": "node scripts/check-secrets.mjs",
     "db:status": "node --env-file=.env scripts/migrate.mjs",
     "db:migrate": "node --env-file=.env scripts/migrate.mjs --apply",

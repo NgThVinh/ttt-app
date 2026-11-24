@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
+import { AnimatedDisclosure } from "./ui/animated-disclosure";
 import {
   Home,
   CalendarDays,
@@ -96,8 +97,7 @@ export default function AppFrame({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
-        <details className="more-navigation">
-          <summary>Thêm</summary>
+        <AnimatedDisclosure className="more-navigation" title="Thêm">
           <nav aria-label="Tiện ích nhóm">
             {otherLinks.map(({ href, label, icon: Icon }) => (
               <Link
@@ -110,7 +110,7 @@ export default function AppFrame({ children }: { children: React.ReactNode }) {
               </Link>
             ))}
           </nav>
-        </details>
+        </AnimatedDisclosure>
       </aside>
       <div className="app-content">
         <header className="app-header">
@@ -128,7 +128,18 @@ export default function AppFrame({ children }: { children: React.ReactNode }) {
               }
               onClick={toggleTheme}
             >
-              {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+              <span
+                className="t-icon-swap"
+                data-state={theme === "dark" ? "b" : "a"}
+                aria-hidden="true"
+              >
+                <span className="t-icon" data-icon="a">
+                  <Moon size={20} />
+                </span>
+                <span className="t-icon" data-icon="b">
+                  <Sun size={20} />
+                </span>
+              </span>
             </button>
             <Link href="/notifications" aria-label="Thông báo">
               <Bell size={20} />

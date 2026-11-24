@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { CalendarDays, List, MapPin, Clock } from "lucide-react";
 import { Calendar } from "./ui/calendar";
 import { Badge } from "./ui/badge";
+import { SlidingTabs } from "./ui/sliding-tabs";
 type Session = {
   id: string;
   title: string;
@@ -23,6 +24,7 @@ export default function SessionBrowser({
   today: string;
 }) {
   const [mode, setMode] = useState("calendar");
+  const panelId = useId();
   const [day, setDay] = useState<string>();
   const counts: Record<string, number> = {};
   for (const session of sessions) {
@@ -35,25 +37,32 @@ export default function SessionBrowser({
       : sessions;
   return (
     <section className="session-browser">
-      <div className="view-switch" role="group" aria-label="Cách xem buổi chơi">
-        <button
-          type="button"
-          aria-pressed={mode === "calendar"}
-          onClick={() => setMode("calendar")}
-        >
-          <CalendarDays size={18} />
-          Lịch tháng
-        </button>
-        <button
-          type="button"
-          aria-pressed={mode === "list"}
-          onClick={() => setMode("list")}
-        >
-          <List size={18} />
-          Danh sách
-        </button>
-      </div>
-      <div className={mode === "calendar" ? "calendar-layout" : ""}>
+      <SlidingTabs
+        value={mode}
+        onChange={setMode}
+        panelId={panelId}
+        label="Cách xem buổi chơi"
+        className="view-switch"
+        options={[
+          {
+            value: "calendar",
+            label: "Lịch tháng",
+            icon: <CalendarDays size={18} aria-hidden="true" />,
+          },
+          {
+            value: "list",
+            label: "Danh sách",
+            icon: <List size={18} aria-hidden="true" />,
+          },
+        ]}
+      />
+      <div
+        role="tabpanel"
+        id={panelId}
+        aria-labelledby={`${panelId}-${mode}`}
+        tabIndex={0}
+        className={mode === "calendar" ? "calendar-layout" : ""}
+      >
         {mode === "calendar" && (
           <section className="calendar-card">
             <Calendar

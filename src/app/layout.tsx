@@ -21,6 +21,8 @@ const beVietnam = localFont({
 });
 import "./globals.css";
 import "./frame.css";
+import "./motion.css";
+import "./theme.css";
 export const metadata: Metadata = {
   title: { default: appName, template: `%s · ${appName}` },
   robots: { index: false, follow: false },
@@ -34,7 +36,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#087f66",
+  themeColor: "#0b766e",
 };
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (

@@ -278,7 +278,7 @@ try {
   );
   await page.screenshot({ path: ".tools/minimal-ux/debt-table-360.png" });
   await page.goto(origin + "/sessions");
-  await page.getByRole("button", { name: "Lịch tháng", exact: true }).waitFor();
+  await page.getByRole("tab", { name: "Lịch tháng", exact: true }).waitFor();
   await page.locator(`.calendar [data-date="${originalDate}"]`).click();
   check(
     await page.evaluate(
@@ -288,7 +288,7 @@ try {
   );
   await page.screenshot({ path: ".tools/minimal-ux/calendar-360.png" });
   await expect(page.locator(`a[href="/sessions/${sid}"]`)).toBeVisible();
-  await page.getByRole("button", { name: "Danh sách", exact: true }).click();
+  await page.getByRole("tab", { name: "Danh sách", exact: true }).click();
   await expect(page.locator(".calendar")).toHaveCount(0);
   await page.goto(origin + "/sessions/" + sid);
   await expect(page).toHaveTitle("Chi tiết buổi chơi · 3T");

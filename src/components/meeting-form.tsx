@@ -8,6 +8,7 @@ import DateTimeField from "./ui/date-time-field";
 import { Calendar } from "./ui/calendar";
 import { vietnamToday } from "@/lib/calendar";
 import { scheduleMeeting } from "@/app/sessions/actions";
+import { AnimatedDisclosure } from "./ui/animated-disclosure";
 
 export type MeetingEvent = {
   id: string;
@@ -244,8 +245,10 @@ export default function MeetingForm({
               </p>
             </fieldset>
           </div>
-          <details className="meeting-options">
-            <summary>Người tính tiền & ghi chú</summary>
+          <AnimatedDisclosure
+            className="meeting-options"
+            title="Người tính tiền & ghi chú"
+          >
             <label htmlFor={`${id}-collector`}>Người tính tiền</label>
             <select
               id={`${id}-collector`}
@@ -300,7 +303,7 @@ export default function MeetingForm({
               maxLength={2000}
               placeholder="Mang vợt, đến sớm 10 phút…"
             />
-          </details>
+          </AnimatedDisclosure>
         </ActionForm>
       </section>
       <aside className="meeting-sidebar panel" aria-label="Tổng quan lịch">

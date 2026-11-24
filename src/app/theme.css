@@ -1,0 +1,322 @@
+/* App surfaces share the palette in frame.css. Skill recipes stay in motion.css. */
+:root {
+  --tabs-dur: var(--duration-fast);
+  --tabs-ease: var(--ease-smooth-out);
+  --tabs-text-muted: var(--muted);
+  --tabs-text-active: var(--ink);
+  --tabs-bar-bg: var(--bg);
+  --tabs-pill-bg: var(--surface);
+  --acc-expand: var(--duration-fast);
+  --acc-collapse: var(--duration-fast);
+  --acc-chevron: var(--duration-fast);
+  --acc-ease: var(--ease-smooth-out);
+  --icon-swap-dur: var(--duration-fast);
+  --icon-swap-ease: var(--ease-in-out);
+}
+body {
+  -webkit-font-smoothing: antialiased;
+}
+::selection {
+  background: var(--soft);
+  color: var(--ink);
+}
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.app-sidebar {
+  background: var(--nav-bg);
+  color: var(--nav-ink);
+  border-right-color: #26344a;
+}
+.app-sidebar .app-brand > span {
+  color: var(--nav-accent);
+}
+.app-sidebar .app-brand small {
+  color: var(--nav-muted);
+  font-size: 9px;
+}
+.app-sidebar nav a {
+  position: relative;
+  color: var(--nav-muted);
+  border-radius: 8px;
+}
+.app-sidebar nav a:hover {
+  color: var(--nav-ink);
+  background: #ffffff0b;
+}
+.app-sidebar nav a[aria-current="page"] {
+  background: var(--nav-active);
+  color: var(--nav-accent);
+}
+.app-sidebar nav a[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  inset: 14px auto 14px 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--nav-accent);
+}
+.app-sidebar .more-navigation {
+  color: var(--nav-muted);
+}
+.app-content .panel,
+.calendar-card,
+.session-agenda-item,
+.simple-balances a,
+.table-scroll,
+.login-card {
+  border-color: var(--line);
+  border-radius: 12px;
+  box-shadow: var(--surface-shadow);
+}
+.app-content h1 {
+  line-height: 1.4;
+  letter-spacing: -0.6px;
+}
+.app-content p {
+  line-height: 1.7;
+}
+.app-content .panel h2 {
+  letter-spacing: -0.25px;
+}
+.simple-balances a {
+  border-top: 3px solid var(--line);
+}
+.simple-balances a:last-child {
+  border-top-color: var(--accent);
+}
+.simple-balances strong {
+  color: var(--ink);
+}
+.app-content
+  :is(input, select, textarea):where(
+    :not([type="checkbox"]):not([type="radio"]):not([type="hidden"])
+  ) {
+  background-color: var(--input-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+:is(input, select, textarea)::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+:is(input, select, textarea):focus-visible {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 13%, transparent);
+}
+:is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+.calendar button:focus-visible,
+.view-switch button:focus-visible,
+.date-picker summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+button[data-ui="button"]:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
+}
+button[data-ui="button"][data-variant="default"],
+.primary,
+button.primary,
+.meeting-mode button[aria-pressed="true"],
+.form-steps button[aria-current="step"] {
+  background: var(--button-bg);
+  color: var(--button-ink);
+  border-color: transparent;
+}
+.calendar-days button[aria-pressed="true"],
+.calendar-days button[aria-pressed="true"]:hover {
+  background: var(--button-bg);
+  color: var(--button-ink);
+}
+button[data-ui="button"],
+.primary,
+.secondary {
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+}
+.secondary {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+}
+button:disabled {
+  cursor: not-allowed;
+}
+button,
+.primary,
+.secondary,
+.app-sidebar nav a,
+.app-bottom-nav a,
+.session-agenda-item {
+  transition:
+    background-color var(--duration-quick) var(--ease-out),
+    border-color var(--duration-quick) var(--ease-out),
+    color var(--duration-quick) var(--ease-out),
+    box-shadow var(--duration-quick) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .secondary:hover:not(:disabled) {
+    background: var(--bg);
+    border-color: var(--muted);
+  }
+  .session-agenda-item:has(a:hover),
+  .simple-balances a:hover {
+    border-color: var(--accent);
+  }
+  button[data-ui="button"][data-variant="default"]:hover:not(:disabled),
+  .primary:hover {
+    background: color-mix(in srgb, var(--button-bg) 90%, var(--ink));
+  }
+}
+.meeting-heading {
+  padding-bottom: 18px;
+}
+.meeting-heading > svg {
+  color: var(--accent);
+}
+.meeting-summary {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.meeting-person-list {
+  background: var(--surface);
+  border-radius: 8px;
+}
+.meeting-person:has(:checked) {
+  background: var(--soft);
+}
+.meeting-avatar {
+  background: var(--bg);
+  color: var(--muted);
+}
+.meeting-options {
+  margin-top: 20px;
+}
+.t-tabs {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-block: 16px;
+  gap: 3px;
+  padding: 3px;
+}
+.t-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  height: 44px;
+  border-radius: 7px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.t-tabs-pill {
+  height: 44px;
+  border-radius: 7px;
+  box-shadow: 0 1px 4px #13203616;
+}
+.t-tabs:not([data-ready="true"]) .t-tab[aria-selected="true"] {
+  background: var(--surface);
+}
+.view-switch.t-tabs button {
+  background: transparent;
+  color: var(--muted);
+}
+.view-switch.t-tabs .t-tab[aria-selected="true"] {
+  color: var(--accent);
+}
+.t-acc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-height: 48px;
+  padding: 14px 0;
+  background: transparent;
+  color: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  text-align: left;
+}
+.t-acc-chevron {
+  flex: 0 0 16px;
+  color: var(--muted);
+}
+.disclosure-content {
+  padding: 4px 0 16px;
+}
+.app-sidebar .t-acc-head {
+  color: var(--nav-muted);
+  font-weight: 400;
+  font-size: 13px;
+}
+.app-sidebar .t-acc-chevron {
+  color: var(--nav-muted);
+}
+.app-sidebar .disclosure-content {
+  padding-bottom: 0;
+}
+.t-icon-swap {
+  width: 20px;
+  height: 20px;
+}
+.t-icon-swap .t-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.status-badge {
+  border-radius: 6px;
+  font-weight: 600;
+}
+.booking-lock {
+  border-left-color: #bb8430;
+}
+:root[data-theme="dark"] .status-badge-warning {
+  color: #f6cf88;
+  background: #42331e;
+}
+:root[data-theme="dark"] .status-badge-danger {
+  color: #ffc0b8;
+  background: #432a30;
+}
+:root[data-theme="dark"] .bank-setup-notice {
+  background: #382d1c;
+  color: #f6d59b;
+  border-color: #745b2b;
+}
+.app-bottom-nav {
+  box-shadow: 0 -1px 12px #14243b06;
+}
+.app-bottom-nav > a[aria-current="page"] {
+  border-radius: 8px;
+}
+@media (max-width: 620px) {
+  .meeting-field:has(> .meeting-time-row) > svg {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  button,
+  .primary,
+  .secondary,
+  .app-sidebar nav a,
+  .app-bottom-nav a,
+  .session-agenda-item {
+    transition: none !important;
+  }
+}

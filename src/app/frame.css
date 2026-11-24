@@ -1,12 +1,22 @@
 :root {
   font-family: var(--font-be-vietnam), system-ui, sans-serif;
   --surface: #fff;
-  --bg: #f3f6f5;
-  --ink: #173d34;
-  --muted: #61776e;
-  --line: #dfe9e4;
-  --soft: #e8f3ee;
-  --accent: #087f66;
+  --bg: #f5f7fb;
+  --ink: #1b293d;
+  --muted: #59687e;
+  --line: #dce3ed;
+  --soft: #edf5f4;
+  --accent: #0b766e;
+  --button-bg: #0b766e;
+  --button-ink: #fff;
+  --input-bg: #fff;
+  --focus: #3266bc;
+  --nav-bg: #121e30;
+  --nav-ink: #d5deec;
+  --nav-muted: #a4b3ca;
+  --nav-active: #203a49;
+  --nav-accent: #a5eddb;
+  --surface-shadow: 0 1px 3px #17243a08, 0 8px 24px #17243a03;
   color: var(--ink);
   background: var(--bg);
   color-scheme: light;
@@ -587,13 +597,20 @@ main > a:first-child {
   }
 }
 :root[data-theme="dark"] {
-  --surface: #172a25;
-  --bg: #101e1a;
-  --ink: #e6f1eb;
-  --muted: #a3b9ae;
-  --line: #30473d;
-  --soft: #203e32;
-  --accent: #7bdfba;
+  --surface: #162133;
+  --bg: #0d1522;
+  --ink: #edf2fa;
+  --muted: #a6b5cd;
+  --line: #304057;
+  --soft: #20363e;
+  --accent: #75dfc4;
+  --button-bg: #75dfc4;
+  --button-ink: #10251f;
+  --input-bg: #111c2d;
+  --focus: #91b7ff;
+  --nav-bg: #0a111d;
+  --nav-active: #1b3440;
+  --surface-shadow: 0 1px 3px #0002, 0 8px 24px #0001;
   color-scheme: dark;
 }
 body {

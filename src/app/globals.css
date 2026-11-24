@@ -177,8 +177,8 @@
   --color-foreground: var(--ink);
   --color-card: var(--surface);
   --color-card-foreground: var(--ink);
-  --color-primary: #087f66;
-  --color-primary-foreground: #fff;
+  --color-primary: var(--button-bg);
+  --color-primary-foreground: var(--button-ink);
   --color-secondary: var(--soft);
   --color-secondary-foreground: var(--ink);
   --color-muted-foreground: var(--muted);
@@ -187,7 +187,7 @@
   --color-destructive: #b42318;
   --color-destructive-foreground: #fff;
   --color-input: var(--line);
-  --color-ring: #d4992b;
+  --color-ring: var(--focus);
 }
 .connection-banner {
   position: sticky;
