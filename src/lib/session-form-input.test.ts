@@ -84,6 +84,25 @@ it("rejects an invalid meeting interval before writing to the database", async (
   );
   expect(mocks.rpc).not.toHaveBeenCalled();
 });
+it("explains an unavailable scheduling RPC without pretending the date or invitations are wrong", async () => {
+  const data = form();
+  data.set("ends", "2026-11-23T20:00");
+  data.set("note", "");
+  data.set("collectorMode", "unknown");
+  data.set("nominee", "");
+  mocks.rpc.mockResolvedValue({
+    data: null,
+    error: {
+      code: "PGRST202",
+      message: "Could not find the function public.schedule_meeting",
+    },
+  });
+  const result = await scheduleMeeting({ message: "" }, data);
+  expect(result.message).toContain("Chưa lưu lịch");
+  expect(result.message).toContain("chưa cập nhật");
+  expect(result.message).not.toContain("public.schedule_meeting");
+  expect(revalidatePath).not.toHaveBeenCalled();
+});
 
 it("normalizes localized input on the server before the authenticated financial gateway", async () => {
   await expect(createSession({ message: "" }, form())).rejects.toThrow(

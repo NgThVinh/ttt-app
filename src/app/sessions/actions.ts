@@ -53,6 +53,11 @@ export async function scheduleMeeting(
     },
   });
   const result = z.object({ id: z.uuid() }).safeParse(data);
+  if (error?.code === "PGRST202" || error?.code === "42883")
+    return {
+      message:
+        "Chưa lưu lịch: hệ thống chưa cập nhật chức năng đặt lịch. Hãy báo quản trị ứng dụng; thông tin bạn nhập vẫn được giữ.",
+    };
   if (error || !result.success)
     return {
       message: error?.message?.includes("ngân hàng")

@@ -6,6 +6,28 @@ let app,
 try {
   app = await localBrowser(3227, ".tools/meeting-ui");
   const { db, origin } = app;
+  step = "empty-calendar";
+  const empty = await app.login(`empty-calendar-${randomUUID()}@3t.test`);
+  const emptyGroup = randomUUID();
+  await db.query(
+    "insert into public.groups(id,name,sport,created_by) values($1,'Lịch trống','Cầu lông',$2)",
+    [emptyGroup, empty.user.id],
+  );
+  await db.query(
+    "insert into public.group_members(group_id,user_id,display_name) values($1,$2,'Thành viên mới')",
+    [emptyGroup, empty.user.id],
+  );
+  await empty.page.goto(origin + "/sessions");
+  await expect(
+    empty.page.getByRole("tab", { name: "Lịch tháng", exact: true }),
+  ).toBeVisible();
+  await expect(empty.page.locator(".calendar")).toBeVisible();
+  await expect(
+    empty.page.getByText(
+      "Chưa có buổi chơi. Tạo buổi đầu tiên để hiện trên lịch.",
+      { exact: true },
+    ),
+  ).toBeVisible();
   const actors = await Promise.all(
     ["admin", "creator", "collector"].map((name) =>
       app.login(`meeting-${name}@3t.test`),
@@ -89,6 +111,11 @@ try {
     .click();
   await page.waitForURL(/\/sessions\/[a-f0-9-]{36}$/);
   const sid = new URL(page.url()).pathname.split("/").at(-1);
+  step = "created-meeting-visible-on-calendar";
+  await page.goto(origin + "/sessions");
+  await expect(page.locator(".calendar")).toBeVisible();
+  await expect(page.locator(`a[href="/sessions/${sid}"]`)).toBeVisible();
+  await page.locator(`a[href="/sessions/${sid}"]`).click();
   check(
     (
       await db.query(

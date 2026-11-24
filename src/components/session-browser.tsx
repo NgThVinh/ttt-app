@@ -91,7 +91,13 @@ export default function SessionBrowser({
               </button>
             )}
           </div>
-          {!rows.length && <p>Chưa có buổi chơi trong ngày này.</p>}
+          {!rows.length && (
+            <p>
+              {!sessions.length
+                ? "Chưa có buổi chơi. Tạo buổi đầu tiên để hiện trên lịch."
+                : "Chưa có buổi chơi trong ngày này."}
+            </p>
+          )}
           {rows.map((session) => (
             <article className="session-agenda-item" key={session.id}>
               <Link href={`/sessions/${session.id}`}>

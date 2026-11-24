@@ -14,7 +14,7 @@ export default async function NewSession() {
     { data: members },
     { data: recent },
     { data: profile },
-    { data: events },
+    eventsResult,
   ] = await Promise.all([
     db.from("groups").select("id,name"),
     db
@@ -67,22 +67,31 @@ export default async function NewSession() {
           Bạn cần tham gia nhóm trước. <Link href="/groups">Xem nhóm</Link>
         </p>
       ) : (
-        <SessionForm
-          userId={user.id}
-          groups={groups}
-          members={members || []}
-          toolsByGroup={toolsByGroup}
-          initialTime={new Date().toISOString()}
-          suggestions={suggestions}
-          events={events || []}
-          bankReady={
-            !!(
-              profile?.bank_bin &&
-              profile?.bank_account_no &&
-              profile?.bank_account_name
-            )
-          }
-        />
+        <>
+          {(eventsResult.error?.code === "42703" ||
+            eventsResult.error?.code === "PGRST204") && (
+            <p role="alert">
+              Chức năng đặt lịch đang chờ cập nhật hệ thống. Lịch mới chưa thể
+              lưu ở cấu hình hiện tại; vui lòng báo quản trị ứng dụng.
+            </p>
+          )}
+          <SessionForm
+            userId={user.id}
+            groups={groups}
+            members={members || []}
+            toolsByGroup={toolsByGroup}
+            initialTime={new Date().toISOString()}
+            suggestions={suggestions}
+            events={eventsResult.data || []}
+            bankReady={
+              !!(
+                profile?.bank_bin &&
+                profile?.bank_account_no &&
+                profile?.bank_account_name
+              )
+            }
+          />
+        </>
       )}
     </main>
   );

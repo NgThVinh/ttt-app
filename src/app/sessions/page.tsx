@@ -25,11 +25,8 @@ export default async function Sessions() {
         Tạo buổi chơi
       </Link>
       {error && <p role="alert">Chưa tải được buổi chơi.</p>}
-      {!data?.length && !error && (
-        <p>Chưa có buổi chơi. Cùng nhóm tạo buổi đầu tiên nhé.</p>
-      )}
-      {!!data?.length && (
-        <SessionBrowser sessions={data} today={vietnamToday()} />
+      {!error && (
+        <SessionBrowser sessions={data || []} today={vietnamToday()} />
       )}
     </main>
   );
