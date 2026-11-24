@@ -111,23 +111,10 @@ try {
   async function capture(actor, id, label) {
     await actor.page.goto(origin + "/sessions/" + id);
     await actor.page.getByRole("heading", { level: 1 }).waitFor();
-    if (!audit && label.includes("planned-collector"))
-      await actor.page
-        .getByLabel("Tiền sân (đ)", { exact: true })
-        .fill("360000");
-    if (!audit && label.includes("planned-collector"))
-      await expect(
-        actor.page.getByRole("button", {
-          name: "Chốt toàn bộ chi phí",
-          exact: true,
-        }),
-      ).toBeInViewport({ ratio: 1 });
     if (!audit) {
-      const first = label.includes("planned-collector")
-        ? /expense-summary/
-        : label.startsWith("planned")
-          ? /session-participants/
-          : /payment-list/;
+      const first = label.startsWith("planned")
+        ? /session-participants/
+        : /payment-list/;
       await expect(
         actor.page.locator(".detail-main > section").first(),
       ).toHaveClass(first);
@@ -183,6 +170,39 @@ try {
     await capture(owner, sid, "receiver-" + width);
   }
   if (!audit) {
+    step = "cost-dialog";
+    await owner.page.setViewportSize({ width: 390, height: 844 });
+    await owner.page.goto(origin + "/sessions/" + planned);
+    const costsButton = owner.page.getByRole("button", {
+      name: "Nhập phí và chốt buổi",
+      exact: true,
+    });
+    await expect(costsButton).toBeInViewport({ ratio: 1 });
+    await expect(
+      owner.page.getByLabel("Tiền sân (đ)", { exact: true }),
+    ).toBeHidden();
+    await costsButton.click();
+    await expect(owner.page.locator("#main-content")).toHaveCSS(
+      "overflow-y",
+      "hidden",
+    );
+    await expect(owner.page.locator(".session-task-content.is-open")).toHaveCSS(
+      "opacity",
+      "1",
+    );
+    await owner.page.getByLabel("Tiền sân (đ)", { exact: true }).fill("360000");
+    await expect(owner.page.locator(".cost-total")).toContainText("360.000");
+    await owner.page.keyboard.press("Escape");
+    await expect(costsButton).toBeFocused();
+    await costsButton.click();
+    await expect(
+      owner.page.getByLabel("Tiền sân (đ)", { exact: true }),
+    ).toHaveValue("360000");
+    await owner.page.screenshot({
+      path: ".tools/session-focus/after-cost-task-390.png",
+    });
+    await owner.page.getByRole("button", { name: "Đóng", exact: true }).click();
+    await expect(owner.page.getByRole("dialog")).toBeHidden();
     step = "first-viewport";
     await member.page.setViewportSize({ width: 390, height: 844 });
     await member.page.goto(origin + "/sessions/" + planned);
@@ -200,15 +220,53 @@ try {
       "ROLE_FORM_NOT_DEFAULT",
     );
     await member.page.goto(origin + "/sessions/" + sid);
+    for (const selector of [
+      ".payment-list",
+      ".session-participants",
+      ".expense-summary",
+    ]) {
+      step = "payer-first-viewport:" + selector;
+      await expect(member.page.locator(selector)).toBeInViewport({ ratio: 1 });
+    }
+    await expect(member.page.locator(".roster-names")).toContainText("Vy");
+    const payButton = member.page.getByRole("button", {
+      name: "Thanh toán",
+      exact: true,
+    });
+    await expect(payButton).toBeInViewport({ ratio: 1 });
+    await payButton.click();
+    await expect(member.page.getByRole("dialog")).toBeVisible();
+    await expect(
+      member.page.locator(".session-task-content.is-open"),
+    ).toHaveCSS("opacity", "1");
+    const taskBox = await member.page.getByRole("dialog").boundingBox();
+    check(
+      Math.abs(taskBox.x + taskBox.width / 2 - 195) < 2 &&
+        Math.abs(taskBox.y + taskBox.height / 2 - 422) < 2,
+      "TASK_CENTERED",
+    );
     await expect(
       member.page.getByRole("button", { name: "Tôi đã chuyển", exact: true }),
-    ).toBeInViewport({ ratio: 1 });
+    ).toBeVisible();
+    await member.page.screenshot({
+      path: ".tools/session-focus/after-payment-task-390.png",
+    });
+    await member.page.keyboard.press("Escape");
+    await expect(member.page.getByRole("dialog")).toBeHidden();
+    await expect(payButton).toBeFocused();
+    await payButton.click();
     check(
       (await member.page.locator(".payment-list > .payment-row").count()) === 1,
       "ONLY_MY_PAYMENT_EXPANDED",
     );
     await expect(member.page.locator(".personal-payment-amount")).toContainText(
       "30.000",
+    );
+    check(
+      await member.page
+        .locator(".personal-payment-amount")
+        .evaluate((el) => parseFloat(getComputedStyle(el).fontSize) >= 24),
+      "PERSONAL_AMOUNT_VISUAL_PRIORITY",
     );
     const overview = await member.page.locator(".session-hero").boundingBox();
     check(overview.y + overview.height < 320, "COMPACT_HEADER");
@@ -246,6 +304,7 @@ try {
         "DOCUMENT_NOT_SCROLLING",
       );
     }
+    await member.page.setViewportSize({ width: 390, height: 844 });
     await member.page.emulateMedia({ colorScheme: "dark" });
     await capture(member, planned, "planned-dark");
     await member.page.emulateMedia({ reducedMotion: "reduce" });
@@ -253,9 +312,29 @@ try {
       .getByRole("button", { name: "Lịch sử", exact: true })
       .click();
     await member.page.getByRole("dialog").waitFor();
+    await expect(
+      member.page.locator(".history-dialog-content.is-open"),
+    ).toHaveCSS("opacity", "1");
+    const historyBox = await member.page.getByRole("dialog").boundingBox();
+    check(
+      Math.abs(historyBox.x + historyBox.width / 2 - 195) < 2 &&
+        Math.abs(historyBox.y + historyBox.height / 2 - 422) < 2,
+      "HISTORY_CENTERED",
+    );
     await member.page.keyboard.press("Escape");
     await expect(member.page.getByRole("dialog")).toBeHidden();
     step = "settled";
+    await owner.page.emulateMedia({ reducedMotion: "reduce" });
+    await owner.page.goto(origin + "/sessions/" + planned);
+    await owner.page
+      .getByRole("button", { name: "Nhập phí và chốt buổi", exact: true })
+      .click();
+    await expect(owner.page.locator(".session-task-content.is-open")).toHaveCSS(
+      "transition-duration",
+      "0s",
+    );
+    await owner.page.keyboard.press("Escape");
+    await expect(owner.page.getByRole("dialog")).toBeHidden();
     await db.query(
       "update public.settlements set status='confirmed',confirmed_at=now() where session_id=$1 and status<>'confirmed'",
       [sid],

@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { parseEnv } from "node:util";
 import { resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
@@ -124,8 +124,13 @@ export async function setupLocal() {
     );
     await db.query("commit");
     transaction = false;
+    // Serialize setup runs; edited sessions still count as initialized local data.
+    // The session lock is released when this dedicated connection closes below.
+    await db.query("select pg_advisory_lock(hashtextextended($1,0))", [
+      "3t:local:seed:" + groupId,
+    ]);
     const existingMeeting = await db.query(
-      "select id from public.sessions where group_id=$1 and title='Buổi chơi thử · Supabase local' limit 1",
+      "select id from public.sessions where group_id=$1 limit 1",
       [groupId],
     );
     if (!existingMeeting.rowCount) {
@@ -151,7 +156,7 @@ export async function setupLocal() {
         )
       ).rows.map((r) => r.id);
       const meeting = await client.rpc("schedule_meeting", {
-        request_key: "00000000-0000-4000-8000-000000003002",
+        request_key: randomUUID(),
         body: {
           g: groupId,
           title_text: "Buổi chơi thử · Supabase local",

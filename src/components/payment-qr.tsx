@@ -1,6 +1,7 @@
 "use client";
 import Image from "next/image";
 import { useState } from "react";
+import { Copy } from "lucide-react";
 import { vietQrUrl } from "@/lib/vietqr";
 export default function PaymentQr({
   bin,
@@ -61,6 +62,7 @@ export default function PaymentQr({
           aria-label="Sao chép tài khoản"
           onClick={() => copy(account)}
         >
+          {compact && <Copy size={13} aria-hidden="true" />}
           {compact ? "Tài khoản" : "Sao chép tài khoản"}
         </button>{" "}
         <button
@@ -69,6 +71,7 @@ export default function PaymentQr({
           aria-label="Sao chép số tiền"
           onClick={() => copy(amount)}
         >
+          {compact && <Copy size={13} aria-hidden="true" />}
           {compact ? "Số tiền" : "Sao chép số tiền"}
         </button>{" "}
         <button
@@ -77,6 +80,7 @@ export default function PaymentQr({
           aria-label="Sao chép nội dung"
           onClick={() => copy(`3T-${reference}`)}
         >
+          {compact && <Copy size={13} aria-hidden="true" />}
           {compact ? "Nội dung" : "Sao chép nội dung"}
         </button>
         {message && <p role="status">{message}</p>}

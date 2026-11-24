@@ -79,6 +79,7 @@ try {
   const panel = sender.page
     .locator("article.session-row")
     .filter({ hasText: "3T-" + payment.ref_code });
+  await panel.getByRole("button", { name: "Thanh toán", exact: true }).click();
   await panel.getByText("QR chưa khả dụng.", { exact: false }).waitFor();
   step = "upload";
   check(

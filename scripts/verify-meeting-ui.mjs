@@ -257,6 +257,9 @@ try {
     }),
   ).toBeVisible();
   step = "finalize";
+  await collector
+    .getByRole("button", { name: "Nhập phí và chốt buổi", exact: true })
+    .click();
   await collector.getByLabel("Tiền sân (đ)", { exact: true }).fill("100000");
   await collector
     .getByRole("button", { name: "Tôi đã xem bảng chia", exact: true })

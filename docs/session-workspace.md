@@ -2,10 +2,10 @@
 
 ## Giao diện
 
-- Bố cục hiện tại theo vai trò/trạng thái, đã review lại ở [session-detail-review.md](session-detail-review.md). Desktop hai cột; điện thoại ưu tiên người tham gia trước buổi, form phí cho người tính tiền và khoản thanh toán cá nhân sau buổi.
+- Bố cục hiện tại đã review lại ở [session-detail-review.md](session-detail-review.md). Tổng quan trước buổi hiển thị người tham gia và chi phí cho mọi vai trò; form chốt mở bằng nút Nhập phí và chốt buổi trong khu vực chi phí. Sau buổi, khoản thanh toán cá nhân hiện trước trên điện thoại và ở cột bên trên desktop; QR/ngân hàng/báo chuyển mở bằng nút Thanh toán.
 - Đầu trang ưu tiên tên buổi, ngày/giờ, địa điểm, ghi chú và thời gian còn lại. Giờ kết thúc khác ngày có nhãn ngày kết thúc. Bỏ ba ô thống kê Tham gia / Phần của tôi / Người tính tiền ở đầu trang.
 - Nút biểu tượng bút (nhãn truy cập/tooltip: Sửa thông tin buổi) mở các trường ngay trong khu vực thông tin. Lưu thành công đóng phần sửa; lỗi giữ nguyên dữ liệu nhập. Hủy sửa không gửi thay đổi. Vẫn kiểm tra revision, khóa lịch, điều kiện hủy/mở lại và lý do ở server/database.
-- **Người tham gia** có lựa chọn của bạn, danh sách tên theo nhóm đã nhận lời/đang chờ/không đi; mỗi nhóm hiện tám tên đầu và nút mở rộng khi đông hơn. **Mời thêm** (nhãn truy cập: Mời thêm người tham gia) mở dropdown có thành viên còn lại và link mời bạn mới; Escape/click ngoài đóng dropdown.
+- **Người tham gia** có lựa chọn của bạn và đầy đủ tên theo nhóm đã nhận lời/đang chờ/không đi, không cắt sau tám tên. **Mời thêm** (nhãn truy cập: Mời thêm người tham gia) mở dropdown có thành viên còn lại và link mời bạn mới; Escape/click ngoài đóng dropdown.
 - Chỉ một khu vực **Chi phí buổi chơi** chứa người tính tiền, phụ phí, bảng chia và chi tiết hóa đơn. Bỏ khối Gửi đề nghị thay đổi tách rời. Người tính tiền có thể thêm/sửa các khoản sau khi chốt trong chính khu vực này, theo quyền và hạn khóa hiện có.
 - **Gán cho tôi** nhận vai trò khi chưa có người tính tiền; nếu đã có người khác thì gửi đề cử chuyển vai trò. **Chọn người khác** gửi đề cử, không tự gán. Sự đồng ý cần thiết hiển thị ngay trong khu vực chi phí. Người tính tiền cần hồ sơ ngân hàng.
 - Trước khi chốt có tiền sân, nhiều phụ phí/giảm giá, mẫu khoản phí, người ứng, người chịu, tổng hoặc mỗi người, chia đều/hệ số/số tiền cụ thể/phần trăm, danh mục và ghi chú. Bảng xem trước nhóm các tên có cùng phần tiền, dùng phép tính bigint/hữu tỉ hiện có; đổi dữ liệu làm bản xác nhận cũ mất hiệu lực.

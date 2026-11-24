@@ -1,15 +1,13 @@
 "use client";
-import { useState } from "react";
 import type { SessionDetail } from "@/lib/session-data";
+import { LockKeyhole } from "lucide-react";
 import RsvpButtons from "./rsvp-buttons";
 type Person = SessionDetail["attendees"][number];
 function Names({ people }: { people: Person[] }) {
-  const [expanded, setExpanded] = useState(false),
-    visible = expanded ? people : people.slice(0, 8);
   return (
     <>
       <span className="roster-names">
-        {visible.map((p, i) => (
+        {people.map((p, i) => (
           <span key={p.member_id}>
             {i > 0 ? ", " : ""}
             {p.name}
@@ -17,16 +15,6 @@ function Names({ people }: { people: Person[] }) {
           </span>
         ))}
       </span>
-      {people.length > 8 && (
-        <button
-          className="roster-more"
-          type="button"
-          aria-expanded={expanded}
-          onClick={() => setExpanded(!expanded)}
-        >
-          {expanded ? "Thu gọn" : `+ ${people.length - 8} người`}
-        </button>
-      )}
     </>
   );
 }
@@ -78,15 +66,26 @@ export default function SessionParticipants({
           />
         </div>
       ) : (
-        <p className="attendance-final">
-          {s.status === "cancelled"
-            ? "Buổi đã hủy; không phát sinh cam kết mới"
-            : choice === "going"
-              ? "Bạn đã tham gia"
-              : choice === "not_going"
-                ? "Bạn không tham gia"
-                : "Bạn không có tên trong buổi này"}
-        </p>
+        <div className="attendance-final">
+          <span>
+            {s.status === "cancelled"
+              ? "Buổi đã hủy; không phát sinh cam kết mới"
+              : choice === "going"
+                ? "Bạn đã tham gia"
+                : choice === "not_going"
+                  ? "Bạn không tham gia"
+                  : "Bạn không có tên trong buổi này"}
+          </span>
+          {s.booking_locked && s.status !== "cancelled" && (
+            <span
+              className="booking-lock"
+              title="Đã chốt chi phí · Lịch và danh sách tham gia đã khóa."
+            >
+              <LockKeyhole size={12} aria-hidden="true" />
+              Đã khóa danh sách
+            </span>
+          )}
+        </div>
       )}
       <div className="attendance-groups">
         <div className="roster-row going">
@@ -116,11 +115,6 @@ export default function SessionParticipants({
           </div>
         )}
       </div>
-      {s.booking_locked && s.status !== "cancelled" && (
-        <p className="booking-lock">
-          Đã chốt chi phí · Lịch và danh sách tham gia đã khóa.
-        </p>
-      )}
     </section>
   );
 }

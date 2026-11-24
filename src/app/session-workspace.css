@@ -10,28 +10,70 @@
   margin-inline: auto;
   padding: 16px 24px 28px;
 }
-.app-content main.session-detail > a:first-child {
-  margin-bottom: 0;
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
-  font-size: 12px;
-  color: var(--muted);
-}
 .session-hero {
   position: relative;
+  display: block;
+  height: auto;
+  color: var(--ink);
   background: transparent;
   border: 0;
   border-bottom: 1px solid var(--line);
   border-radius: 0;
   padding: 0 0 16px;
-  margin: 12px 0 16px;
+  margin: 0 0 16px;
 }
-.hero-top {
+.session-page-tools {
   display: flex;
-  align-items: start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-bottom: 14px;
+}
+.session-page-tools > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.session-overview {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+}
+.session-date-tile {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  overflow: hidden;
+  text-align: center;
+  background: var(--surface);
+  font-variant-numeric: tabular-nums;
+}
+.session-date-tile > span {
+  display: block;
+  background: var(--soft);
+  color: var(--accent);
+  font-size: 10px;
+  padding: 4px 0;
+  font-weight: 600;
+}
+.session-date-tile > strong {
+  display: block;
+  font-size: 26px;
+  line-height: 1.3;
+  padding-top: 3px;
+}
+.session-date-tile > small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  padding-bottom: 5px;
+}
+.hero-state .status[data-state="cancelled"] {
+  background: var(--bg);
+  color: var(--muted);
 }
 .hero-titles {
   min-width: 0;
@@ -62,9 +104,7 @@
   overflow-wrap: anywhere;
 }
 .hero-tools.actions {
-  position: absolute;
-  right: 0;
-  top: -48px;
+  position: relative;
   display: flex;
   flex-wrap: nowrap;
   gap: 2px;
@@ -172,17 +212,13 @@
   gap: 16px;
   align-items: start;
 }
-.session-detail-grid[data-collector="true"][data-session-state="planned"]
-  .detail-main {
-  grid-template-areas: "costs participants";
-}
 .session-detail-grid:is(
     [data-session-state="played"],
     [data-session-state="settled"]
   )
   .detail-main {
-  grid-template-areas: "payments costs" "payments participants";
-  grid-template-rows: auto 1fr;
+  grid-template-areas: "participants payments" "costs payments" "directory directory";
+  grid-template-rows: auto auto;
 }
 .session-detail .session-participants {
   grid-area: participants;
@@ -247,6 +283,11 @@
   border-color: var(--accent);
 }
 .attendance-final {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
   font-size: 12px;
   color: var(--muted);
   margin: 0 0 10px;
@@ -289,7 +330,7 @@
   background: var(--soft);
 }
 .roster-names {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.65;
   color: var(--ink);
 }
@@ -318,7 +359,10 @@
   background: transparent;
   border: 0;
   padding: 0;
-  margin: 12px 0 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--muted);
   font-size: 11px;
   line-height: 1.5;
@@ -549,8 +593,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 12px 24px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--line);
+  padding: 4px 0 6px;
 }
 .personal-payment-summary > div {
   display: flex;
@@ -581,7 +624,7 @@
   margin: 8px 0 0;
 }
 .session-detail .payment-list > .payment-row {
-  padding: 12px 0 0;
+  padding: 4px 0 0;
   margin: 0;
   border: 0;
 }
@@ -639,6 +682,20 @@
   margin: 7px 0;
   line-height: 1.6;
 }
+.session-payment-directory {
+  grid-area: directory;
+  font-size: 12px;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+}
+.session-payment-directory > summary {
+  min-height: 36px;
+  padding-block: 8px;
+  cursor: pointer;
+}
+.session-payment-directory .payment-row {
+  color: var(--ink);
+}
 .payment-qr.compact {
   display: flex;
   align-items: start;
@@ -662,16 +719,25 @@
   margin: 0 0 8px;
 }
 .payment-qr.compact .secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
   padding: 7px 8px;
   min-height: 34px;
   margin: 0 3px 6px 0;
+}
+.session-detail .payment-list > .section-heading {
+  margin-bottom: 4px;
 }
 .session-detail > details {
   margin-top: 12px;
   font-size: 12px;
 }
 .history-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
   border: 0;
   padding: 0;
   background: transparent;
@@ -736,16 +802,12 @@
     grid-template-areas: "participants" "costs";
     gap: 12px;
   }
-  .session-detail-grid[data-collector="true"][data-session-state="planned"]
-    .detail-main {
-    grid-template-areas: "costs" "participants";
-  }
   .session-detail-grid:is(
       [data-session-state="played"],
       [data-session-state="settled"]
     )
     .detail-main {
-    grid-template-areas: "payments" "costs" "participants";
+    grid-template-areas: "payments" "participants" "costs" "directory";
   }
 }
 @media (max-width: 600px) {
@@ -753,11 +815,8 @@
     padding: 10px 16px 24px;
   }
   .session-hero {
-    margin: 8px 0 12px;
+    margin: 0 0 12px;
     padding-bottom: 12px;
-  }
-  .hero-tools.actions {
-    top: -43px;
   }
   .hero-tools .secondary {
     min-height: 40px;
@@ -765,7 +824,7 @@
   }
   .app-content .session-hero h1 {
     font-size: 22px;
-    margin: 6px 0 9px;
+    margin: 5px 0 8px;
   }
   .hero-information {
     flex-direction: column;
@@ -775,8 +834,25 @@
   .hero-information strong {
     font-size: 14px;
   }
-  .hero-place strong {
-    font-weight: 400;
+  .session-overview {
+    gap: 12px;
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+  .session-date-tile > strong {
+    font-size: 24px;
+  }
+  .session-date-tile > span {
+    font-size: 9px;
+  }
+  .hero-information strong,
+  .hero-information span {
+    font-size: 13px;
+  }
+  .session-page-tools {
+    margin-bottom: 10px;
+  }
+  .session-detail .session-hero h1 {
+    font-size: 21px;
   }
   .session-detail .detail-main > .panel {
     padding: 13px 14px;
@@ -875,4 +951,168 @@
   background: var(--soft);
   color: var(--accent);
   border-color: var(--accent);
+}
+
+.session-task-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(620px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--ink);
+  overflow: visible;
+}
+#main-content:has(.session-task-dialog[open]) {
+  overflow: hidden;
+}
+.session-task-dialog::backdrop {
+  background: #0b152875;
+}
+.session-task-content {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 24px);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 24px 80px #0b15282e;
+}
+.session-task-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.session-task-heading h2 {
+  font-size: 17px;
+  margin: 0;
+}
+.session-task-heading > button {
+  display: grid;
+  place-items: center;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  margin: 0;
+}
+.session-task-body {
+  padding: 18px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font-size: 14px;
+}
+.session-task-trigger {
+  min-height: 40px;
+  padding: 8px 12px;
+  font-size: 13px;
+  margin: 6px 0 0;
+}
+.payment-task-amount {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 0 0 12px;
+}
+.session-task-dialog .session-task-body .payment-task-amount {
+  font-size: 28px;
+  line-height: 1.25;
+  font-weight: 600;
+}
+.session-task-dialog .session-task-heading h2 {
+  font-size: 17px;
+}
+.payment-task-reference {
+  font-size: 13px;
+}
+.payment-list .payment-row > div:has(> .session-task-trigger) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  align-items: center;
+}
+.payment-row > div > .session-task-trigger {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  margin: 0;
+}
+.payment-row > div > .personal-payment-amount {
+  display: block;
+  grid-column: 1;
+}
+.session-detail .payment-row .personal-payment-amount {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.payment-row > div:has(> .personal-payment-amount) > .session-task-trigger {
+  grid-row: 1 / span 3;
+}
+.payment-row > div:has(> .session-task-trigger) > .payment-row-heading,
+.payment-row > div:has(> .session-task-trigger) > .inline-meta {
+  grid-column: 1;
+}
+.payment-list .session-task-body .inline-action .form-submit {
+  min-height: 44px;
+}
+.session-cost-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 12px;
+  table-layout: fixed;
+}
+.session-cost-table th,
+.session-cost-table td {
+  padding: 9px 4px;
+  text-align: right;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.session-cost-table th:first-child {
+  text-align: left;
+  width: 44%;
+  padding-left: 0;
+}
+.session-cost-table th:last-child,
+.session-cost-table td:last-child {
+  padding-right: 0;
+}
+.session-cost-table thead th {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+.session-cost-table tbody th {
+  font-weight: 400;
+}
+.session-cost-table .money {
+  white-space: normal;
+}
+.session-cost-table tfoot th,
+.session-cost-table tfoot td {
+  border-top: 1px solid var(--line);
+  font-weight: 600;
+  padding-top: 11px;
+}
+.cost-breakdown {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.cost-breakdown > summary {
+  min-height: 36px;
+  padding-block: 8px;
+  cursor: pointer;
+}
+.cost-breakdown .session-row {
+  color: var(--ink);
 }

@@ -121,6 +121,9 @@ try {
   await bill.page
     .getByRole("button", { name: "Đồng ý nhận / chuyển vai trò", exact: true })
     .click();
+  await bill.page
+    .getByRole("button", { name: "Nhập phí và chốt buổi", exact: true })
+    .click();
   await bill.page.getByLabel("Tiền sân (đ)", { exact: true }).waitFor();
   check(
     (
@@ -203,7 +206,7 @@ try {
     .click();
   check((await saved).ok(), "FINISH_POST");
   await costs
-    .getByText("Đã chốt chi phí · Lịch và danh sách tham gia đã khóa.", {
+    .getByText("Đã khóa danh sách", {
       exact: true,
     })
     .waitFor();

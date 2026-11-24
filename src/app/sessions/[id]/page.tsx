@@ -6,7 +6,6 @@ import SessionInvite from "@/components/session-invite";
 import AdminSessionPanel from "@/components/admin-session-panel";
 import ExpenseEditButton from "@/components/expense-edit-button";
 import { expenseToolsSchema, expenseEditorSchema } from "@/lib/expense-tools";
-import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
@@ -19,6 +18,7 @@ import { inviteToSession } from "../actions";
 import { createInvite } from "@/app/groups/actions";
 import SessionParticipants from "@/components/session-participants";
 import SessionPayments from "@/components/session-payments";
+import SessionTask from "@/components/session-task";
 export default async function Session({
   params,
 }: {
@@ -152,13 +152,24 @@ export default async function Session({
       )}
     </SessionParticipants>
   );
+  const expenseRows = s.expenses.filter(
+    (e) =>
+      s.status !== "planned" ||
+      (e.kind ? e.kind !== "court" : e.title !== "Tiền sân"),
+  );
+  const myCost = expenseRows.reduce(
+    (sum, e) =>
+      sum +
+      BigInt(
+        e.allocations.find((a) => a.member_id === s.my_member_id)?.amount ||
+          "0",
+      ),
+    0n,
+  );
   const costs = (
     <section className="panel expense-summary">
       <div className="section-heading">
         <h2>Chi phí buổi chơi</h2>
-        {s.status !== "planned" && (
-          <strong className="money">{formatMoney(total)}</strong>
-        )}
       </div>
       <SessionCollector
         key={s.revision}
@@ -168,14 +179,117 @@ export default async function Session({
       />
       {s.status === "planned" &&
         (collector ? (
-          <FinishSessionForm
-            key={s.revision}
-            session={s}
-            tools={tools.success ? tools.data : undefined}
-          />
+          <SessionTask
+            label="Nhập phí và chốt buổi"
+            title="Chốt chi phí buổi chơi"
+            secondary
+          >
+            <FinishSessionForm
+              key={s.revision}
+              session={s}
+              tools={tools.success ? tools.data : undefined}
+            />
+          </SessionTask>
         ) : (
           <p className="cost-empty">Chưa có hóa đơn.</p>
         ))}
+      {!!expenseRows.length && (
+        <>
+          <table className="session-cost-table">
+            <caption className="sr-only">
+              Các khoản chi và phần chi phí của bạn
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Khoản phí</th>
+                <th scope="col">Tổng</th>
+                <th scope="col">Phần bạn</th>
+              </tr>
+            </thead>
+            <tbody>
+              {expenseRows.map((e) => (
+                <tr key={e.id}>
+                  <th scope="row">{e.title}</th>
+                  <td className="money">{formatMoney(e.amount)}</td>
+                  <td className="money">
+                    {formatMoney(
+                      e.allocations.find((a) => a.member_id === s.my_member_id)
+                        ?.amount || "0",
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            {expenseRows.length > 1 && (
+              <tfoot>
+                <tr>
+                  <th scope="row">Tổng chi phí</th>
+                  <td className="money">{formatMoney(total)}</td>
+                  <td className="money">{formatMoney(myCost)}</td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+          <details className="cost-breakdown">
+            <summary>Chi tiết chia & hóa đơn</summary>
+            {expenseRows.map((e) => (
+              <div className="session-row" key={e.id}>
+                <div>
+                  <div className="section-heading">
+                    <strong>{e.title}</strong>
+                    <strong className="money">{formatMoney(e.amount)}</strong>
+                  </div>
+                  <p className="inline-meta">
+                    <span>{e.paid_by_name || "Người tính tiền"} ứng</span>
+                    <span>
+                      Phần của tôi{" "}
+                      <b className="money">
+                        {formatMoney(
+                          e.allocations.find(
+                            (a) => a.member_id === s.my_member_id,
+                          )?.amount || "0",
+                        )}
+                      </b>
+                    </span>
+                  </p>
+                  <details>
+                    <summary>Chi tiết chia & hóa đơn</summary>
+                    <p>
+                      {e.category_name || "Khoản chi"}
+                      {e.created_by_name ? ` · ${e.created_by_name} thêm` : ""}
+                    </p>
+                    {e.note && (
+                      <p style={{ whiteSpace: "pre-wrap" }}>{e.note}</p>
+                    )}
+                    {e.allocations.map((a) => (
+                      <small className="allocation-row" key={a.member_id}>
+                        <span>
+                          {s.attendees.find((m) => m.member_id === a.member_id)
+                            ?.name || "Thành viên"}
+                        </span>
+                        <span className="money">{formatMoney(a.amount)}</span>
+                      </small>
+                    ))}
+                    <ReceiptPanel
+                      bucket="3t-expense-receipts"
+                      target={e.id}
+                      canUpload={collector && !locked}
+                    />
+                  </details>
+                  {!locked &&
+                    editors.success &&
+                    editors.data.find((x) => x.id === e.id)?.can_edit && (
+                      <ExpenseEditButton
+                        key={`${e.id}-${s.revision}`}
+                        id={e.id}
+                      />
+                    )}
+                </div>
+              </div>
+            ))}
+          </details>
+        </>
+      )}
       {s.status !== "planned" &&
         s.status !== "cancelled" &&
         collector &&
@@ -188,66 +302,10 @@ export default async function Session({
             />
           </details>
         )}
-      {s.expenses
-        .filter(
-          (e) =>
-            s.status !== "planned" ||
-            (e.kind ? e.kind !== "court" : e.title !== "Tiền sân"),
-        )
-        .map((e) => (
-          <div className="session-row" key={e.id}>
-            <div>
-              <div className="section-heading">
-                <strong>{e.title}</strong>
-                <strong className="money">{formatMoney(e.amount)}</strong>
-              </div>
-              <p className="inline-meta">
-                <span>{e.paid_by_name || "Người tính tiền"} ứng</span>
-                <span>
-                  Phần của tôi{" "}
-                  <b className="money">
-                    {formatMoney(
-                      e.allocations.find((a) => a.member_id === s.my_member_id)
-                        ?.amount || "0",
-                    )}
-                  </b>
-                </span>
-              </p>
-              <details>
-                <summary>Chi tiết chia & hóa đơn</summary>
-                <p>
-                  {e.category_name || "Khoản chi"}
-                  {e.created_by_name ? ` · ${e.created_by_name} thêm` : ""}
-                </p>
-                {e.note && <p style={{ whiteSpace: "pre-wrap" }}>{e.note}</p>}
-                {e.allocations.map((a) => (
-                  <small className="allocation-row" key={a.member_id}>
-                    <span>
-                      {s.attendees.find((m) => m.member_id === a.member_id)
-                        ?.name || "Thành viên"}
-                    </span>
-                    <span className="money">{formatMoney(a.amount)}</span>
-                  </small>
-                ))}
-                <ReceiptPanel
-                  bucket="3t-expense-receipts"
-                  target={e.id}
-                  canUpload={collector && !locked}
-                />
-              </details>
-              {!locked &&
-                editors.success &&
-                editors.data.find((x) => x.id === e.id)?.can_edit && (
-                  <ExpenseEditButton key={`${e.id}-${s.revision}`} id={e.id} />
-                )}
-            </div>
-          </div>
-        ))}
     </section>
   );
   return (
     <main className="session-detail">
-      <Link href="/sessions">Các buổi chơi</Link>
       <SessionHeader
         key={s.revision}
         session={s}
@@ -264,19 +322,8 @@ export default async function Session({
           {s.status !== "planned" && s.status !== "cancelled" && (
             <SessionPayments session={s} />
           )}
-          {s.status === "played" ||
-          s.status === "settled" ||
-          (s.status === "planned" && collector) ? (
-            <>
-              {costs}
-              {participants}
-            </>
-          ) : (
-            <>
-              {participants}
-              {costs}
-            </>
-          )}
+          {participants}
+          {costs}
         </div>
       </div>
       {replaced.success && replaced.data.length > 0 && (
