@@ -180,7 +180,9 @@ export default function SessionHistory({ sid }: { sid: string }) {
               </button>
             )}
             {!more && !!items.length && !busy && !error && (
-              <p className="field-hint">Đã xem hết lịch sử.</p>
+              <p className="field-hint" role="status">
+                Hết lịch sử.
+              </p>
             )}
           </div>
         </div>

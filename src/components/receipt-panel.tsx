@@ -107,7 +107,7 @@ export default function ReceiptPanel({
       {canUpload && (
         <>
           <label>
-            Thêm ảnh (JPEG/PNG/WebP, tối đa 2 MiB sau nén)
+            Thêm ảnh
             <input
               aria-label="Chọn ảnh biên lai"
               type="file"
@@ -142,9 +142,9 @@ export default function ReceiptPanel({
           )}
         </>
       )}
-      {busy && <p role="status">Đang nén và tải ảnh…</p>}
+      {busy && <p role="status">Đang tải ảnh…</p>}
       {message && <p role="status">{message}</p>}
-      {opened && !rows.length && <p>Chưa có bằng chứng bạn được phép xem.</p>}
+      {opened && !rows.length && <p>Chưa có bằng chứng.</p>}
       {rows.map((r) => (
         <div key={r.id}>
           <p>
@@ -160,7 +160,7 @@ export default function ReceiptPanel({
               : ""}
           </p>
           {r.status === "expired" ? (
-            <p>Ảnh đã hết hạn lưu, lịch sử vẫn được giữ.</p>
+            <p>Ảnh đã hết hạn lưu.</p>
           ) : (
             !r.bank_txn_ref &&
             !r.note && (
@@ -173,7 +173,7 @@ export default function ReceiptPanel({
                   else setMessage(result.error || "Không lấy được ảnh.");
                 }}
               >
-                Mở ảnh (link hiệu lực 60 giây)
+                Mở ảnh
               </button>
             )
           )}
@@ -181,15 +181,19 @@ export default function ReceiptPanel({
       ))}
       {image && (
         <p>
-          <a href={image} target="_blank" rel="noopener noreferrer">
-            Xem ảnh riêng tư trong tab mới
+          <a
+            href={image}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Xem ảnh (mở tab mới)"
+          >
+            Xem ảnh
           </a>
         </p>
       )}
       {bucket === "3t-payment-evidence" && (
         <small>
-          Hãy giữ biên lai trong app ngân hàng của bạn. Ảnh được ngừng truy cập
-          sau 30 ngày kể từ khi xác nhận.
+          Ảnh biên lai được lưu 30 ngày sau khi xác nhận thanh toán.
         </small>
       )}
     </div>

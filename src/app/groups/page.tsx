@@ -27,14 +27,7 @@ export default async function Groups() {
       <Link href="/">Về trang chủ</Link>
       <h1>Nhóm của bạn</h1>
       <Link href="/ai/settings">Cài đặt trợ lý AI</Link>
-      <p>
-        <Link href="/ai">Mở trợ lý AI</Link>
-      </p>
-      {error && (
-        <p role="alert">
-          Chưa tải được dữ liệu. Kiểm tra kết nối và migration.
-        </p>
-      )}
+      {error && <p role="alert">Chưa tải được nhóm. Vui lòng thử lại.</p>}
       {data?.map((g) => (
         <section className="panel" key={g.id}>
           <Link href={`/groups/${g.id}`}>

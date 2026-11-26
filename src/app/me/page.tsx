@@ -12,13 +12,7 @@ import { profileName } from "@/lib/profile-name";
 import BankPicker from "@/components/bank-picker";
 import { localDevelopmentEnabled } from "@/lib/local-development";
 export const metadata = { title: "Hồ sơ của tôi" };
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 export default async function Me() {
   const db = await supabase();
   const {
@@ -55,16 +49,13 @@ export default async function Me() {
         {localDevelopmentEnabled() &&
           user.email?.endsWith("@local.3t.test") && (
             <p>
-              Đây là tài khoản thử local. Để dùng email của bạn, đăng xuất rồi
-              đăng ký tài khoản riêng và mở link mời.
+              Tài khoản thử trên máy này. Muốn dùng email thật, hãy đăng xuất và
+              đăng ký.
             </p>
           )}
         <details>
           <summary>Nhận lại tên đã được thêm hộ</summary>
-          <p>
-            Vào nhóm, chọn tên cũ và gửi yêu cầu liên kết. Admin xác minh xong,
-            tài khoản này giữ toàn bộ lịch chơi và khoản tiền của tên đó.
-          </p>
+          <p>Chọn tên cũ trong nhóm và gửi yêu cầu để admin xác minh.</p>
           <div className="actions">
             {memberships?.map((m) => (
               <Link
@@ -78,17 +69,12 @@ export default async function Me() {
           </div>
         </details>
       </section>
-      {error && (
-        <p role="alert">Chưa tải được hồ sơ. Kiểm tra migration và kết nối.</p>
-      )}
+      {error && <p role="alert">Chưa tải được hồ sơ. Vui lòng thử lại.</p>}
       <Card className="my-5 border-[var(--line)]">
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle>
-            <h2>Thông tin cá nhân và nhận tiền</h2>
+            <h2>Thông tin cá nhân</h2>
           </CardTitle>
-          <CardDescription>
-            Tên hiển thị giúp bạn bè nhận ra bạn trong nhóm.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <ActionForm action={saveProfile}>
@@ -100,10 +86,7 @@ export default async function Me() {
               maxLength={100}
               defaultValue={profileName(p?.display_name, user.user_metadata)}
             />
-            <p>
-              Chỉ người nhận tiền cần điền ngân hàng. Thông tin này không được
-              đưa vào chat AI.
-            </p>
+            <p>Chỉ cần điền ngân hàng nếu bạn nhận tiền.</p>
             <BankPicker id="profile-bank" defaultValue={p?.bank_bin || ""} />
             <div className="compact-fields profile-bank-fields">
               <div>

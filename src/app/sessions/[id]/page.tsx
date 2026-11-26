@@ -37,9 +37,7 @@ export default async function Session({
   if (!parsed.success)
     return (
       <main>
-        <p role="alert">
-          Dữ liệu buổi chưa hợp lệ. Kiểm tra migration và thử lại.
-        </p>
+        <p role="alert">Chưa tải được thông tin buổi. Vui lòng thử lại.</p>
       </main>
     );
   const s = parsed.data;
@@ -153,8 +151,8 @@ export default async function Session({
             <input type="hidden" name="days" value="7" />
             <input type="hidden" name="uses" value="30" />
             <p>
-              Bạn mới vào nhóm qua link này, rồi tự nhận lời tham gia buổi. Link
-              có hiệu lực 7 ngày, tối đa 30 lượt.
+              Link mời vào nhóm: 7 ngày · tối đa 30 lượt. Người được mời tự nhận
+              lời tham gia.
             </p>
           </ActionForm>
         </SessionInvite>
@@ -338,10 +336,7 @@ export default async function Session({
       {replaced.success && replaced.data.length > 0 && (
         <section className="panel">
           <h2>Khoản đã thay thế</h2>
-          <p>
-            Các khoản này giữ lại lịch sử và bằng chứng. Hãy dùng khoản hiện tại
-            để báo chuyển và xác nhận lại.
-          </p>
+          <p>Dùng khoản hiện tại để báo chuyển và xác nhận lại.</p>
           {replaced.data.map((p) => (
             <article key={p.id} className="session-row">
               <div>
@@ -374,7 +369,7 @@ export default async function Session({
             {new Intl.DateTimeFormat("vi-VN", {
               timeZone: "Asia/Ho_Chi_Minh",
             }).format(new Date(series.until_at))}
-            . Mỗi buổi tự nhận lời và chốt chi phí riêng.
+            .
           </p>
           {series.active && (metadata.created_by === user.id || admin) && (
             <ActionForm action={weeklySeries} label="Dừng tạo buổi lặp mới">

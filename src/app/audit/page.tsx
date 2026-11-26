@@ -99,8 +99,7 @@ export default async function Audit({
     <main className="audit-page">
       <div className="page-heading">
         <div>
-          <h1>Audit log</h1>
-          <p>Hoạt động của người dùng trong các nhóm bạn quản lý.</p>
+          <h1>Nhật ký hoạt động</h1>
         </div>
       </div>
       <form className="audit-filter" action="/audit">
@@ -167,4 +166,4 @@ export default async function Audit({
     </main>
   );
 }
-export const metadata = { title: "Audit log" };
+export const metadata = { title: "Nhật ký hoạt động" };

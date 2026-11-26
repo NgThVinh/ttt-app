@@ -41,8 +41,7 @@ export default function ActionForm({
     } catch (error) {
       unstable_rethrow(error);
       return {
-        message:
-          "Chưa nhận được kết quả. Kiểm tra kết nối và trạng thái trong app; gửi lại cùng nội dung sẽ dùng lại mã yêu cầu.",
+        message: "Chưa nhận được kết quả. Kiểm tra trạng thái rồi thử lại.",
       };
     }
   }
@@ -87,10 +86,6 @@ export default function ActionForm({
           <a href={state.link} style={{ overflowWrap: "anywhere" }}>
             {state.link}
           </a>
-          <br />
-          <small>
-            Sao chép link này để mời bạn. Link chỉ hiển thị sau khi tạo.
-          </small>
         </p>
       )}
     </form>

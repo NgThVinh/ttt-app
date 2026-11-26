@@ -71,8 +71,7 @@ export async function POST(request: Request) {
     if (reservation.error || typeof reservation.data !== "string")
       return Response.json(
         {
-          error:
-            "AI chưa sẵn sàng hoặc đã hết hạn mức. Bạn vẫn có thể dùng các chức năng trong app.",
+          error: "AI chưa sẵn sàng hoặc đã hết hạn mức. Thử lại sau.",
         },
         { status: 429 },
       );
@@ -215,8 +214,7 @@ export async function POST(request: Request) {
       });
     return Response.json(
       {
-        error:
-          "AI tạm chưa hoạt động. Mở các chức năng trong app hoặc thử lại sau.",
+        error: "AI tạm chưa hoạt động. Vui lòng thử lại sau.",
       },
       { status: 503 },
     );

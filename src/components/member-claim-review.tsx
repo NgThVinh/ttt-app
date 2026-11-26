@@ -37,7 +37,7 @@ export default function MemberClaimReview({
             </p>
             <p>
               {r.email_verified
-                ? "Email đã xác nhận. Hãy hỏi trực tiếp người đó trước khi duyệt; lịch sử tiền sẽ được liên kết vào tài khoản này."
+                ? "Email đã xác nhận. Hỏi đúng người trước khi liên kết lịch sử tiền."
                 : "Email chưa xác nhận. Chưa thể đồng ý liên kết."}
             </p>
             <ActionForm action={decideClaim} label="Xử lý yêu cầu">

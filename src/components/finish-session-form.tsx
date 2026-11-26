@@ -146,9 +146,7 @@ export default function FinishSessionForm({
           placeholder="0"
         />
       </div>
-      {!!extras.length && (
-        <p className="field-hint">Dùng số âm cho khoản giảm giá.</p>
-      )}
+      {!!extras.length && <p className="field-hint">Số âm là giảm giá.</p>}
       {extras.map((e, index) => (
         <fieldset className="cost-extra" key={e.key}>
           <legend>Phụ phí {index + 1}</legend>
@@ -337,7 +335,6 @@ export default function FinishSessionForm({
             <strong>Tổng chi phí</strong>
             <strong>{formatMoney(total)}</strong>
           </div>
-          <p className="field-hint">Phần chi phí mỗi người</p>
           <div className="split-preview" aria-label="Xem trước toàn bộ chi phí">
             {[...grouped].map(([key, row]) => (
               <div key={key} className="split-group">

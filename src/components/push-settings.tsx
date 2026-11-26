@@ -9,11 +9,11 @@ export default function PushSettings() {
     try {
       if (!("serviceWorker" in navigator) || !("PushManager" in window))
         throw Error(
-          "Trình duyệt chưa hỗ trợ push. Trên iPhone/iPad, thêm app vào Màn hình chính rồi mở từ biểu tượng.",
+          "Trình duyệt chưa hỗ trợ thông báo. Trên iPhone/iPad, mở 3T từ Màn hình chính.",
         );
       if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY)
         throw Error(
-          "Push chưa được cấu hình. Thông báo trong app vẫn hoạt động.",
+          "Chưa thể bật thông báo trên thiết bị. Bạn vẫn có thông báo trong app.",
         );
       const registration = await navigator.serviceWorker.register("/sw.js");
       await navigator.serviceWorker.ready;
@@ -46,7 +46,9 @@ export default function PushSettings() {
         setMessage("Đã tắt thông báo trên thiết bị này.");
       }
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Chưa cập nhật được push.");
+      setMessage(
+        e instanceof Error ? e.message : "Chưa cập nhật được thông báo.",
+      );
     } finally {
       setBusy(false);
     }
@@ -54,10 +56,6 @@ export default function PushSettings() {
   return (
     <section className="panel">
       <h2>Thông báo trên thiết bị</h2>
-      <p>
-        Chỉ bật khi bạn muốn nhận nhắc lịch và thanh toán. Trên iPhone/iPad cần
-        cài app vào Màn hình chính.
-      </p>
       <div className="actions">
         <button
           type="button"

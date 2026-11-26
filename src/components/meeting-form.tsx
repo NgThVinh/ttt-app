@@ -286,9 +286,7 @@ export default function MeetingForm({
               {selected.map((v) => (
                 <input key={v} type="hidden" name="invitees" value={v} />
               ))}
-              <p className="field-hint">
-                Mỗi người tự xác nhận tham gia sau khi nhận lời mời.
-              </p>
+              <p className="field-hint">Người được mời tự xác nhận tham gia.</p>
             </fieldset>
           </div>
           <div className="meeting-repeat">
@@ -322,8 +320,7 @@ export default function MeetingForm({
             )}
             {repeat && (
               <p className="field-hint">
-                Giữ thứ, giờ và danh sách mời. Mỗi buổi tự nhận lời và chốt phí
-                riêng; tạo trước các buổi trong 4 tuần tới.
+                Tạo trước 4 tuần. Mỗi buổi nhận lời riêng.
               </p>
             )}
           </div>
@@ -351,9 +348,7 @@ export default function MeetingForm({
                       </option>
                     ))}
                 </select>
-                <p className="field-hint">
-                  Chỉ nhận vai trò sau khi chính người đó xác nhận trong app.
-                </p>
+                <p className="field-hint">Người được đề cử cần xác nhận.</p>
               </>
             ) : (
               <input type="hidden" name="nominee" value="" />

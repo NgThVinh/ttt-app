@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import AIChat from "@/components/ai-chat";
+import { draftCommandLabels } from "@/lib/ai/draft-labels";
 export default async function AI() {
   const db = await supabase(),
     {
@@ -34,20 +35,17 @@ export default async function AI() {
         <AIChat groups={enabled} />
       ) : (
         <section className="panel">
-          <p>
-            Nhóm của bạn chưa bật AI. Các chức năng lịch chơi và thanh toán vẫn
-            hoạt động bình thường.
-          </p>
+          <p>Nhóm của bạn chưa bật AI.</p>
           <Link href="/ai/settings">Cài đặt AI</Link>
         </section>
       )}
       <section className="panel">
         <h2>Bản nháp chờ xác nhận</h2>
-        {!drafts?.length && <p>Chưa có bản nháp còn hạn.</p>}
+        {!drafts?.length && <p>Chưa có bản nháp cần xác nhận.</p>}
         {drafts?.map((d) => (
           <p key={d.id}>
             <Link href={`/ai/drafts/${d.id}`}>
-              {d.tier} · {d.command} · Xem và duyệt
+              {draftCommandLabels[d.command] || "Xem bản nháp"}
             </Link>
           </p>
         ))}

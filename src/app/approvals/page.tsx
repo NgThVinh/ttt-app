@@ -105,7 +105,7 @@ export default async function Approvals() {
         parsed.success &&
         !requests.length &&
         !hasClaims &&
-        !ownClaims?.length && <p>Chưa có yêu cầu còn hạn đang chờ bạn.</p>}
+        !ownClaims?.length && <p>Không có yêu cầu đang chờ.</p>}
       {claimError && <p role="alert">Chưa tải được yêu cầu liên kết đã gửi.</p>}
       {!!ownClaims?.length && (
         <section className="panel">

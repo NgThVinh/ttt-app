@@ -46,10 +46,7 @@ export default function MemberClaimPanel({
             <strong>{target?.display_name || "tên cũ"}</strong> bằng email{" "}
             <strong>{email}</strong>.
           </p>
-          <p>
-            Admin cần xác minh đúng người. Trong lúc chờ, hãy tránh tham gia
-            buổi bằng tên mới để giữ lịch sử liền mạch.
-          </p>
+          <p>Chờ admin xác minh trước khi tham gia bằng tên mới.</p>
           <small>
             Hạn xác minh:{" "}
             {new Date(latest.expires_at).toLocaleString("vi-VN", {
@@ -63,15 +60,14 @@ export default function MemberClaimPanel({
         </div>
       ) : approved ? (
         <p role="status">
-          Tên cũ, lịch chơi và các khoản tiền đã thuộc tài khoản này.{" "}
+          Đã giữ lịch chơi và các khoản tiền cũ.{" "}
           <Link href="/me">Kiểm tra ngân hàng trong hồ sơ</Link>.
         </p>
       ) : (
         <>
           <p>
-            Nếu bạn bè đã thêm tên bạn để chia tiền, hãy chọn tên đó để liên kết
-            với <strong>{email}</strong>. Admin sẽ xác minh; lịch sử cũ được giữ
-            nguyên.
+            Chọn tên cũ để liên kết với <strong>{email}</strong>. Admin sẽ xác
+            minh.
           </p>
           {latest && (
             <p role="status">

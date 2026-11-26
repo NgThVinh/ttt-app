@@ -1,18 +1,7 @@
 import { z } from "zod";
 import { formatMoney } from "@/lib/money";
 import type { expenseReview } from "@/lib/ai/harness/expense-review";
-const commands: Record<string, string> = {
-  rsvp: "Chốt tham gia",
-  vote: "Bỏ phiếu lịch chơi",
-  mark_paid: "Báo đã chuyển tiền",
-  confirm_received: "Xác nhận đã nhận tiền",
-  expense: "Thêm hoặc sửa khoản chi",
-  claim_collector: "Nhận vai trò tính tiền",
-  reminder: "Nhắc thanh toán",
-  session_request: "Gửi yêu cầu thay đổi buổi",
-  create_session: "Tạo buổi chơi",
-  create_poll: "Tạo thăm dò lịch",
-};
+import { draftCommandLabels } from "@/lib/ai/draft-labels";
 export default function AIDraftReview({
   command,
   body,
@@ -47,7 +36,7 @@ export default function AIDraftReview({
     new Date(text(v)).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
   return (
     <section className="panel">
-      <h2>{commands[command] || "Yêu cầu từ AI"}</h2>
+      <h2>{draftCommandLabels[command] || "Yêu cầu từ AI"}</h2>
       {command === "rsvp" && <p>{body.going ? "Tôi đi" : "Tôi không đi"}</p>}
       {command === "vote" && (
         <p>
@@ -220,7 +209,7 @@ export default function AIDraftReview({
           ) : (
             <p>Không còn khoản cần chuyển.</p>
           )}
-          <p>Các khoản đã xác nhận được giữ nguyên trong phép tính.</p>
+          <p>Giữ nguyên các khoản đã xác nhận.</p>
         </>
       )}
     </section>

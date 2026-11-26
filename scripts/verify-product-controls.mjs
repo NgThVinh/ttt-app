@@ -112,7 +112,7 @@ try {
   step = "audit";
   await page.goto(origin + "/audit");
   await expect(
-    page.getByRole("heading", { name: "Audit log", exact: true }),
+    page.getByRole("heading", { name: "Nhật ký hoạt động", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".audit-list")).toContainText(
     "Buổi được xóa trong test",

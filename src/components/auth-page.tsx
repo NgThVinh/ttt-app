@@ -36,16 +36,13 @@ export default function AuthPage({
             <h1 id="auth-title">Kiểm tra email của bạn</h1>
             <p role="status">
               {signup
-                ? "Đã gửi link xác nhận. Mở email để hoàn tất đăng ký và tiếp tục."
+                ? "Mở link trong email để hoàn tất đăng ký."
                 : "Nếu email này đã có tài khoản, bạn sẽ nhận được link đăng nhập."}
             </p>
-            <p>
-              Mở link trong cùng trình duyệt đang dùng 3T. Nhớ kiểm tra cả thư
-              rác.
-            </p>
+            <p>Dùng cùng trình duyệt và kiểm tra cả thư rác.</p>
             {next !== "/" && (
               <p className="auth-context">
-                Lời mời vào nhóm vẫn được giữ khi bạn quay lại.
+                Bạn sẽ quay lại lời mời sau khi xác nhận.
               </p>
             )}
             {local && (
@@ -68,15 +65,10 @@ export default function AuthPage({
             <h1 id="auth-title">
               {signup ? "Tạo tài khoản 3T" : "Đăng nhập vào 3T"}
             </h1>
-            <p>
-              {signup
-                ? "Đăng ký bằng Google hoặc email của bạn."
-                : "Chào bạn trở lại. Chọn cách đăng nhập bên dưới."}
-            </p>
             {next !== "/" && (
               <p className="auth-context">
                 {signup
-                  ? "Đăng ký xong, bạn sẽ quay lại lời mời vào nhóm."
+                  ? "Đăng ký để tiếp tục lời mời vào nhóm."
                   : "Đăng nhập để tiếp tục lời mời vào nhóm."}
               </p>
             )}
@@ -126,9 +118,7 @@ export default function AuthPage({
                 {signup ? "Đăng ký bằng email" : "Gửi link đăng nhập"}
               </LoginButton>
             </form>
-            <p className="auth-hint">
-              Xác nhận qua link email, không cần mật khẩu.
-            </p>
+            <p className="auth-hint">Không cần mật khẩu.</p>
             {params.error && (
               <p role="alert">{authErrorMessage(params.error)}</p>
             )}
@@ -140,11 +130,7 @@ export default function AuthPage({
             {signup ? "Đăng nhập" : "Đăng ký"}
           </Link>
         </p>
-        <div className="auth-note">
-          {signup
-            ? "Bạn cần link mời để tham gia nhóm. Nếu đã có tên trong nhóm, bạn có thể nhận lại tên cũ sau khi xác nhận email."
-            : "Lần đầu dùng Google sẽ tạo tài khoản bằng email Google của bạn."}
-        </div>
+        {signup && <p className="auth-note">Tham gia nhóm bằng link mời.</p>}
       </section>
       {local && (
         <section
@@ -152,10 +138,7 @@ export default function AuthPage({
           aria-label="Tài khoản thử local"
         >
           <h2>Supabase local · Dữ liệu riêng</h2>
-          <p>
-            Đổi vai để thử app. “Khách” là tài khoản thử chưa có nhóm, dùng
-            riêng trên máy này.
-          </p>
+          <p>Chọn tài khoản để thử trên máy này.</p>
           <div className="local-login-grid">
             {localAccounts.map((account) => (
               <form action={localLogin} key={account.id}>

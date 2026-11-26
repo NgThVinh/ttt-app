@@ -91,10 +91,7 @@ export default function SessionHeader({
                 title="Xóa buổi chơi"
                 secondary
               >
-                <p>
-                  Xóa “{s.title}” khỏi lịch? Buổi đã xóa vẫn được lưu trong
-                  audit log của admin. Các buổi lặp khác giữ nguyên.
-                </p>
+                <p>Xóa “{s.title}” khỏi lịch? Các buổi lặp khác giữ nguyên.</p>
                 <ActionForm action={deleteSession} label="Xóa buổi chơi">
                   <input type="hidden" name="sid" value={s.id} />
                   <input type="hidden" name="revision" value={s.revision} />

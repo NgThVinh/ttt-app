@@ -43,10 +43,7 @@ export default function AIChat({
         setReply(text);
       }
       text += decoder.decode();
-      setReply(
-        text ||
-          "Mở danh sách bản nháp bên dưới để xem kết quả. Chưa có thao tác ghi nào tự thực thi.",
-      );
+      setReply(text || "Xem kết quả trong danh sách bản nháp bên dưới.");
     } catch (e) {
       setError(
         e instanceof Error && e.name !== "AbortError"
@@ -122,20 +119,25 @@ export default function AIChat({
                 style={{ textDecoration: "underline" }}
               >
                 {part.startsWith("/ai/drafts/")
-                  ? "Xem và xác nhận bản nháp"
-                  : part === "/debts"
-                    ? "Xem công nợ"
-                    : part}
+                  ? "Xem bản nháp"
+                  : part.startsWith("/sessions/")
+                    ? "Xem buổi chơi"
+                    : part.startsWith("/groups/")
+                      ? "Mở nhóm"
+                      : part === "/debts"
+                        ? "Xem công nợ"
+                        : part === "/me"
+                          ? "Mở hồ sơ"
+                          : part === "/ai/settings"
+                            ? "Cài đặt AI"
+                            : "Xem chi tiết"}
               </Link>
             ) : (
               part
             ),
           )}
       </div>
-      <p>
-        Mọi thay đổi đều cần xem và xác nhận bản nháp. Những yêu cầu cần người
-        có quyền duyệt sẽ xuất hiện ở mục “Yêu cầu”.
-      </p>
+      <p>Xem và xác nhận trước khi lưu thay đổi.</p>
     </section>
   );
 }

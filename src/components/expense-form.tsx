@@ -116,10 +116,7 @@ export default function ExpenseForm({
     <section className="panel">
       <h2>{edit ? "Sửa khoản chi" : "Thêm phụ phí hoặc giảm giá"}</h2>
       {!administrative && s.my_member_id !== s.collector_member_id && (
-        <p>
-          Khoản chỉ bạn chịu có hiệu lực ngay. Khoản có người khác chịu cần
-          người tính tiền duyệt; bảng dưới đây là dự kiến.
-        </p>
+        <p>Chỉ người tính tiền được sửa chi phí.</p>
       )}
       <div onChange={() => setReview("")}>
         {!edit && tools?.templates.some((t) => t.active) && (

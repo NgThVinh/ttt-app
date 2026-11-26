@@ -176,9 +176,8 @@ export default async function Group({
                     <details>
                       <summary>Ngân hàng của {m.display_name}</summary>
                       <p>
-                        Chỉ nhập hộ khi người này chưa có tài khoản. Khi liên
-                        kết tài khoản, họ cần tự kiểm tra và lưu ngân hàng trong
-                        hồ sơ.
+                        Sau khi liên kết tài khoản, thành viên tự cập nhật ngân
+                        hàng.
                       </p>
                       <ActionForm
                         action={saveGuestBank}

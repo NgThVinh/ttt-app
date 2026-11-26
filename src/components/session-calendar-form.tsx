@@ -28,7 +28,10 @@ export default function SessionCalendarForm({
   const [starts, setStarts] = useState(initialStart);
   const [ends, setEnds] = useState(s.ends_at ? localTime(s.ends_at) : "");
   const [deadline, setDeadline] = useState(initialDeadline);
-  const moved = starts !== initialStart || deadline !== initialDeadline;
+  const moved =
+    starts !== initialStart ||
+    deadline !== initialDeadline ||
+    ends !== (s.ends_at ? localTime(s.ends_at) : "");
   return (
     <div className="session-inline-edit">
       <ActionForm
@@ -99,7 +102,7 @@ export default function SessionCalendarForm({
               : `${deadline}:00+07:00`
           }
         />
-        {!canMove && <p>Lịch đã khóa khi người tính tiền chốt chi phí.</p>}
+        {!canMove && <p>Đã chốt chi phí, không thể đổi lịch.</p>}
         <label>
           Ghi chú chung
           <textarea name="note" defaultValue={note || ""} maxLength={2000} />
@@ -114,20 +117,14 @@ export default function SessionCalendarForm({
           />
         </label>
         {(reopen || moved) && (
-          <p role="status">
-            Mỗi người cần tự chốt lại; lựa chọn cũ được giữ trong lịch sử. Hạn
-            chốt mới phải ở tương lai.
-          </p>
+          <p role="status">Mọi người cần xác nhận tham gia lại.</p>
         )}
       </ActionForm>
       {!reopen &&
         (canCancel ? (
           <details style={{ marginTop: 24 }}>
             <summary>Hủy buổi này</summary>
-            <p>
-              Buổi được giữ trong lịch sử. Các yêu cầu đang chờ sẽ được hủy.
-              Muốn mở lại, hãy đặt hạn chốt mới trong tương lai.
-            </p>
+            <p>Hủy buổi và các yêu cầu đang chờ. Lịch sử được giữ lại.</p>
             <ActionForm action={manageSession} label="Xác nhận hủy buổi">
               <input type="hidden" name="sid" value={s.id} />
               <input type="hidden" name="revision" value={s.revision} />
@@ -144,8 +141,8 @@ export default function SessionCalendarForm({
           </details>
         ) : (
           <p>
-            Buổi đã có số tiền hoặc lịch sử thanh toán. Người tính tiền cần xử
-            lý các khoản bằng điều chỉnh.
+            Đã có chi phí hoặc thanh toán. Người tính tiền cần điều chỉnh khoản
+            tiền.
           </p>
         ))}
     </div>

@@ -7,6 +7,7 @@ import { decideDraft } from "./actions";
 import AIDraftReview from "@/components/ai-draft-review";
 import { expenseReview } from "@/lib/ai/harness/expense-review";
 import { detailSchema } from "@/lib/session-data";
+import { draftStatusLabels } from "@/lib/ai/draft-labels";
 export default async function Draft({
   params,
 }: {
@@ -75,9 +76,12 @@ export default async function Draft({
   return (
     <main>
       <Link href="/ai">Trợ lý AI</Link>
-      <h1>Xem và duyệt bản nháp AI</h1>
+      <h1>Xác nhận bản nháp</h1>
       <p>
-        {d.tier} · {d.status} · Hết hạn{" "}
+        {d.status === "pending" && !current
+          ? "Cần tạo bản mới"
+          : draftStatusLabels[d.status] || "Đã kết thúc"}{" "}
+        · Hết hạn{" "}
         {new Date(d.expires_at).toLocaleString("vi-VN", {
           timeZone: "Asia/Ho_Chi_Minh",
         })}

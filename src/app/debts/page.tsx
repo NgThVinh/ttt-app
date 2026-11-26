@@ -30,9 +30,7 @@ export default async function Debts() {
     return (
       <main>
         <Link href="/">Trang chủ</Link>
-        <p role="alert">
-          Chưa tải được công nợ. Kiểm tra kết nối và migration.
-        </p>
+        <p role="alert">Chưa tải được công nợ. Vui lòng thử lại.</p>
       </main>
     );
   const rows = [...parsed.data].sort(

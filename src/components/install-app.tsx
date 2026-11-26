@@ -47,7 +47,6 @@ export default function InstallApp() {
   return (
     <section className="panel">
       <h2>Mở 3T từ Màn hình chính</h2>
-      <p>Cài app để mở nhanh và bật nhắc lịch trên thiết bị này.</p>
       {prompt && (
         <button
           className="primary"
@@ -67,10 +66,6 @@ export default function InstallApp() {
         <p>
           <strong>Android:</strong> mở menu trình duyệt, chọn Cài đặt ứng dụng
           hoặc Thêm vào Màn hình chính.
-        </p>
-        <p>
-          Mở từ biểu tượng 3T, sau đó bật thông báo ở phần bên dưới. Bạn vẫn
-          dùng được 3T trong trình duyệt.
         </p>
       </details>
       <p role="status">{message}</p>

@@ -23,7 +23,7 @@ export default function SuggestedSessionDetails({
     <details className="suggested-details">
       <summary>
         <span>{title}</span>
-        <small>{venue} · Bấm để sửa</small>
+        <small>{venue}</small>
       </summary>
       <div className="compact-fields">
         <label>
@@ -53,11 +53,6 @@ export default function SuggestedSessionDetails({
           />
         </label>
       </div>
-      <p className="field-hint">
-        {suggestion.venue
-          ? "Gợi ý sân từ buổi gần nhất của nhóm."
-          : "Chưa có sân quen. Bạn có thể bổ sung địa điểm sau."}
-      </p>
     </details>
   );
 }

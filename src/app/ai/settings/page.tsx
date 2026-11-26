@@ -35,9 +35,6 @@ export default async function AISettings() {
     <main>
       <Link href="/groups">Nhóm</Link>
       <h1>Cài đặt trợ lý AI</h1>
-      <p>
-        Admin nhóm bật/tắt trực tiếp. Mỗi nhóm dùng key riêng và hạn mức riêng.
-      </p>
       {visible.map((g) => {
         const s = settings?.find((x) => x.group_id === g.id),
           admin =

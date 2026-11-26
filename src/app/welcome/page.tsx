@@ -24,10 +24,7 @@ export default async function Welcome() {
       </div>
       <section>
         <h1>Chờ lời mời từ nhóm bạn</h1>
-        <p>
-          Nhờ quản trị viên gửi link mời, rồi mở link để tham gia nhóm. Sau đó
-          bạn có thể xem lịch chơi và chia tiền cùng mọi người.
-        </p>
+        <p>Nhờ admin gửi link mời để tham gia nhóm.</p>
         {membership.error && (
           <p role="alert">
             Chưa kiểm tra được nhóm của bạn. Vui lòng tải lại trang.

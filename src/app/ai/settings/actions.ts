@@ -113,7 +113,7 @@ export async function configureAI(
           .split(",")
           .includes(u.hostname)
       )
-        return { message: "Host provider chưa được cho phép trên server." };
+        return { message: "Địa chỉ dịch vụ AI chưa được hỗ trợ." };
     } catch {
       return { message: "Cần URL provider HTTPS hợp lệ." };
     }
@@ -127,7 +127,7 @@ export async function configureAI(
         process.env.AI_KEY_ENCRYPTION_SECRET || "",
       );
   } catch {
-    return { message: "Chưa có khóa mã hóa hợp lệ trên server." };
+    return { message: "Chưa thể lưu cấu hình AI. Liên hệ quản trị ứng dụng." };
   }
   const { error } = await db.rpc("configure_group_ai", {
     g: v.g,

@@ -232,11 +232,8 @@ export default function SessionForm({
     <section className="panel session-form">
       {needsBank && (
         <aside className="bank-setup-notice" role="alert">
-          <strong>Chưa thể lưu buổi khi bạn nhận tính tiền</strong>
-          <p>
-            Bạn cần bổ sung ngân hàng, số tài khoản và tên chủ tài khoản. Các
-            thông tin đã nhập trong form vẫn được giữ.
-          </p>
+          <strong>Cần ngân hàng để nhận tính tiền</strong>
+          <p>Bổ sung thông tin nhận tiền trong Hồ sơ, rồi kiểm tra lại.</p>
           <Link href="/me" target="_blank" rel="noopener noreferrer">
             Bổ sung ngân hàng (tab mới)
           </Link>{" "}
@@ -368,7 +365,11 @@ export default function SessionForm({
                 value={amount}
                 placeholder="Ví dụ: 400.000"
                 aria-invalid={!!courtError && courtTouched}
-                aria-describedby={`${fieldId}-court-help`}
+                aria-describedby={
+                  courtError && (courtTouched || amount)
+                    ? `${fieldId}-court-help`
+                    : undefined
+                }
                 onChange={(e) => setAmount(e.target.value)}
                 onBlur={() => {
                   setCourtTouched(true);
@@ -376,19 +377,15 @@ export default function SessionForm({
                 }}
               />
             </label>
-            <p
-              hidden={step !== 0}
-              id={`${fieldId}-court-help`}
-              className={
-                courtError && (courtTouched || amount)
-                  ? "field-error"
-                  : "field-hint"
-              }
-            >
-              {courtError && (courtTouched || amount)
-                ? courtError
-                : "Nhập giá sân thực tế. Có thể dùng 400000, 400.000 hoặc 400,000."}
-            </p>
+            {courtError && (courtTouched || amount) && (
+              <p
+                hidden={step !== 0}
+                id={`${fieldId}-court-help`}
+                className="field-error"
+              >
+                {courtError}
+              </p>
+            )}
             <fieldset hidden={step !== 1}>
               <legend>Ai đã tham gia?</legend>
               {!selected.length && (
@@ -439,7 +436,7 @@ export default function SessionForm({
             <p hidden={step !== 1}>
               {selected.some((id) => weightMap[id] !== "1")
                 ? "Đang chia tiền sân theo hệ số đã tùy chỉnh."
-                : "Chia đều tiền sân cho những người đã chọn."}
+                : "Chia đều cho người đã chọn."}
             </p>
             <details className="split-customization" hidden={step !== 1}>
               <summary>
@@ -451,9 +448,7 @@ export default function SessionForm({
               </summary>
               <fieldset>
                 <legend>Hệ số tham gia</legend>
-                <p className="field-hint">
-                  1 = cả buổi · 0,5 = nửa buổi. Để 1 nếu chia đều.
-                </p>
+                <p className="field-hint">1 = cả buổi · 0,5 = nửa buổi.</p>
                 {selected.map((id) => (
                   <div key={id}>
                     <label>
@@ -720,7 +715,11 @@ export default function SessionForm({
                 name="reviewed"
                 value={reviewed ? "yes" : "no"}
               />
-              {reviewed && <p role="status">Đã xem trước. Có thể lưu buổi.</p>}
+              {reviewed && (
+                <p role="status" className="sr-only">
+                  Đã xem bảng chia.
+                </p>
+              )}
             </div>
           </>
         ) : (
@@ -759,10 +758,7 @@ export default function SessionForm({
               Hạn chốt (để trống dùng giờ bắt đầu)
               <input name="commitDeadline" type="datetime-local" />
             </label>
-            <p>
-              Mỗi người tự chốt tham gia. Người được đề cử cần nhận vai trò
-              riêng.
-            </p>
+            <p>Người được mời và người tính tiền cần tự xác nhận.</p>
           </>
         )}
         {flow === "played" && (

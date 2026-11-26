@@ -159,11 +159,14 @@ export default function ParticipationGraph({
           </span>
         </div>
       </div>
-      <p className="activity-caption">
+      <p
+        className="activity-caption"
+        title="Tính các buổi đã diễn ra và chốt chi phí."
+      >
         {mode === "mine"
           ? `${window.activeWeeks}/${weeks} tuần có tham gia`
           : `${activity.group_count} nhóm bạn đang tham gia`}{" "}
-        · Chỉ tính buổi đã diễn ra và chốt chi phí.
+        · Buổi đã chốt
       </p>
     </section>
   );

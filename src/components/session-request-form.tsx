@@ -29,7 +29,6 @@ export default function SessionRequestForm({
     <section className="panel">
       <h2>Gửi yêu cầu trong buổi</h2>
       <p>
-        Người có thẩm quyền sẽ xem trước và duyệt trong app.{" "}
         <Link href="/approvals">Xem yêu cầu của tôi</Link>
       </p>
       <label htmlFor="request-kind">Loại yêu cầu</label>

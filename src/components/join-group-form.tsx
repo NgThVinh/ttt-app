@@ -66,8 +66,8 @@ export default function JoinGroupForm({
             ))}
           </select>
           <p>
-            Admin sẽ xác minh trước khi liên kết. Lịch chơi và các khoản tiền cũ
-            vẫn được giữ.
+            Admin xác minh trước khi liên kết. Giữ nguyên lịch sử và các khoản
+            tiền.
           </p>
         </>
       ) : (
@@ -81,7 +81,7 @@ export default function JoinGroupForm({
             defaultValue={name}
           />
           {sessionId && (
-            <p>Vào nhóm xong, bạn sẽ xem buổi được mời và tự chọn tham gia.</p>
+            <p>Bạn sẽ tự xác nhận tham gia buổi sau khi vào nhóm.</p>
           )}
         </>
       )}

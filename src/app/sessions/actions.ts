@@ -512,8 +512,7 @@ export async function previewChange(
   });
   if (error)
     return {
-      message:
-        "Chưa xem trước được: kiểm tra người tham gia, phần chia chính xác/phần trăm, trạng thái khóa và phiên bản buổi.",
+      message: "Chưa xem trước được. Kiểm tra cách chia hoặc tải lại buổi.",
     };
   const parsed = detailSchema.safeParse(data);
   if (!parsed.success) return { message: "Bản xem trước chưa hợp lệ." };
