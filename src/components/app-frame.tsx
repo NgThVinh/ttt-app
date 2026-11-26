@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
+import BrandMark from "./brand-mark";
 import {
   Home,
   CalendarDays,
@@ -110,8 +111,7 @@ export default function AppFrame({
       </a>
       <aside className="app-sidebar">
         <Link href="/" className="app-brand" aria-label="3T · Trang chủ">
-          <span>3T</span>
-          <div>Thích Tính Tiền</div>
+          <BrandMark />
         </Link>
         <nav aria-label="Điều hướng chính">
           {mainLinks.map(({ href, label, icon: Icon }) => (
@@ -129,7 +129,7 @@ export default function AppFrame({
       <div className="app-content">
         <header className="app-header">
           <Link href="/" className="mobile-brand" aria-label="3T · Trang chủ">
-            3T
+            <BrandMark size={36} />
           </Link>
           <span className="app-breadcrumb">
             <strong>{title}</strong>

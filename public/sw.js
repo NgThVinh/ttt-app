@@ -1,6 +1,6 @@
 /* Only these public fallback assets are cached. Never cache an authenticated
  * navigation, API response, RSC payload or payment request. */
-const CACHE = "3t-public-v1";
+const CACHE = "3t-public-v2";
 const PUBLIC_ASSETS = ["/offline.html", "/icon-192.png"];
 self.addEventListener("install", (event) => {
   event.waitUntil(

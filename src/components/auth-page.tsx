@@ -7,6 +7,7 @@ import { authErrorMessage } from "@/lib/auth-errors";
 import { localDevelopmentEnabled } from "@/lib/local-development";
 import { localAccounts } from "@/lib/local-development-config.mjs";
 import LoginButton from "./login-button";
+import BrandMark from "./brand-mark";
 export default function AuthPage({
   mode,
   params,
@@ -26,7 +27,7 @@ export default function AuthPage({
         href="/login"
         aria-label="3T · Thích Tính Tiền"
       >
-        <span>3T</span> Thích Tính Tiền
+        <BrandMark size={52} />
       </Link>
       <section className="login-card auth-card" aria-labelledby="auth-title">
         {sent ? (

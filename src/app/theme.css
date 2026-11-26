@@ -150,13 +150,6 @@ body {
   color: var(--nav-ink);
   border-right-color: #26344a;
 }
-.app-sidebar .app-brand > span {
-  color: var(--nav-accent);
-}
-.app-sidebar .app-brand small {
-  color: var(--nav-muted);
-  font-size: 9px;
-}
 .app-sidebar nav a {
   position: relative;
   color: var(--nav-muted);

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { logout } from "@/app/actions";
 import { verifiedSuperAdmin } from "@/lib/super-admin-access";
+import BrandMark from "@/components/brand-mark";
 export default async function Welcome() {
   const db = await supabase();
   const {
@@ -19,7 +20,7 @@ export default async function Welcome() {
   return (
     <main className="welcome-page">
       <div className="welcome-brand" aria-label="3T · Thích Tính Tiền">
-        3T
+        <BrandMark size={56} />
       </div>
       <section>
         <h1>Chờ lời mời từ nhóm bạn</h1>

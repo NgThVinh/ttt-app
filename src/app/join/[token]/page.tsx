@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createHash } from "node:crypto";
 import { supabase } from "@/lib/supabase";
 import JoinGroupForm from "@/components/join-group-form";
+import BrandMark from "@/components/brand-mark";
 import { logout } from "@/app/actions";
 import { z } from "zod";
 const invitationSchema = z.object({
@@ -34,7 +35,7 @@ export default async function Join({
   return (
     <main className="auth-page">
       <Link className="auth-brand" href="/" aria-label="3T · Thích Tính Tiền">
-        <span>3T</span> Thích Tính Tiền
+        <BrandMark size={52} />
       </Link>
       <section className="login-card auth-card">
         {error || !invitation.success ? (
