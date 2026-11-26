@@ -1,5 +1,7 @@
 # Thăm dò lịch chơi và tạo buổi thủ công
 
+> Lưu trữ lịch sử: tính năng Hẹn lịch/thăm dò đã bị gỡ ngày 26/11/2026. Không dùng các hướng dẫn và lệnh kiểm thử bên dưới cho phiên bản hiện tại. Xem [điều khiển sản phẩm](product-controls.md); lịch lặp hàng tuần vẫn được giữ.
+
 Từ 26/11/2026, form điền sẵn và chi tiết buổi mở trong modal của trang Buổi chơi. `schedule_calendar_meeting` bọc giao dịch lưu nguồn thăm dò và tùy chọn lặp hàng tuần; xem [calendar-workspace.md](calendar-workspace.md). Luồng bỏ phiếu và tự nhận lời vẫn giữ nguyên.
 
 Thăm dò dùng để hỏi lúc rảnh. Không có điều kiện số người tối thiểu ở giao diện; không tự tạo buổi khi hết hạn hay khi có đủ phiếu.

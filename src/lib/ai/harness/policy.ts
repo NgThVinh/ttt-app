@@ -11,20 +11,12 @@ const reads = new Set([
   "get_session_breakdown",
   "list_sessions",
   "get_group_summary",
-  "get_poll_results",
   "get_upcoming",
 ]);
-const selfWrites = new Set([
-  "draft_rsvp",
-  "draft_vote",
-  "draft_mark_paid",
-  "draft_note",
-]);
+const selfWrites = new Set(["draft_rsvp", "draft_mark_paid", "draft_note"]);
 const sharedWrites = new Set([
   "draft_session",
   "draft_planned_session",
-  "draft_poll",
-  "draft_close_poll_and_schedule",
   "draft_claim_collector",
   "draft_reminder",
   "draft_alias",

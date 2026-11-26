@@ -1,4 +1,5 @@
 "use client";
+import { useId } from "react";
 import type { SessionDetail } from "@/lib/session-data";
 import { LockKeyhole } from "lucide-react";
 import RsvpButtons from "./rsvp-buttons";
@@ -25,6 +26,7 @@ export default function SessionParticipants({
   session: SessionDetail;
   children?: React.ReactNode;
 }) {
+  const titleId = useId();
   const people = s.attendees.filter((p) => !p.removed_at),
     going = people.filter((p) => p.rsvp === "going" && p.committed_at),
     waiting = people.filter(
@@ -39,12 +41,9 @@ export default function SessionParticipants({
         ? "not_going"
         : "pending";
   return (
-    <section
-      className="panel session-participants"
-      aria-labelledby="participants-title"
-    >
+    <section className="panel session-participants" aria-labelledby={titleId}>
       <div className="section-heading">
-        <h2 id="participants-title">Người tham gia</h2>
+        <h2 id={titleId}>Người tham gia</h2>
         {children}
       </div>
       {s.status === "planned" ? (

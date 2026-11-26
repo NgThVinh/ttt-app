@@ -81,7 +81,7 @@ export default function HomeOverview({
           ) : (
             <div className="panel">
               <p>Chưa có lịch chơi sắp tới.</p>
-              <Link href="/polls">Hẹn lịch cùng nhóm</Link>
+              <Link href="/sessions">Tạo buổi chơi</Link>
             </div>
           )}
         </section>
@@ -98,7 +98,7 @@ export default function HomeOverview({
       </div>
       <Link className="simple-review-link" href="/approvals">
         <CheckCheck size={18} aria-hidden />
-        Chờ tôi duyệt <ArrowRight size={16} aria-hidden />
+        Yêu cầu <ArrowRight size={16} aria-hidden />
       </Link>
     </main>
   );

@@ -19,6 +19,8 @@ const fixtureOwners = new Map([
   ["Session workspace fixture", /^workspace-owner@3t\.test$/],
   ["Session focus fixture", /^focus-owner@3t\.test$/],
   ["Calendar workspace fixture", /^calendar-workspace@3t\.test$/],
+  ["Product controls fixture", /^controls-owner@3t\.test$/],
+  ["Other controls fixture", /^controls-outside@3t\.test$/],
   ["Profile UI fixture", /^ui-acceptance@3t\.test$/],
   ["UX minimal fixture", /^minimal-owner@3t\.test$/],
   ["First group UI fixture", new RegExp(`^first-group-${uuid}@3t\\.test$`)],
@@ -299,14 +301,10 @@ export async function cleanLocal({ apply = false, sessionIds } = {}) {
       flag: "wx",
       mode: 0o600,
     });
-    // Break the nullable session/recalculation cycle; every updated row is already backed up for deletion.
-    await db.query(
-      `update public.sessions s set last_recalculation_id=null where last_recalculation_id is not null and exists(select 1 from ${sessionTable.temp} x where x.id=s.id)`,
-    );
     const guards = (
       await db.query(`select c.oid::text oid,n.nspname schema,c.relname table_name,t.tgname name,t.tgenabled enabled
       from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace join pg_proc p on p.oid=t.tgfoid
-      where not t.tgisinternal and (t.tgtype & 8)>0 and p.proname in ('immutable_log','protect_confirmed')`)
+      where not t.tgisinternal and (((t.tgtype & 8)>0 and p.proname in ('immutable_log','protect_confirmed')) or p.proname='guard_deleted_session')`)
     ).rows.filter((g) => selected.some((t) => t.oid === g.oid));
     for (const g of guards) {
       requireLocal(g.enabled === "O", "UNEXPECTED_TRIGGER_STATE");
@@ -314,6 +312,11 @@ export async function cleanLocal({ apply = false, sessionIds } = {}) {
         `alter table ${quote(g.schema)}.${quote(g.table_name)} disable trigger ${quote(g.name)}`,
       );
     }
+    // Break the nullable session/recalculation cycle after disabling the tombstone guard.
+    // Every updated row is already backed up; exclusive locks prevent concurrent writes.
+    await db.query(
+      `update public.sessions s set last_recalculation_id=null where last_recalculation_id is not null and exists(select 1 from ${sessionTable.temp} x where x.id=s.id)`,
+    );
     // FK checks remain enabled. Children are deleted before their parents.
     const remaining = new Map(selected.map((t) => [t.oid, t]));
     const dependencies = fks.filter(

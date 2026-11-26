@@ -105,58 +105,45 @@ afterAll(async () => {
   await db?.close();
 });
 
-it("requires group admin request and verified super admin decision, hides credentials", async () => {
+it("lets group admins configure AI directly without a request while members cannot and credentials stay private", async () => {
+  const config = {
+    status: "approved",
+    provider: "google",
+    model: "test",
+    suffix: "1234",
+    message_limit: 2,
+    token_limit: 20000,
+    reason: "Test",
+    enabled: true,
+  };
+  const envelope = {
+    version: 1,
+    iv: "abc",
+    tag: "abc",
+    ciphertext: "encrypted",
+  };
   await actor(b);
   await expect(
-    db.query("select public.request_group_ai($1,'Test')", [group]),
-  ).rejects.toThrow();
-  await actor(a);
-  await db.query("select public.request_group_ai($1,'Test')", [group]);
-  await expect(
-    db.query("select public.configure_group_ai($1,0,$2,$3)", [
+    db.query("select public.configure_group_ai($1,-1,$2,$3)", [
       group,
-      JSON.stringify({
-        status: "approved",
-        provider: "google",
-        model: "test",
-        suffix: "1234",
-        message_limit: 2,
-        token_limit: 20000,
-        reason: "Test",
-        enabled: true,
-      }),
-      JSON.stringify({
-        version: 1,
-        iv: "abc",
-        tag: "abc",
-        ciphertext: "encrypted",
-      }),
+      JSON.stringify(config),
+      JSON.stringify(envelope),
     ]),
   ).rejects.toThrow();
-  await db.exec("reset role");
-  await db.exec(
-    "insert into app_private.super_admin_allowlist(email) values('a@test.local')",
-  );
   await actor(a);
-  await db.query("select public.configure_group_ai($1,0,$2,$3)", [
+  await db.query("select public.configure_group_ai($1,-1,$2,$3)", [
     group,
-    JSON.stringify({
-      status: "approved",
-      provider: "google",
-      model: "test",
-      suffix: "1234",
-      message_limit: 2,
-      token_limit: 20000,
-      reason: "Test",
-      enabled: true,
-    }),
-    JSON.stringify({
-      version: 1,
-      iv: "abc",
-      tag: "abc",
-      ciphertext: "encrypted",
-    }),
+    JSON.stringify(config),
+    JSON.stringify(envelope),
   ]);
+  expect(
+    (
+      await db.query<{ status: string; enabled: boolean }>(
+        "select status,enabled from public.group_ai_settings where group_id=$1",
+        [group],
+      )
+    ).rows[0],
+  ).toEqual({ status: "approved", enabled: true });
   await expect(
     db.query("select public.read_ai_credential($1)", [group]),
   ).rejects.toThrow();
@@ -182,6 +169,7 @@ it("requires group admin request and verified super admin decision, hides creden
     ).rows,
   ).toHaveLength(0);
 });
+
 it("reserves quota atomically, prevents cross-group access and respects immediate kill switch", async () => {
   await actor(c);
   await expect(
@@ -219,7 +207,7 @@ it("reserves quota atomically, prevents cross-group access and respects immediat
     ).rows[0].r,
   ).toBe(null);
 });
-it("enables decision routing only by super admin with a current revision and a supported free model", async () => {
+it("enables decision routing only by group admin with a current revision and a supported free model", async () => {
   await db.exec("reset role");
   await db.query(
     "update public.group_ai_settings set enabled=true,provider='openai-compatible',base_url='https://openrouter.ai/api/v1' where group_id=$1",

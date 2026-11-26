@@ -1,28 +1,30 @@
 # Các luồng cần xác nhận/duyệt hiện có — chờ chủ sản phẩm chốt
 
-Ngày rà soát: 24/11/2026. Đây là tổng hợp từ mã nguồn hiện tại, không phải số lượng yêu cầu trong một tài khoản cụ thể. Lượt này chưa thay quy tắc hoặc giao diện Chờ tôi duyệt.
+Ngày rà soát gốc: 24/11/2026. Bảng bên dưới ghi lại luồng tại thời điểm đó, không phải số lượng yêu cầu trong một tài khoản cụ thể.
+
+**Cập nhật 26/11/2026:** trang đổi tên thành **Yêu cầu**, nằm trực tiếp trong menu chính. Bỏ luồng xin duyệt kích hoạt AI: admin nhóm cấu hình và bật/tắt trực tiếp. Các xác nhận liên quan tiền, đề cử người tính tiền và nhận lại thành viên vẫn giữ. Hẹn lịch/thăm dò đã gỡ. Xem [phạm vi hiện tại](product-controls.md).
 
 ## Những luồng đang còn sử dụng
 
-| Loại | Khi nào xuất hiện | Ai xử lý | Đang nằm ở đâu |
-| --- | --- | --- | --- |
-| Nhận người tính tiền | Một thành viên được đề cử | Chính người được đề cử; phải có ngân hàng | Chi phí buổi chơi và Chờ tôi duyệt |
-| Chuyển người tính tiền | Buổi chưa chốt, đã có người tính tiền | Nếu người khác đề nghị: người đang tính tiền đồng ý trước, rồi người mới nhận. Nếu chính người đang tính tiền đề cử: người mới nhận | Chi phí buổi chơi và Chờ tôi duyệt |
-| Nhận lại tên khách | Tài khoản email thật yêu cầu liên kết với tên được thêm hộ | Admin nhóm xác minh đúng người và email; giữ mã thành viên/lịch sử cũ | Trang nhóm và Chờ tôi duyệt |
-| Xác nhận nhận tiền | Người chuyển đã báo chuyển tiền | Đúng người nhận kiểm tra sao kê rồi xác nhận; admin không mặc nhiên được xác nhận hộ | Thanh toán trong chi tiết buổi, chưa tổng hợp ở Chờ tôi duyệt |
-| Thay đổi hệ số | Thành viên đã nhận lời xin đổi hệ số trước khi chốt chi phí | Người tính tiền hiện tại; preview/hash/revision phải còn đúng | Backend vẫn hỗ trợ, AI có thể tạo bản nháp; form đề nghị riêng đã bỏ khỏi chi tiết buổi |
-| Bản nháp AI | AI đề xuất thao tác có ghi dữ liệu | Người dùng xác nhận bản nháp T1/T2; thao tác T3 xác nhận trong app theo đúng thẩm quyền, ví dụ xác nhận nhận tiền hoặc người tính tiền sửa hóa đơn đã có khoản thu | Trợ lý 3T và trang bản nháp riêng, chưa đưa vào Chờ tôi duyệt |
-| Yêu cầu bật AI cho nhóm | Nhóm xin sử dụng AI, cấu hình provider/key/hạn mức | Super admin | Cài đặt AI, chưa đưa vào Chờ tôi duyệt |
+| Loại                    | Khi nào xuất hiện                                           | Ai xử lý                                                                                                                                                           | Đang nằm ở đâu                                                                          |
+| ----------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| Nhận người tính tiền    | Một thành viên được đề cử                                   | Chính người được đề cử; phải có ngân hàng                                                                                                                          | Chi phí buổi chơi và Chờ tôi duyệt                                                      |
+| Chuyển người tính tiền  | Buổi chưa chốt, đã có người tính tiền                       | Nếu người khác đề nghị: người đang tính tiền đồng ý trước, rồi người mới nhận. Nếu chính người đang tính tiền đề cử: người mới nhận                                | Chi phí buổi chơi và Chờ tôi duyệt                                                      |
+| Nhận lại tên khách      | Tài khoản email thật yêu cầu liên kết với tên được thêm hộ  | Admin nhóm xác minh đúng người và email; giữ mã thành viên/lịch sử cũ                                                                                              | Trang nhóm và Chờ tôi duyệt                                                             |
+| Xác nhận nhận tiền      | Người chuyển đã báo chuyển tiền                             | Đúng người nhận kiểm tra sao kê rồi xác nhận; admin không mặc nhiên được xác nhận hộ                                                                               | Thanh toán trong chi tiết buổi, chưa tổng hợp ở Chờ tôi duyệt                           |
+| Thay đổi hệ số          | Thành viên đã nhận lời xin đổi hệ số trước khi chốt chi phí | Người tính tiền hiện tại; preview/hash/revision phải còn đúng                                                                                                      | Backend vẫn hỗ trợ, AI có thể tạo bản nháp; form đề nghị riêng đã bỏ khỏi chi tiết buổi |
+| Bản nháp AI             | AI đề xuất thao tác có ghi dữ liệu                          | Người dùng xác nhận bản nháp T1/T2; thao tác T3 xác nhận trong app theo đúng thẩm quyền, ví dụ xác nhận nhận tiền hoặc người tính tiền sửa hóa đơn đã có khoản thu | Trợ lý 3T và trang bản nháp riêng, chưa đưa vào Chờ tôi duyệt                           |
+| Yêu cầu bật AI cho nhóm | Nhóm xin sử dụng AI, cấu hình provider/key/hạn mức          | Super admin                                                                                                                                                        | Cài đặt AI, chưa đưa vào Chờ tôi duyệt                                                  |
 
 Lưu ý bản nháp AI: gửi đề cử qua AI có thể gồm hai bước khác nhau: xác nhận **gửi đề cử**, sau đó người có quyền **nhận/chuyển vai trò**. Duyệt bản nháp gửi đề nghị không tự thay thế sự đồng ý của người được đề cử.
 
 ## Những loại còn trong mã nhưng không nên coi là luồng chính
 
-| Loại | Trạng thái hiện tại |
-| --- | --- |
-| Xin vào / xin rút khỏi buổi (`join`, `leave`) | Không còn tạo được qua RPC hiện tại; thành viên tự nhận/rút trước khi chốt. Buổi đã chốt khóa danh sách. Nhãn trong ApprovalCard chủ yếu còn để đọc dữ liệu cũ. |
-| Đề xuất phụ phí (`expense_proposal`) | Luồng cũ cho người tham gia đề nghị khoản chi. Quyền mới chỉ cho người tính tiền ghi hóa đơn; thành viên thường không còn tạo đề xuất mới bằng đường ghi này. Có thể còn yêu cầu cũ cần xử lý riêng. |
-| Admin dự phòng (`admin_fallback`) | Backend còn mã điều kiện/xem trước, nhưng không nằm trong hộp duyệt hiện tại; panel admin của buổi hiện chỉ có mở khóa hóa đơn 24 giờ sau khóa 30 ngày. Các wrapper quyền mới vẫn chặn việc admin tự nhận quyền ghi hóa đơn/thay nominee xác nhận. Không nên thêm quyền dự phòng chung chỉ bằng thay UI. |
+| Loại                                          | Trạng thái hiện tại                                                                                                                                                                                                                                                                                      |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Xin vào / xin rút khỏi buổi (`join`, `leave`) | Không còn tạo được qua RPC hiện tại; thành viên tự nhận/rút trước khi chốt. Buổi đã chốt khóa danh sách. Nhãn trong ApprovalCard chủ yếu còn để đọc dữ liệu cũ.                                                                                                                                          |
+| Đề xuất phụ phí (`expense_proposal`)          | Luồng cũ cho người tham gia đề nghị khoản chi. Quyền mới chỉ cho người tính tiền ghi hóa đơn; thành viên thường không còn tạo đề xuất mới bằng đường ghi này. Có thể còn yêu cầu cũ cần xử lý riêng.                                                                                                     |
+| Admin dự phòng (`admin_fallback`)             | Backend còn mã điều kiện/xem trước, nhưng không nằm trong hộp duyệt hiện tại; panel admin của buổi hiện chỉ có mở khóa hóa đơn 24 giờ sau khóa 30 ngày. Các wrapper quyền mới vẫn chặn việc admin tự nhận quyền ghi hóa đơn/thay nominee xác nhận. Không nên thêm quyền dự phòng chung chỉ bằng thay UI. |
 
 Không cần duyệt: tự nhận/rút trước chốt, vote thăm dò, tạo buổi, mời thành viên, người tính tiền nhập/chốt hóa đơn. Chúng vẫn có validation/quyền/xem trước khi cần, nhưng không cần một yêu cầu pending riêng. Đăng ký tài khoản xác minh email cũng không đồng nghĩa đã tham gia nhóm.
 

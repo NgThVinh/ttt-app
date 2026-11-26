@@ -137,54 +137,6 @@ it("session creation reuses an explicit request key while distinct keys remain d
   expect((await command("create_session", body)).id).not.toBe(first.id);
 });
 
-it("two independently reviewed identical polls still produce distinct sessions", async () => {
-  await actor(a);
-  const slots = [
-    {
-      starts_at: new Date(Date.now() + 2 * 86400000).toISOString(),
-      ends_at: new Date(Date.now() + 2 * 86400000 + 3600000).toISOString(),
-    },
-  ];
-  const sessions: string[] = [];
-  for (let n = 0; n < 2; n++) {
-    const poll = (
-      await db.query<{ id: string }>(
-        "select public.create_poll($1,'Same poll','Court',1,now()+interval '1 day',$2) id",
-        [group, JSON.stringify(slots)],
-      )
-    ).rows[0].id;
-    const option = (
-      await db.query<{ id: string }>(
-        "select id from public.poll_options where poll_id=$1",
-        [poll],
-      )
-    ).rows[0].id;
-    await db.query("select public.vote_poll($1,'yes')", [option]);
-    const result = await db.query<{ r: { id: string } }>(
-      "select public.schedule_poll_meeting($1,$2,$3,$4) r",
-      [
-        randomUUID(),
-        poll,
-        option,
-        {
-          g: group,
-          title_text: "Same poll",
-          venue_text: "Court",
-          start_time: slots[0].starts_at,
-          ends_at: slots[0].ends_at,
-          deadline: slots[0].starts_at,
-          note: "",
-          be_collector: false,
-          nominee: "",
-          invitees: [],
-        },
-      ],
-    );
-    sessions.push(result.rows[0].r.id);
-  }
-  expect(sessions[0]).not.toBe(sessions[1]);
-});
-
 it("retries return the committed result without creating another expense, batch, notification or audit event", async () => {
   const s = await session(),
     key = randomUUID(),

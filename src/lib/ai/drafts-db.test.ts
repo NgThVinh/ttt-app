@@ -270,7 +270,7 @@ it("keeps received confirmation T3 and stops when session revision changes", asy
     db.query("select public.decide_ai_draft($1,$2,true)", [d.id, d.hash]),
   ).rejects.toThrow();
 });
-it("keeps session and poll creation as drafts, then applies each once", async () => {
+it("keeps session creation as a draft and rejects retired polling tools", async () => {
   await enable();
   await actor(a);
   const sessionsBefore = (
@@ -311,36 +311,8 @@ it("keeps session and poll creation as drafts, then applies each once", async ()
       )
     ).rows[0].n,
   ).toBe(sessionsBefore + 1);
-  const pollsBefore = (
-    await db.query<{ n: number }>("select count(*)::int n from public.polls")
-  ).rows[0].n;
-  const poll = await draft("create_poll", {
-    g: group,
-    title_text: "AI poll",
-    venue_text: "Court",
-    minimum: 1,
-    deadline: p.deadline,
-    options: [
-      {
-        starts_at: p.start_time,
-        ends_at: new Date(Date.now() + 90000000).toISOString(),
-      },
-    ],
-  });
-  expect(
-    (await db.query<{ n: number }>("select count(*)::int n from public.polls"))
-      .rows[0].n,
-  ).toBe(pollsBefore);
-  await db.query("select public.decide_ai_draft($1,$2,true)", [
-    poll.id,
-    poll.hash,
-  ]);
-  await db.query("select public.decide_ai_draft($1,$2,true)", [
-    poll.id,
-    poll.hash,
-  ]);
-  expect(
-    (await db.query<{ n: number }>("select count(*)::int n from public.polls"))
-      .rows[0].n,
-  ).toBe(pollsBefore + 1);
+  await expect(draft("create_poll", { g: group })).rejects.toThrow();
+  await expect(
+    draft("vote", { option_id: randomUUID(), answer: "yes" }),
+  ).rejects.toThrow();
 });

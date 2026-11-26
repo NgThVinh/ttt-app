@@ -1,7 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Clock3, MapPin, Pencil } from "lucide-react";
+import { ArrowLeft, Clock3, MapPin, Pencil, Trash2 } from "lucide-react";
+import SessionTask from "./session-task";
+import ActionForm from "./action-form";
+import { deleteSession } from "@/app/sessions/actions";
 import type { SessionDetail } from "@/lib/session-data";
 import {
   sessionDate,
@@ -79,6 +82,34 @@ export default function SessionHeader({
             </button>
           )}
           <SessionHistory sid={s.id} />
+          {canCancel &&
+            (s.status === "planned" || s.status === "cancelled") &&
+            !s.booking_locked && (
+              <SessionTask
+                label={<Trash2 size={17} aria-hidden="true" />}
+                accessibleLabel="Xóa buổi chưa chốt"
+                title="Xóa buổi chơi"
+                secondary
+              >
+                <p>
+                  Xóa “{s.title}” khỏi lịch? Buổi đã xóa vẫn được lưu trong
+                  audit log của admin. Các buổi lặp khác giữ nguyên.
+                </p>
+                <ActionForm action={deleteSession} label="Xóa buổi chơi">
+                  <input type="hidden" name="sid" value={s.id} />
+                  <input type="hidden" name="revision" value={s.revision} />
+                  <label className="delete-session-confirm">
+                    <input
+                      type="checkbox"
+                      name="reviewed"
+                      value="yes"
+                      required
+                    />
+                    Tôi xác nhận xóa riêng buổi này.
+                  </label>
+                </ActionForm>
+              </SessionTask>
+            )}
           <ShareButton
             compact
             title={s.title}

@@ -13,7 +13,6 @@ export function decisionPlan(
     confirm_received: ["debts"],
     expense: ["expenses"],
     schedule: ["sessions", "create"],
-    poll: ["polls"],
     rsvp: ["sessions"],
   };
   return {

@@ -206,7 +206,7 @@ try {
       path: ".tools/session-focus/after-cost-task-390.png",
     });
     await owner.page.getByRole("button", { name: "Đóng", exact: true }).click();
-    await expect(owner.page.locator(".session-task-dialog")).toBeHidden();
+    await expect(owner.page.locator(".session-task-dialog[open]")).toBeHidden();
     step = "first-viewport";
     await member.page.setViewportSize({ width: 390, height: 844 });
     await member.page.goto(origin + "/sessions/" + planned);
@@ -244,12 +244,14 @@ try {
     });
     await expect(payButton).toBeInViewport({ ratio: 1 });
     await payButton.click();
-    await expect(member.page.locator(".session-task-dialog")).toBeVisible();
+    await expect(
+      member.page.locator(".session-task-dialog[open]"),
+    ).toBeVisible();
     await expect(
       member.page.locator(".session-task-content.is-open"),
     ).toHaveCSS("opacity", "1");
     const taskBox = await member.page
-      .locator(".session-task-dialog")
+      .locator(".session-task-dialog[open]")
       .boundingBox();
     check(
       Math.abs(taskBox.x + taskBox.width / 2 - 195) < 2 &&
@@ -263,7 +265,9 @@ try {
       path: ".tools/session-focus/after-payment-task-390.png",
     });
     await member.page.keyboard.press("Escape");
-    await expect(member.page.locator(".session-task-dialog")).toBeHidden();
+    await expect(
+      member.page.locator(".session-task-dialog[open]"),
+    ).toBeHidden();
     await expect(payButton).toBeFocused();
     await payButton.click();
     check(
@@ -293,11 +297,13 @@ try {
     await owner.page.setViewportSize({ width: 390, height: 844 });
     await owner.page.goto(origin + "/sessions/" + sid);
     await expect(
-      owner.page.locator('.payment-row[data-payment-id="' + mark + '"]'),
+      owner.page.locator(
+        '.payment-row[data-payment-id="' + mark + '"]:visible',
+      ),
     ).toBeInViewport({ ratio: 1 });
     await expect(
       owner.page
-        .locator('.payment-row[data-payment-id="' + mark + '"]')
+        .locator('.payment-row[data-payment-id="' + mark + '"]:visible')
         .getByRole("button", { name: "Đã nhận", exact: true }),
     ).toBeInViewport({ ratio: 1 });
     step = "small-and-dark";
@@ -349,7 +355,7 @@ try {
       "0s",
     );
     await owner.page.keyboard.press("Escape");
-    await expect(owner.page.locator(".session-task-dialog")).toBeHidden();
+    await expect(owner.page.locator(".session-task-dialog[open]")).toBeHidden();
     await db.query(
       "update public.settlements set status='confirmed',confirmed_at=now() where session_id=$1 and status<>'confirmed'",
       [sid],

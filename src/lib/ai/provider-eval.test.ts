@@ -17,7 +17,6 @@ import type { supabase } from "@/lib/supabase";
 import { databaseUrlForProject } from "../../../scripts/migration-utils.mjs";
 const sid = "11111111-1111-4111-8111-111111111111",
   pid = "22222222-2222-4222-8222-222222222222",
-  option = "33333333-3333-4333-8333-333333333333",
   payment = "44444444-4444-4444-8444-444444444444";
 type Case = { text: string; tool: string; input: Record<string, unknown> };
 const cases: Case[] = [];
@@ -62,15 +61,11 @@ add(
   ],
   { session_id: sid },
 );
-add(
-  "get_poll_results",
-  [
-    "Kết quả thăm dò Cuối tuần thế nào?",
-    "Khung nào đông người nhất trong thăm dò Cuối tuần?",
-    "Xem số phiếu thăm dò Cuối tuần.",
-  ],
-  { poll_id: pid },
-);
+add("get_upcoming", [
+  "Những buổi chơi trong tuần tới là gì?",
+  "Xem các lịch chơi còn sắp diễn ra.",
+  "Nhóm sắp chơi vào những ngày nào?",
+]);
 add(
   "draft_rsvp",
   [
@@ -87,18 +82,11 @@ add(
   ],
   { session_id: sid, going: false },
 );
-add("draft_vote", ["Tôi chọn Có cho khung 19 giờ của thăm dò Cuối tuần."], {
-  option_id: option,
-  answer: "yes",
-});
-add("draft_vote", ["Tôi chọn Có thể cho khung 19 giờ của thăm dò Cuối tuần."], {
-  option_id: option,
-  answer: "maybe",
-});
-add("draft_vote", ["Tôi chọn Không cho khung 19 giờ của thăm dò Cuối tuần."], {
-  option_id: option,
-  answer: "no",
-});
+add("get_my_debts", [
+  "Danh sách khoản còn phải trả của tôi.",
+  "Ai đang chờ tôi chuyển tiền?",
+  "Tôi cần thanh toán những khoản nào?",
+]);
 add(
   "draft_mark_paid",
   [
@@ -273,7 +261,7 @@ it.skipIf(process.env.AI_PROVIDER_EVAL !== "1")(
         }
         if (index) await new Promise((resolve) => setTimeout(resolve, 3200));
         try {
-          const context = `Actor: An, user_id 00000000-0000-4000-8000-000000000001, member_id 55555555-5555-4555-8555-555555555555, role admin. ${c.tool === "draft_rsvp" ? "Session status planned, starts_at 2026-11-26T12:00:00Z, commit_deadline 2026-11-26T10:00:00Z, own RSVP none." : "Session status played, revision 3, collector_member_id 55555555-5555-4555-8555-555555555555; actor is the collector and a going attendee with weight 1; no confirmed payments; no lock. Expense categories and templates empty."} Nhóm kiểm thử. Tôi là An, member_id 55555555-5555-4555-8555-555555555555. Buổi Cầu lông tối thứ Năm có id ${sid}, revision 3. Thăm dò Cuối tuần id ${pid}, khung 19 giờ option_id ${option}. Khoản thanh toán duy nhất id ${payment}, 85000đ: nếu tôi nói đã chuyển thì tôi là người chuyển; nếu xác nhận nhận hoặc nhắc Bình thì tôi là người nhận. Khi thêm phụ phí không có danh mục: category_id rỗng, expense_id rỗng, note rỗng, values [].`;
+          const context = `Actor: An, user_id 00000000-0000-4000-8000-000000000001, member_id 55555555-5555-4555-8555-555555555555, role admin. ${c.tool === "draft_rsvp" ? "Session status planned, starts_at 2026-11-26T12:00:00Z, commit_deadline 2026-11-26T10:00:00Z, own RSVP none." : "Session status played, revision 3, collector_member_id 55555555-5555-4555-8555-555555555555; actor is the collector and a going attendee with weight 1; no confirmed payments; no lock. Expense categories and templates empty."} Nhóm kiểm thử. Tôi là An, member_id 55555555-5555-4555-8555-555555555555. Buổi Cầu lông tối thứ Năm có id ${sid}, revision 3. Khoản thanh toán duy nhất id ${payment}, 85000đ: nếu tôi nói đã chuyển thì tôi là người chuyển; nếu xác nhận nhận hoặc nhắc Bình thì tôi là người nhận. Khi thêm phụ phí không có danh mục: category_id rỗng, expense_id rỗng, note rỗng, values [].`;
           const r = await generateText({
             model,
             system: systemPrompt("2026-11-22T09:00:00Z"),

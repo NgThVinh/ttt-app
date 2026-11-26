@@ -13,7 +13,7 @@ import { detailSchema } from "@/lib/session-data";
 import { formatMoney } from "@/lib/money";
 import ActionForm from "@/components/action-form";
 import ExpenseForm from "@/components/expense-form";
-import { weeklySeries } from "@/app/polls/actions";
+import { weeklySeries } from "../weekly-actions";
 import { inviteToSession } from "../actions";
 import { createInvite } from "@/app/groups/actions";
 import SessionParticipants from "@/components/session-participants";

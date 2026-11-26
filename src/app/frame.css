@@ -406,46 +406,11 @@
 .participant-list label {
   overflow-wrap: anywhere;
 }
-.poll-options-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-.poll-options-grid fieldset {
-  margin-block: 0 12px;
-}
-.poll-options-grid .compact-fields {
-  grid-template-columns: 1fr;
-  gap: 0;
-}
-.poll-form label {
-  font-size: 14px;
-}
-.poll-form input,
-.poll-form select {
-  max-width: 100%;
-  min-width: 0;
-}
 @media (max-width: 600px) {
   .session-form > .compact-fields,
-  .suggested-details .compact-fields,
-  .poll-form .compact-fields {
+  .suggested-details .compact-fields {
     grid-template-columns: 1fr;
     gap: 0;
-  }
-  .poll-options-grid {
-    grid-template-columns: 1fr;
-  }
-  .poll-options-grid .compact-fields {
-    grid-template-columns: 1fr;
-    gap: 0;
-  }
-  .poll-options-grid fieldset {
-    padding: 10px;
-  }
-  .poll-options-grid input {
-    font-size: 14px;
-    padding-inline: 10px;
   }
 }
 .session-form label > select {

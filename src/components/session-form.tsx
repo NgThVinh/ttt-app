@@ -13,7 +13,6 @@ import SuggestedSessionDetails, {
   type SessionSuggestion,
 } from "./suggested-session-details";
 import MeetingForm, { type MeetingEvent } from "./meeting-form";
-import type { PollMeetingDraft } from "@/lib/poll-draft";
 import {
   courtInputSchema,
   formatVndInput,
@@ -39,7 +38,6 @@ export default function SessionForm({
   suggestions = {},
   bankReady = true,
   events = [],
-  pollDraft,
   initialDate,
 }: {
   groups: { id: string; name: string }[];
@@ -55,7 +53,6 @@ export default function SessionForm({
   suggestions?: Record<string, SessionSuggestion>;
   bankReady?: boolean;
   events?: MeetingEvent[];
-  pollDraft?: PollMeetingDraft;
   initialDate?: string;
 }) {
   const [group, setGroup] = useState(groups[0].id),
@@ -205,7 +202,7 @@ export default function SessionForm({
   if (flow === "planned")
     return (
       <>
-        {!pollDraft && (
+        {
           <div className="meeting-mode" role="group" aria-label="Loại buổi">
             <button type="button" aria-pressed={true}>
               Đặt lịch
@@ -219,7 +216,7 @@ export default function SessionForm({
               Nhập buổi đã chơi
             </button>
           </div>
-        )}
+        }
         <MeetingForm
           initialDate={initialDate}
           groups={groups}
@@ -228,7 +225,6 @@ export default function SessionForm({
           suggestions={suggestions}
           bankReady={bankReady}
           events={events}
-          pollDraft={pollDraft}
         />
       </>
     );

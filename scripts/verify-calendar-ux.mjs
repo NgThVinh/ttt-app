@@ -35,7 +35,6 @@ try {
   const today = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10);
   const joined = shift(today, 1),
     confirmed = shift(today, 2),
-    voting = shift(today, 3),
     expired = shift(today, 4);
   async function session(title, day, status = "planned", hour = 18) {
     const sid = randomUUID(),
@@ -47,7 +46,7 @@ try {
     return sid;
   }
   const mine = await session("Buổi tôi tham gia", joined, "planned", 17);
-  const closed = await session("Lịch nhóm đã chốt", confirmed);
+  const closed = await session("Lịch nhóm đã chốt", confirmed, "played");
   const cancelled = await session("Buổi đã hủy", expired, "cancelled");
   for (const [i, member] of members.entries())
     await db.query(
@@ -84,25 +83,8 @@ try {
       "insert into public.session_attendees(session_id,member_id,rsvp) values($1,$2,'none')",
       [large, member],
     );
-  async function poll(title, day, status, result = null, future = true) {
-    const id = randomUUID();
-    await db.query(
-      "insert into public.polls(id,group_id,title,venue,min_attendees,closes_at,status,resulting_session_id,created_by) values($1,$2,$3,'Sân UX',2,now()+($4::int*interval '1 day'),$5,$6,$7)",
-      [id, group, title, future ? 1 : -1, status, result, actor.user.id],
-    );
-    for (const hour of [18, 20])
-      await db.query(
-        "insert into public.poll_options(poll_id,starts_at,ends_at) values($1,$2::timestamptz,$2::timestamptz+interval '1 hour')",
-        [id, `${day}T${hour}:00:00+07:00`],
-      );
-    return id;
-  }
-  await poll("Thăm dò đã chốt", confirmed, "closed", closed);
-  const activePoll = await poll("Nhóm đang chọn giờ", voting, "open");
-  await poll("Vote đã hết hạn", expired, "open", null, false);
   const hiddenGroup = randomUUID(),
-    hiddenMember = randomUUID(),
-    hiddenPoll = randomUUID();
+    hiddenMember = randomUUID();
   await db.query(
     "insert into public.groups(id,name,sport,created_by) values($1,'Nhóm đã rời','Test',$2)",
     [hiddenGroup, actor.user.id],
@@ -114,14 +96,6 @@ try {
   await db.query(
     "insert into public.sessions(group_id,title,venue,starts_at,commit_deadline,created_by) values($1,'Lịch nhóm đã rời','Sân riêng',$2,$2,$3)",
     [hiddenGroup, `${joined}T18:00:00+07:00`, actor.user.id],
-  );
-  await db.query(
-    "insert into public.polls(id,group_id,title,venue,min_attendees,closes_at,created_by) values($1,$2,'Thăm dò nhóm đã rời','Sân riêng',2,now()+interval '1 day',$3)",
-    [hiddenPoll, hiddenGroup, actor.user.id],
-  );
-  await db.query(
-    "insert into public.poll_options(poll_id,starts_at,ends_at) values($1,$2::timestamptz,$2::timestamptz+interval '1 hour')",
-    [hiddenPoll, `${voting}T18:00:00+07:00`],
   );
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(origin + "/sessions");
@@ -147,22 +121,12 @@ try {
   await expect(
     page.locator(`.calendar [data-date="${confirmed}"]`),
   ).toHaveAttribute("data-calendar-states", /confirmed/);
-  await showMonth(voting);
-  await expect(
-    page.locator(`.calendar [data-date="${voting}"]`),
-  ).toHaveAttribute("aria-label", /1 thăm dò đang vote/);
   await showMonth(expired);
   await expect(
     page.locator(`.calendar [data-date="${expired}"]`),
   ).toHaveAttribute("data-calendar-states", "");
-  await expect(page.getByText("Vote đã hết hạn", { exact: true })).toHaveCount(
-    0,
-  );
   await expect(
     page.getByRole("link", { name: "Lịch nhóm đã rời", exact: true }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole("link", { name: "Thăm dò nhóm đã rời", exact: true }),
   ).toHaveCount(0);
   step = "hover-focus-roster";
   const row = page
@@ -220,20 +184,6 @@ try {
     path: ".tools/calendar-ux/desktop.png",
     animations: "disabled",
   });
-  step = "poll-day-filter";
-  await showMonth(voting);
-  await page.locator(`.calendar [data-date="${voting}"]`).click();
-  await expect(page.locator(".poll-agenda-item")).toHaveCount(2);
-  await expect(
-    page
-      .locator(".poll-agenda-item")
-      .first()
-      .locator(`a[href="/polls/${activePoll}"]`)
-      .first(),
-  ).toBeVisible();
-  await expect(
-    page.locator(".agenda-items .agenda-row:not(.poll-agenda-item)"),
-  ).toHaveCount(0);
   step = "mobile-touch";
   const touchContext = await actor.context
     .browser()
@@ -348,9 +298,8 @@ try {
       localOnly: true,
       providerCalls: 0,
       checks: [
-        "personal/confirmed/voting calendar markers",
+        "personal/confirmed calendar markers",
         "expired and cancelled excluded",
-        "polls visible by date",
         "names on hover/focus/touch",
         "withdrawn and uncommitted names",
         "Escape and outside dismissal",

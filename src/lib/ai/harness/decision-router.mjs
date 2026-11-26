@@ -5,7 +5,6 @@ export const decisionIntents = [
   "confirm_received",
   "expense",
   "schedule",
-  "poll",
   "rsvp",
   "privileged",
   "unknown",
@@ -36,7 +35,6 @@ export function decisionRequest(model, message) {
           confirm_received: "Người nhận muốn xác nhận đã nhận tiền.",
           expense: "Thêm/sửa phụ phí, tiền sân, giảm giá hoặc bảng chia.",
           schedule: "Tạo buổi chơi hoặc xem lịch chơi.",
-          poll: "Tạo thăm dò hoặc bỏ phiếu chọn lịch.",
           rsvp: "Tự chốt đi/không đi hoặc xin rút/thêm vào buổi.",
           privileged:
             "Đổi ngân hàng, đổi quyền, xóa thành viên, cấu hình key hoặc sửa log.",

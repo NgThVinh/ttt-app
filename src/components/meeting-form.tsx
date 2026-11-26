@@ -8,7 +8,6 @@ import { Calendar } from "./ui/calendar";
 import { vietnamToday } from "@/lib/calendar";
 import { scheduleMeeting } from "@/app/sessions/actions";
 import { AnimatedDisclosure } from "./ui/animated-disclosure";
-import { pollLocalTime, type PollMeetingDraft } from "@/lib/poll-draft";
 
 export type MeetingEvent = {
   id: string;
@@ -33,7 +32,6 @@ export default function MeetingForm({
   suggestions,
   bankReady,
   events = [],
-  pollDraft,
   initialDate,
 }: {
   groups: { id: string; name: string }[];
@@ -42,26 +40,22 @@ export default function MeetingForm({
   suggestions: Record<string, { venue?: string }>;
   bankReady: boolean;
   events?: MeetingEvent[];
-  pollDraft?: PollMeetingDraft;
   initialDate?: string;
 }) {
   const id = useId();
   const router = useRouter();
-  const [group, setGroup] = useState(pollDraft?.groupId || groups[0].id);
+  const [group, setGroup] = useState(groups[0].id);
   const [starts, setStarts] = useState(
-    pollDraft
-      ? pollLocalTime(pollDraft.starts)
-      : (initialDate ||
-          local(
-            new Date(Date.parse(initialTime) + 86400000).toISOString(),
-          ).slice(0, 10)) + "T18:00",
+    (initialDate ||
+      local(new Date(Date.parse(initialTime) + 86400000).toISOString()).slice(
+        0,
+        10,
+      )) + "T18:00",
   );
-  const [ends, setEnds] = useState(
-    pollDraft ? pollLocalTime(pollDraft.ends) : starts.slice(0, 10) + "T20:00",
-  );
-  const [title, setTitle] = useState(pollDraft?.title || "");
-  const [venue, setVenue] = useState(pollDraft?.venue || "");
-  const [selected, setSelected] = useState<string[]>(pollDraft?.invitees || []);
+  const [ends, setEnds] = useState(starts.slice(0, 10) + "T20:00");
+  const [title, setTitle] = useState("");
+  const [venue, setVenue] = useState("");
+  const [selected, setSelected] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [collector, setCollector] = useState("unknown");
   const [repeat, setRepeat] = useState(false);
@@ -121,24 +115,12 @@ export default function MeetingForm({
                 : undefined
           }
         >
-          {pollDraft && (
-            <>
-              <input type="hidden" name="poll_id" value={pollDraft.pollId} />
-              <input
-                type="hidden"
-                name="poll_option"
-                value={pollDraft.optionId}
-              />
-              <input type="hidden" name="groupId" value={pollDraft.groupId} />
-            </>
-          )}
           <div className="meeting-basics">
             <div>
               <label htmlFor={`${id}-group`}>Nhóm</label>
               <select
                 id={`${id}-group`}
                 name="groupId"
-                disabled={!!pollDraft}
                 value={group}
                 onChange={(e) => {
                   setGroup(e.target.value);

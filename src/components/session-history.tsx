@@ -1,10 +1,11 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { History, X } from "lucide-react";
 import { unstable_rethrow } from "next/navigation";
 import { loadSessionHistory } from "@/app/sessions/actions";
 import { historyLabels, type HistoryItem } from "@/lib/session-history";
 export default function SessionHistory({ sid }: { sid: string }) {
+  const titleId = useId();
   const dialog = useRef<HTMLDialogElement>(null),
     scroll = useRef<HTMLDivElement>(null),
     sentinel = useRef<HTMLDivElement>(null);
@@ -123,7 +124,7 @@ export default function SessionHistory({ sid }: { sid: string }) {
       <dialog
         ref={dialog}
         className="history-dialog"
-        aria-labelledby="history-title"
+        aria-labelledby={titleId}
         onCancel={(e) => {
           e.preventDefault();
           close();
@@ -134,7 +135,7 @@ export default function SessionHistory({ sid }: { sid: string }) {
       >
         <div className={`t-modal history-dialog-content ${state}`}>
           <header>
-            <h2 id="history-title">Lịch sử buổi chơi</h2>
+            <h2 id={titleId}>Lịch sử buổi chơi</h2>
             <button
               type="button"
               className="secondary"

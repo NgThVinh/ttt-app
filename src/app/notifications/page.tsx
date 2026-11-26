@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import LiveUpdates from "@/components/live-updates";
 import ActionForm from "@/components/action-form";
-import { readNotification } from "@/app/polls/actions";
+import { readNotification } from "./read-actions";
 export default async function Notifications() {
   const db = await supabase();
   const {

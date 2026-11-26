@@ -134,8 +134,8 @@ export default async function Me() {
         <h2>Tiện ích nhóm</h2>
         <div className="actions">
           <Link href="/ai">Trợ lý 3T</Link>
-          <Link href="/polls">Hẹn lịch</Link>
-          <Link href="/approvals">Chờ tôi duyệt</Link>
+          <Link href="/sessions">Buổi chơi</Link>
+          <Link href="/approvals">Yêu cầu</Link>
         </div>
       </section>
       <PushSettings />

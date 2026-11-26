@@ -7,8 +7,10 @@ export default function SessionTask({
   title,
   children,
   secondary = false,
+  accessibleLabel,
 }: {
-  label: string;
+  label: React.ReactNode;
+  accessibleLabel?: string;
   title: string;
   children: React.ReactNode;
   secondary?: boolean;
@@ -47,6 +49,8 @@ export default function SessionTask({
         type="button"
         className={`session-task-trigger ${secondary ? "secondary" : "primary"}`}
         aria-haspopup="dialog"
+        aria-label={accessibleLabel}
+        title={accessibleLabel}
         onClick={open}
       >
         {label}

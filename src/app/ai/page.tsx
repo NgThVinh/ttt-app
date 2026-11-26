@@ -38,7 +38,7 @@ export default async function AI() {
             Nhóm của bạn chưa bật AI. Các chức năng lịch chơi và thanh toán vẫn
             hoạt động bình thường.
           </p>
-          <Link href="/ai/settings">Yêu cầu bật AI</Link>
+          <Link href="/ai/settings">Cài đặt AI</Link>
         </section>
       )}
       <section className="panel">

@@ -1,8 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useSyncExternalStore } from "react";
-import { AnimatedDisclosure } from "./ui/animated-disclosure";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   Home,
   CalendarDays,
@@ -12,21 +11,18 @@ import {
   Bell,
   Sparkles,
   CheckCheck,
-  ChartNoAxesColumn,
+  FileClock,
   Moon,
   Sun,
 } from "lucide-react";
-const mainLinks = [
+const navigationLinks = [
   { href: "/", label: "Trang chủ", icon: Home },
   { href: "/sessions", label: "Buổi chơi", icon: CalendarDays },
   { href: "/debts", label: "Công nợ", icon: Wallet },
   { href: "/groups", label: "Nhóm", icon: Users },
-  { href: "/me", label: "Tôi", icon: User },
-];
-const otherLinks = [
-  { href: "/approvals", label: "Chờ tôi duyệt", icon: CheckCheck },
-  { href: "/polls", label: "Hẹn lịch", icon: ChartNoAxesColumn },
+  { href: "/approvals", label: "Yêu cầu", icon: CheckCheck },
   { href: "/ai", label: "Trợ lý 3T", icon: Sparkles },
+  { href: "/me", label: "Tôi", icon: User },
 ];
 function subscribeTheme(listener: () => void) {
   const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -56,6 +52,24 @@ export default function AppFrame({
   localDevelopment?: boolean;
 }) {
   const path = usePathname();
+  const [canAudit, setCanAudit] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/navigation", { signal: controller.signal, cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { canAudit: false }))
+      .then((v) => setCanAudit(v.canAudit === true))
+      .catch(() => {
+        if (!controller.signal.aborted) setCanAudit(false);
+      });
+    return () => controller.abort();
+  }, [path]);
+  const mainLinks = canAudit
+    ? [
+        ...navigationLinks.slice(0, -1),
+        { href: "/audit", label: "Nhật ký", icon: FileClock },
+        navigationLinks.at(-1)!,
+      ]
+    : navigationLinks;
   const theme = useSyncExternalStore(
     subscribeTheme,
     currentTheme,
@@ -85,8 +99,7 @@ export default function AppFrame({
   const active = (href: string) =>
     href === "/" ? path === "/" : path === href || path.startsWith(href + "/");
   const title =
-    [...mainLinks, ...otherLinks].find((link) => active(link.href))?.label ||
-    "Không gian của bạn";
+    mainLinks.find((link) => active(link.href))?.label || "Không gian của bạn";
   return (
     <div
       className="app-frame"
@@ -112,20 +125,6 @@ export default function AppFrame({
             </Link>
           ))}
         </nav>
-        <AnimatedDisclosure className="more-navigation" title="Thêm">
-          <nav aria-label="Tiện ích nhóm">
-            {otherLinks.map(({ href, label, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                aria-current={active(href) ? "page" : undefined}
-              >
-                <Icon size={20} />
-                {label}
-              </Link>
-            ))}
-          </nav>
-        </AnimatedDisclosure>
       </aside>
       <div className="app-content">
         <header className="app-header">
@@ -174,7 +173,13 @@ export default function AppFrame({
           {children}
         </div>
       </div>
-      <nav className="app-bottom-nav" aria-label="Điều hướng điện thoại">
+      <nav
+        className="app-bottom-nav"
+        aria-label="Điều hướng điện thoại"
+        style={{
+          gridTemplateColumns: `repeat(${mainLinks.length},minmax(0,1fr))`,
+        }}
+      >
         {mainLinks.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}

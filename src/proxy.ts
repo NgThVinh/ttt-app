@@ -70,7 +70,9 @@ export async function proxy(request: NextRequest) {
       });
     if (!membership.data?.length) {
       if (
-        (path === "/" || path === "/groups") &&
+        ["/", "/groups", "/audit", "/ai/settings", "/api/navigation"].includes(
+          path,
+        ) &&
         (await verifiedSuperAdmin(db))
       ) {
         if (path === "/") return redirect("/groups");

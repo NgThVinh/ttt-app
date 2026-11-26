@@ -19,9 +19,6 @@ const names = [
   "request_session_change",
   "draft_expense",
   "draft_session",
-  "draft_poll",
-  "draft_vote",
-  "get_poll_results",
   "get_group_summary",
 ];
 const definitions = Object.fromEntries(

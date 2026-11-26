@@ -175,9 +175,6 @@
 .day-mark.confirmed {
   color: var(--day-confirmed);
 }
-.day-mark.voting {
-  color: var(--day-voting);
-}
 .day-mark.tentative {
   color: var(--muted);
 }
@@ -199,9 +196,6 @@
 .calendar-legend .day-mark {
   width: 12px;
   text-align: center;
-}
-.poll-agenda-item {
-  border-left: 3px solid var(--day-voting);
 }
 .attendance-preview {
   display: inline-flex;

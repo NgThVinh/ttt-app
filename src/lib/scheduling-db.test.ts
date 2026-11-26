@@ -4,8 +4,7 @@ import { beforeAll, afterAll, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
 let db: PGlite;
 let group: string;
-let poll: string;
-let options: string[];
+let reminderSid: string;
 let memberA: string, memberB: string;
 const a = "00000000-0000-0000-0000-000000000001",
   b = "00000000-0000-0000-0000-000000000002",
@@ -52,18 +51,12 @@ beforeAll(async () => {
   memberA = members.find((m) => m.user_id === a)!.id;
   memberB = members.find((m) => m.user_id === b)!.id;
   await actor(a);
-  poll = (
-    await db.query<{ id: string }>(
-      "select public.create_poll($1,'Choose','Court',2,now()+interval '1 day',jsonb_build_array(jsonb_build_object('starts_at',now()+interval '2 days','ends_at',now()+interval '2 days 2 hours'),jsonb_build_object('starts_at',now()+interval '3 days','ends_at',now()+interval '3 days 2 hours'))) id",
-      [group],
+  reminderSid = (
+    await db.query<{ r: { id: string } }>(
+      "select public.schedule_calendar_meeting($1,$2::jsonb) r",
+      [randomUUID(), JSON.stringify(calendarBody("Reminders"))],
     )
-  ).rows[0].id;
-  options = (
-    await db.query<{ id: string }>(
-      "select id from public.poll_options where poll_id=$1 order by starts_at",
-      [poll],
-    )
-  ).rows.map((r) => r.id);
+  ).rows[0].r.id;
 }, 30000);
 afterAll(async () => {
   await db?.close();
@@ -183,27 +176,10 @@ it("repeat validation cannot leave a session or receipt behind", async () => {
   ).toHaveLength(0);
 });
 
-it("a failure starting recurrence rolls back the session, invitations, poll closure and all receipts", async () => {
+it("a failure starting recurrence rolls back the session, invitations and all receipts", async () => {
   await actor(b);
-  const target = (
-    await db.query<{ id: string }>(
-      "select public.create_poll($1,'Atomic repeat','Court',1,now()+interval '1 day',jsonb_build_array(jsonb_build_object('starts_at',now()+interval '2 days','ends_at',now()+interval '2 days 2 hours'),jsonb_build_object('starts_at',now()+interval '3 days','ends_at',now()+interval '3 days 2 hours'))) id",
-      [group],
-    )
-  ).rows[0].id;
-  const option = (
-    await db.query<{ id: string; starts_at: Date; ends_at: Date }>(
-      "select id,starts_at,ends_at from public.poll_options where poll_id=$1 order by starts_at limit 1",
-      [target],
-    )
-  ).rows[0];
   const key = randomUUID(),
-    body = {
-      ...calendarBody("Repeat rollback", 2),
-      start_time: new Date(option.starts_at).toISOString(),
-      ends_at: new Date(option.ends_at).toISOString(),
-      deadline: new Date(option.starts_at).toISOString(),
-    };
+    body = calendarBody("Repeat rollback", 2);
   await db.exec("reset role");
   const before = (
     await db.query<{ n: number }>(
@@ -216,11 +192,9 @@ it("a failure starting recurrence rolls back the session, invitations, poll clos
   try {
     await actor(b);
     await expect(
-      db.query("select public.schedule_calendar_meeting($1,$2::jsonb,$3,$4)", [
+      db.query("select public.schedule_calendar_meeting($1,$2::jsonb)", [
         key,
         JSON.stringify(body),
-        target,
-        option.id,
       ]),
     ).rejects.toThrow(/TEST_REPEAT_FAILED/);
     expect(
@@ -230,14 +204,6 @@ it("a failure starting recurrence rolls back the session, invitations, poll clos
         )
       ).rows,
     ).toHaveLength(0);
-    expect(
-      (
-        await db.query<{ status: string; resulting_session_id: string | null }>(
-          "select status,resulting_session_id from public.polls where id=$1",
-          [target],
-        )
-      ).rows[0],
-    ).toEqual({ status: "open", resulting_session_id: null });
     await db.exec("reset role");
     expect(
       (
@@ -296,92 +262,6 @@ it("scheduled debt reminders never confirm payments and retries do not spam", as
       .map((r) => r.status)
       .sort(),
   ).toEqual(["marked_paid", "pending"]);
-});
-it("outsiders cannot read polls/votes/notifications or vote", async () => {
-  await actor(outsider);
-  expect((await db.query("select * from public.polls")).rows).toHaveLength(0);
-  expect(
-    (await db.query("select * from public.notifications")).rows,
-  ).toHaveLength(0);
-  await expect(
-    db.query("select public.vote_poll($1,'yes')", [options[0]]),
-  ).rejects.toThrow(/quyền/);
-});
-it("votes are self-only and the legacy close cannot bypass the manual form", async () => {
-  await actor(b);
-  await db.query("select public.vote_poll($1,'yes')", [options[0]]);
-  expect(
-    (
-      await db.query<{ member_id: string }>(
-        "select member_id from public.poll_votes",
-      )
-    ).rows.map((v) => v.member_id),
-  ).toEqual([memberB]);
-  await expect(
-    db.query("select public.close_poll($1,$2)", [poll, options[0]]),
-  ).rejects.toThrow(/form/);
-  await actor(a);
-  await expect(
-    db.query("select public.close_poll($1,$2)", [poll, options[0]]),
-  ).rejects.toThrow(/form/);
-  await db.query("select public.vote_poll($1,'yes')", [options[0]]);
-});
-it("manual creation is idempotent and votes do not become attendance commitments", async () => {
-  await actor(a);
-  const option = (
-    await db.query<{ starts_at: string; ends_at: string }>(
-      "select starts_at,ends_at from public.poll_options where id=$1",
-      [options[0]],
-    )
-  ).rows[0];
-  const body = {
-    g: group,
-    title_text: "Chosen poll",
-    venue_text: "Court",
-    start_time: option.starts_at,
-    ends_at: option.ends_at,
-    deadline: option.starts_at,
-    note: "",
-    be_collector: false,
-    nominee: "",
-    invitees: [memberA, memberB],
-  };
-  const key = randomUUID();
-  const first = (
-    await db.query<{ r: { id: string } }>(
-      "select public.schedule_poll_meeting($1,$2,$3,$4) r",
-      [key, poll, options[0], body],
-    )
-  ).rows[0].r;
-  const sid = first.id;
-  const retry = (
-    await db.query<{ r: { id: string; replayed: boolean } }>(
-      "select public.schedule_poll_meeting($1,$2,$3,$4) r",
-      [key, poll, options[0], body],
-    )
-  ).rows[0].r;
-  expect(retry).toMatchObject({ id: sid, replayed: true });
-  const session = (
-    await db.query<{ collector_member_id: null; status: string }>(
-      "select collector_member_id,status from public.sessions where id=$1",
-      [sid],
-    )
-  ).rows[0];
-  expect(session).toMatchObject({
-    collector_member_id: null,
-    status: "planned",
-  });
-  expect(
-    (
-      await db.query<{ committed_at: null }>(
-        "select committed_at from public.session_attendees where session_id=$1",
-        [sid],
-      )
-    ).rows.every((r) => r.committed_at === null),
-  ).toBe(true);
-  await expect(
-    db.query("select public.vote_poll($1,'no')", [options[0]]),
-  ).rejects.toThrow(/hết hạn/);
 });
 it("notification read operations cannot affect another user", async () => {
   await actor(a);
@@ -445,10 +325,7 @@ it("weekly generation is idempotent and normal users cannot run maintenance", as
 it("scheduled reminders preserve uncommitted invitations and are deduplicated", async () => {
   await db.exec("reset role");
   const sid = (
-    await db.query<{ id: string }>(
-      "select resulting_session_id id from public.polls where id=$1",
-      [poll],
-    )
+    await db.query<{ id: string }>("select $1::uuid id", [reminderSid])
   ).rows[0].id;
   await db.query(
     "update public.sessions set starts_at=now()-interval '1 minute',commit_deadline=now()-interval '1 minute' where id=$1",

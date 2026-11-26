@@ -18,7 +18,6 @@ const families = {
   ],
   expenses: ["get_session_breakdown", "list_sessions", "draft_expense"],
   create: ["draft_session", "list_sessions", "get_group_summary"],
-  polls: ["get_poll_results", "draft_vote", "draft_poll"],
   group: ["get_group_summary"],
 } as const;
 export type Family = keyof typeof families;
@@ -39,12 +38,10 @@ export function initialFamilies(message: string): Family[] {
     result.add("expenses");
   if (/tao buoi|tao lich|hen truoc|hen lich|toi nay san/.test(text))
     result.add("create");
-  if (/tham do|vote|bo phieu|khung/.test(text)) result.add("polls");
   if (
     /buoi|lich choi|tham gia|toi di|khong di|rut|he so|tinh tien/.test(text) &&
     !result.has("create") &&
-    !result.has("expenses") &&
-    !result.has("polls")
+    !result.has("expenses")
   )
     result.add("sessions");
   if (/nhom|thanh vien|tong quan/.test(text) && !result.size)
@@ -69,14 +66,13 @@ export function toolPalette(
     ...definitions,
     discover_tools: tool({
       description:
-        "Mở thêm tool nếu chưa có công cụ cần thiết: debts=công nợ/thanh toán; sessions=buổi/RSVP; expenses=phụ phí; create=tạo buổi; polls=thăm dò; group=nhóm; all=tất cả công cụ được đăng ký. Không thực hiện nghiệp vụ.",
+        "Mở thêm tool nếu chưa có công cụ cần thiết: debts=công nợ/thanh toán; sessions=buổi/RSVP; expenses=phụ phí; create=tạo buổi; group=nhóm; all=tất cả công cụ được đăng ký. Không thực hiện nghiệp vụ.",
       inputSchema: z.object({
         family: z.enum([
           "debts",
           "sessions",
           "expenses",
           "create",
-          "polls",
           "group",
           "all",
         ]),

@@ -28,6 +28,34 @@ async function identity() {
   if (!user) redirect("/login");
   return db;
 }
+export async function deleteSession(
+  _state: FormResult,
+  form: FormData,
+): Promise<FormResult> {
+  const input = z
+    .object({
+      sid: z.uuid(),
+      revision: z.string().regex(/^\d+$/),
+      reviewed: z.literal("yes"),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!input.success)
+    return { message: "Xác nhận xóa buổi trước khi tiếp tục." };
+  const db = await identity();
+  const { error } = await db.rpc("delete_unfinalized_session", {
+    sid: input.data.sid,
+    expected_revision: input.data.revision,
+  });
+  if (error)
+    return {
+      message:
+        "Chưa xóa được. Buổi có thể đã thay đổi hoặc đã chốt chi phí; hãy tải lại để kiểm tra.",
+    };
+  revalidatePath("/sessions", "layout");
+  revalidatePath("/");
+  revalidatePath("/audit");
+  redirect("/sessions", RedirectType.replace);
+}
 export async function scheduleMeeting(
   _state: FormResult,
   form: FormData,
@@ -39,15 +67,9 @@ export async function scheduleMeeting(
   });
   if (!parsed.success) return { message: parsed.error.issues[0].message };
   const p = parsed.data;
-  const source = z
-    .object({ poll_id: z.uuid(), poll_option: z.uuid() })
-    .safeParse({
-      poll_id: form.get("poll_id"),
-      poll_option: form.get("poll_option"),
-    });
-  if ((form.has("poll_id") || form.has("poll_option")) && !source.success)
+  if (form.has("poll_id") || form.has("poll_option"))
     return {
-      message: "Nguồn thăm dò không hợp lệ. Hãy mở lại từ kết quả thăm dò.",
+      message: "Hẹn lịch đã được gỡ. Hãy tạo buổi trực tiếp trong Buổi chơi.",
     };
   const body = {
     g: p.groupId,
@@ -64,8 +86,8 @@ export async function scheduleMeeting(
   };
   const { data, error } = await db.rpc("schedule_calendar_meeting", {
     request_key: p.request_key,
-    source_poll: source.success ? source.data.poll_id : null,
-    chosen_option: source.success ? source.data.poll_option : null,
+    source_poll: null,
+    chosen_option: null,
     body,
   });
   const result = z.object({ id: z.uuid() }).safeParse(data);
@@ -84,8 +106,7 @@ export async function scheduleMeeting(
         ? "Chưa lưu: bổ sung ngân hàng trong Hồ sơ trước khi nhận tính tiền."
         : "Chưa lưu lịch. Kiểm tra giờ trong tương lai, thành viên được mời và thử lại.",
     };
-  for (const path of ["/", "/sessions", "/notifications", "/polls"])
-    revalidatePath(path);
+  for (const path of ["/", "/sessions", "/notifications"]) revalidatePath(path);
   revalidatePath("/sessions", "layout");
   redirect(`/sessions/${result.data.id}`, RedirectType.replace);
 }

@@ -310,77 +310,52 @@ try {
     );
     passed.push(stage);
   }
-  stage = "manual poll scheduling";
-  {
-    const poll = (
-      await user(a, (db) =>
-        db.query(
-          "select public.create_poll($1,'Race poll','Court',1,now()+interval '1 day',jsonb_build_array(jsonb_build_object('starts_at',now()+interval '2 days','ends_at',now()+interval '2 days 1 hour'),jsonb_build_object('starts_at',now()+interval '3 days','ends_at',now()+interval '3 days 1 hour'))) id",
-          [group],
-        ),
-      )
-    ).rows[0].id;
-    const slots = (
-      await owner.query(
-        "select id,starts_at,ends_at from public.poll_options where poll_id=$1 order by starts_at",
-        [poll],
-      )
-    ).rows;
-    for (const slot of slots)
-      await user(a, (db) =>
-        db.query("select public.vote_poll($1,'yes')", [slot.id]),
+  for (const deleteFirst of [true, false]) {
+    stage = deleteFirst
+      ? "delete before finalization"
+      : "finalize before deletion";
+    const sid = await planned();
+    await user(a, (db) =>
+      command(db, "claim_collector", {
+        sid,
+        expected_revision: "0",
+        court: "0",
+      }),
+    );
+    for (const id of [a, b])
+      await user(id, (db) =>
+        db.query("select public.set_rsvp($1,true)", [sid]),
       );
-    const pollBody = (slot) => ({
-      g: group,
-      title_text: "Manual race",
-      venue_text: "Court",
-      start_time: slot.starts_at,
-      ends_at: slot.ends_at,
-      deadline: slot.starts_at,
-      note: "",
-      be_collector: false,
-      nominee: "",
-      invitees: [],
-    });
+    const before = await revision(sid);
+    const finish = (db) =>
+      command(db, "finish_session", {
+        sid,
+        expected_revision: before,
+        court: "100000",
+      });
+    const remove = (db) =>
+      db.query("select public.delete_unfinalized_session($1,$2)", [
+        sid,
+        before,
+      ]);
     const r = await race(
-      a,
-      b,
-      (db) =>
-        db.query("select public.schedule_poll_meeting($1,$2,$3,$4)->>'id' id", [
-          randomUUID(),
-          poll,
-          slots[0].id,
-          pollBody(slots[0]),
-        ]),
-      (db) =>
-        db.query("select public.schedule_poll_meeting($1,$2,$3,$4)->>'id' id", [
-          randomUUID(),
-          poll,
-          slots[1].id,
-          pollBody(slots[1]),
-        ]),
+      deleteFirst ? b : a,
+      deleteFirst ? a : b,
+      deleteFirst ? remove : finish,
+      deleteFirst ? finish : remove,
     );
+    assert(!r.second.ok, "deletion and finalization cannot both succeed");
+    const state = (
+      await owner.query(
+        "select status,deleted_at from public.sessions where id=$1",
+        [sid],
+      )
+    ).rows[0];
     assert(
-      !r.second.ok,
-      "competing manual poll forms cannot create a second session",
-    );
-    assert(
-      (
-        await owner.query(
-          "select collector_member_id from public.sessions where id=$1",
-          [r.first.rows[0].id],
-        )
-      ).rows[0].collector_member_id === null,
-      "manual poll form does not assign collector",
-    );
-    assert(
-      (
-        await owner.query(
-          "select committed_at from public.session_attendees where session_id=$1",
-          [r.first.rows[0].id],
-        )
-      ).rows.every((x) => x.committed_at === null),
-      "manual poll form does not commit attendance",
+      deleteFirst
+        ? state.deleted_at && state.status === "cancelled"
+        : !state.deleted_at && state.status === "played",
+      "winning action preserved",
     );
     passed.push(stage);
   }

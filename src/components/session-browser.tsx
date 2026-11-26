@@ -14,13 +14,11 @@ import {
 import { Calendar } from "./ui/calendar";
 import { SlidingTabs } from "./ui/sliding-tabs";
 import SessionListItem from "./session-list-item";
-import PollListItem from "./poll-list-item";
 import { CalendarDayMarks, CalendarLegend } from "./ui/calendar-markers";
 import {
   calendarMarkers,
   markerLabel,
   markerStates,
-  type CalendarPoll,
 } from "@/lib/calendar-overview";
 import { shiftDate } from "@/lib/calendar";
 import {
@@ -30,20 +28,12 @@ import {
 export default function SessionBrowser({
   sessions,
   today,
-  polls = [],
-  pollsError = false,
 }: {
   sessions: SessionOverview[];
   today: string;
-  polls?: CalendarPoll[];
-  pollsError?: boolean;
 }) {
   const [localMode, setLocalMode] = useState("calendar");
-  const showGroup =
-    new Set([
-      ...sessions.map((s) => s.group_name),
-      ...polls.map((p) => p.group_name),
-    ]).size > 1;
+  const showGroup = new Set([...sessions.map((s) => s.group_name)]).size > 1;
   const panelId = useId();
   const [localDay, setLocalDay] = useState<string>();
   const workspace = useSessionWorkspace();
@@ -65,7 +55,7 @@ export default function SessionBrowser({
   }, [monthOpen]);
   const weekday = (new Date(week + "T12:00:00Z").getUTCDay() + 6) % 7;
   const weekStart = shiftDate(week, -weekday);
-  const markers = calendarMarkers(sessions, polls);
+  const markers = calendarMarkers(sessions);
   const counts: Record<string, number> = {};
   for (const session of sessions) {
     const key = dayKey(session.starts_at);
@@ -75,36 +65,16 @@ export default function SessionBrowser({
     mode === "calendar" && day
       ? sessions.filter((s) => dayKey(s.starts_at) === day)
       : sessions;
-  const pollSlots = polls.flatMap((poll) =>
-    poll.options
-      .filter(
-        (option) =>
-          mode !== "calendar" || !day || dayKey(option.starts_at) === day,
-      )
-      .map((option) => ({ poll, option })),
-  );
-  const items = [
-    ...rows.map((session) => ({
-      kind: "session" as const,
-      session,
-      starts: session.starts_at,
-    })),
-    ...pollSlots.map(({ poll, option }) => ({
-      kind: "poll" as const,
-      poll,
-      option,
-      starts: option.starts_at,
-    })),
-  ].sort((a, b) => {
-    const aPast = dayKey(a.starts) < today,
-      bPast = dayKey(b.starts) < today;
-    return aPast !== bPast
-      ? aPast
+  const items = [...rows].sort((a, b) => {
+    const ap = dayKey(a.starts_at) < today,
+      bp = dayKey(b.starts_at) < today;
+    return ap !== bp
+      ? ap
         ? 1
         : -1
-      : aPast
-        ? b.starts.localeCompare(a.starts)
-        : a.starts.localeCompare(b.starts);
+      : ap
+        ? b.starts_at.localeCompare(a.starts_at)
+        : a.starts_at.localeCompare(b.starts_at);
   });
   return (
     <section className="session-browser">
@@ -244,38 +214,24 @@ export default function SessionBrowser({
           <div
             className="agenda-items"
             role="region"
-            aria-label="Danh sách buổi chơi và thăm dò"
+            aria-label="Danh sách buổi chơi"
             tabIndex={0}
             data-scroll="agenda"
           >
-            {pollsError && (
-              <p role="alert">
-                Chưa tải được lịch đang vote. Hãy tải lại để xem đủ lịch nhóm.
-              </p>
-            )}
             {!items.length && (
               <p>
-                {!sessions.length && !polls.length
+                {!sessions.length
                   ? "Chưa có buổi chơi. Tạo buổi đầu tiên để hiện trên lịch."
                   : "Chưa có buổi chơi trong ngày này."}
               </p>
             )}
-            {items.map((item) =>
-              item.kind === "session" ? (
-                <SessionListItem
-                  key={item.session.id}
-                  session={item.session}
-                  showGroup={showGroup}
-                />
-              ) : (
-                <PollListItem
-                  key={item.option.id}
-                  poll={item.poll}
-                  option={item.option}
-                  showGroup={showGroup}
-                />
-              ),
-            )}
+            {items.map((session) => (
+              <SessionListItem
+                key={session.id}
+                session={session}
+                showGroup={showGroup}
+              />
+            ))}
             <SessionWorkspaceLink create className="calendar-create-row">
               <Plus size={19} aria-hidden="true" />
               {day && mode === "calendar"

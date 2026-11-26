@@ -259,13 +259,16 @@ try {
   );
   step = "collector-refund";
   await receiver.page
+    .locator(".session-detail:visible")
     .getByText("Thêm khoản chi hoặc giảm giá", { exact: true })
     .click();
-  const expensePanel = receiver.page.locator(".cost-adjust").filter({
-    has: receiver.page.getByText("Thêm khoản chi hoặc giảm giá", {
-      exact: true,
-    }),
-  });
+  const expensePanel = receiver.page
+    .locator(".session-detail:visible .cost-adjust")
+    .filter({
+      has: receiver.page.getByText("Thêm khoản chi hoặc giảm giá", {
+        exact: true,
+      }),
+    });
   await expensePanel
     .getByLabel("Tên khoản chi", { exact: true })
     .fill("Hoàn giảm giá sân");

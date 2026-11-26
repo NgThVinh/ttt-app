@@ -6,18 +6,16 @@ export default function SuggestedSessionDetails({
   groupName,
   date,
   suggestion = {},
-  poll = false,
 }: {
   groupName: string;
   date?: string;
   suggestion?: SessionSuggestion;
-  poll?: boolean;
 }) {
   const [customTitle, setTitle] = useState<string>();
   const [venue, setVenue] = useState(suggestion.venue || "Chưa chọn sân");
   const title =
     customTitle ??
-    `${poll ? "Hẹn lịch" : "Buổi chơi"} ${groupName}${date ? ` · ${date.slice(8, 10)}/${date.slice(5, 7)}` : ""}`.slice(
+    `Buổi chơi ${groupName}${date ? ` · ${date.slice(8, 10)}/${date.slice(5, 7)}` : ""}`.slice(
       0,
       160,
     );
@@ -29,7 +27,7 @@ export default function SuggestedSessionDetails({
       </summary>
       <div className="compact-fields">
         <label>
-          {poll ? "Tên thăm dò" : "Tên buổi"}
+          Tên buổi
           <input
             name="title"
             required

@@ -2,9 +2,41 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { supabase } from "@/lib/supabase";
-import { envAllowsSuperAdmin } from "@/lib/super-admin-config.mjs";
 import { encryptGroupKey } from "@/lib/ai/crypto";
 import type { FormResult } from "@/components/action-form";
+export async function toggleAI(
+  _state: FormResult,
+  form: FormData,
+): Promise<FormResult> {
+  const input = z
+    .object({
+      g: z.uuid(),
+      revision: z.string().regex(/^\d+$/),
+      enabled: z.enum(["true", "false"]),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!input.success) return { message: "Thông tin bật/tắt không hợp lệ." };
+  const db = await supabase();
+  const { error } = await db.rpc("set_group_ai_enabled", {
+    g: input.data.g,
+    expected_revision: input.data.revision,
+    enabled: input.data.enabled === "true",
+  });
+  if (error)
+    return {
+      message:
+        "Chưa đổi được. Kiểm tra quyền admin, cấu hình key và tải lại nếu dữ liệu đã thay đổi.",
+    };
+  revalidatePath("/ai", "layout");
+  revalidatePath("/audit");
+  return {
+    ok: true,
+    message:
+      input.data.enabled === "true"
+        ? "Đã bật AI cho nhóm."
+        : "Đã tắt AI cho nhóm.",
+  };
+}
 export async function configureDecisionRouting(
   _state: FormResult,
   form: FormData,
@@ -13,19 +45,11 @@ export async function configureDecisionRouting(
     {
       data: { user },
     } = await db.auth.getUser();
-  if (
-    !user ||
-    !envAllowsSuperAdmin(
-      user.email,
-      user.email_confirmed_at,
-      process.env.SUPER_ADMIN_EMAILS,
-    )
-  )
-    return { message: "Chỉ super admin được cấu hình." };
+  if (!user) return { message: "Cần đăng nhập." };
   const input = z
     .object({
       g: z.uuid(),
-      revision: z.string().regex(/^\d+$/),
+      revision: z.string().regex(/^-?\d+$/),
       model: z.enum([
         "",
         "perplexity/pplx-decider-flash-v1.3:free",
@@ -47,23 +71,6 @@ export async function configureDecisionRouting(
   revalidatePath("/ai/settings");
   return { ok: true, message: "Đã cập nhật định tuyến ý định của nhóm." };
 }
-export async function requestAI(
-  _state: FormResult,
-  form: FormData,
-): Promise<FormResult> {
-  const p = z
-    .object({ g: z.uuid(), reason: z.string().trim().min(1).max(500) })
-    .safeParse(Object.fromEntries(form));
-  if (!p.success) return { message: "Kiểm tra nhóm và lý do." };
-  const db = await supabase();
-  const { error } = await db.rpc("request_group_ai", p.data);
-  if (error)
-    return {
-      message: "Chỉ admin nhóm được yêu cầu; kiểm tra trạng thái hiện tại.",
-    };
-  revalidatePath("/ai/settings");
-  return { ok: true, message: "Đã gửi yêu cầu bật AI." };
-}
 export async function configureAI(
   _state: FormResult,
   form: FormData,
@@ -72,20 +79,12 @@ export async function configureAI(
     {
       data: { user },
     } = await db.auth.getUser();
-  if (
-    !user ||
-    !envAllowsSuperAdmin(
-      user.email,
-      user.email_confirmed_at,
-      process.env.SUPER_ADMIN_EMAILS,
-    )
-  )
-    return { message: "Chỉ super admin được cấu hình." };
+  if (!user) return { message: "Cần đăng nhập." };
   const p = z
     .object({
       g: z.uuid(),
-      revision: z.string().regex(/^\d+$/),
-      status: z.enum(["approved", "rejected", "revoked"]),
+      revision: z.string().regex(/^-?\d+$/),
+      status: z.enum(["approved", "revoked"]),
       provider: z.enum(["google", "anthropic", "openai-compatible"]),
       model: z.string().trim().min(1).max(120),
       base_url: z.url().or(z.literal("")),

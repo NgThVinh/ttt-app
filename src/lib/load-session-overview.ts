@@ -13,7 +13,6 @@ const schema = z.array(
     status: z.string(),
     revision: z.union([z.string(), z.number()]).transform(String),
     group: z.object({ name: z.string() }),
-    source: z.array(z.object({ status: z.string() })),
     attendees: z.array(
       z.object({
         member_id: z.string(),
@@ -34,7 +33,7 @@ export async function loadSessionOverview(
     db
       .from("sessions")
       .select(
-        "id,title,venue,starts_at,ends_at,status,revision,group:groups(name),source:polls(status),attendees:session_attendees(member_id,rsvp,committed_at,removed_at,member:group_members(display_name))",
+        "id,title,venue,starts_at,ends_at,status,revision,group:groups(name),attendees:session_attendees(member_id,rsvp,committed_at,removed_at,member:group_members(display_name))",
       )
       .order("starts_at", { ascending: false }),
     db
@@ -49,7 +48,7 @@ export async function loadSessionOverview(
   const mine = new Set((membership.data || []).map((m) => m.id));
   return {
     error: false,
-    sessions: parsed.data.map(({ attendees, group, source, ...session }) => {
+    sessions: parsed.data.map(({ attendees, group, ...session }) => {
       const active = attendees.filter((a) => !a.removed_at);
       const self = active.find((a) => mine.has(a.member_id));
       const going = active.filter((a) => a.rsvp === "going" && a.committed_at);
@@ -61,9 +60,7 @@ export async function loadSessionOverview(
         ...session,
         group_name: group.name,
         schedule_confirmed:
-          session.status !== "cancelled" &&
-          (session.status !== "planned" ||
-            source.some((p) => p.status === "closed")),
+          session.status !== "cancelled" && session.status !== "planned",
         going: going.length,
         pending: pending.length,
         going_names: going.map((a) => a.member?.display_name || "Thành viên"),

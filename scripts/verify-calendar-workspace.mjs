@@ -210,7 +210,7 @@ try {
   await modal
     .getByRole("button", { name: "Nhập phí và chốt buổi", exact: true })
     .click();
-  const task = page.locator(".session-task-dialog");
+  const task = page.locator(".session-task-dialog[open]");
   await expect(task).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(task).toBeHidden();
@@ -303,7 +303,7 @@ try {
     JSON.stringify({
       step,
       code: e.code || e.name,
-      detail: e.message?.split("\n")[0]?.slice(0, 160),
+      detail: e.message?.slice(0, 1200),
     }),
   );
   process.exitCode = 1;

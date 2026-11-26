@@ -139,43 +139,5 @@ export function readTools(
         };
       },
     }),
-    get_poll_results: tool({
-      description:
-        "Kết quả thăm dò lịch của nhóm hiện tại, gồm số phiếu theo khung giờ.",
-      inputSchema: z.object({ poll_id: z.uuid() }),
-      execute: async ({ poll_id }) => {
-        await check();
-        const poll = await db
-          .from("polls")
-          .select("id,title,status,closes_at")
-          .eq("id", poll_id)
-          .eq("group_id", group)
-          .maybeSingle();
-        if (!poll.data) throw Error("Thăm dò không thuộc nhóm đang chọn.");
-        const options = await db
-          .from("poll_options")
-          .select("id,starts_at")
-          .eq("poll_id", poll_id);
-        if (options.error) throw Error("Chưa tải được khung giờ.");
-        const votes = options.data.length
-          ? await db
-              .from("poll_votes")
-              .select("option_id,answer")
-              .in(
-                "option_id",
-                options.data.map((o) => o.id),
-              )
-          : { data: [], error: null };
-        if (votes.error) throw Error("Chưa tải được phiếu.");
-        return {
-          poll: poll.data,
-          options: options.data.map((o) => ({
-            ...o,
-            votes: votes.data?.filter((v) => v.option_id === o.id),
-          })),
-          href: `/polls/${poll_id}`,
-        };
-      },
-    }),
   };
 }

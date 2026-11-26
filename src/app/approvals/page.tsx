@@ -98,7 +98,7 @@ export default async function Approvals() {
   return (
     <main>
       <Link href="/">Trang chủ</Link>
-      <h1>Chờ tôi duyệt và yêu cầu đã gửi</h1>
+      <h1>Yêu cầu</h1>
       {(error || !parsed.success) && <p role="alert">Chưa tải được yêu cầu.</p>}
       {!error &&
         !claimError &&
@@ -161,4 +161,4 @@ export default async function Approvals() {
     </main>
   );
 }
-export const metadata = { title: "Chờ tôi duyệt" };
+export const metadata = { title: "Yêu cầu" };

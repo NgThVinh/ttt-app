@@ -1,4 +1,83 @@
 /* App surfaces share the palette in frame.css. Skill recipes stay in motion.css. */
+.audit-filter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-block: 18px;
+}
+.audit-filter select {
+  width: auto;
+  max-width: 100%;
+}
+.audit-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.audit-list > li {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 0;
+}
+.audit-entry-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
+}
+.audit-entry-heading time,
+.audit-list p {
+  color: var(--muted);
+  font-size: 12px;
+}
+.audit-list details {
+  font-size: 12px;
+}
+.audit-list p {
+  margin: 4px 0;
+  line-height: 1.5;
+}
+.audit-entry-heading strong {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.audit-list details > summary {
+  padding: 4px 0;
+  min-height: 28px;
+  font-size: 11px;
+}
+.audit-list pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.audit-next {
+  display: inline-flex;
+  margin-top: 20px;
+  padding: 10px 14px;
+}
+.delete-session-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.delete-session-confirm input {
+  width: auto;
+}
+.app-bottom-nav a {
+  min-width: 0;
+  padding-inline: 1px;
+}
+.app-bottom-nav a > span {
+  font-size: 10px;
+  line-height: 1.25;
+  white-space: normal;
+  text-align: center;
+}
 .local-development-badge {
   font-size: 12px;
   font-weight: 600;

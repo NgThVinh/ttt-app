@@ -134,7 +134,7 @@ export default function AIChat({
       </div>
       <p>
         Mọi thay đổi đều cần xem và xác nhận bản nháp. Những yêu cầu cần người
-        có quyền duyệt sẽ xuất hiện ở mục “Chờ tôi duyệt”.
+        có quyền duyệt sẽ xuất hiện ở mục “Yêu cầu”.
       </p>
     </section>
   );

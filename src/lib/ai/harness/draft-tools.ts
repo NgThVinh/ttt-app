@@ -76,48 +76,12 @@ export function draftTools(
           })),
         }),
     }),
-    draft_poll: tool({
-      description:
-        "Bản nháp thăm dò nhiều khung giờ tương lai. Người hỏi xác nhận trong app trước khi gửi tới nhóm.",
-      inputSchema: z.object({
-        title: z.string().trim().min(1).max(160),
-        venue: z.string().trim().min(1).max(200),
-        minimum: z.number().int().min(1).max(100),
-        deadline: z.iso.datetime({ offset: true }),
-        options: z
-          .array(
-            z.object({
-              starts_at: z.iso.datetime({ offset: true }),
-              ends_at: z.iso.datetime({ offset: true }),
-            }),
-          )
-          .min(1)
-          .max(24),
-      }),
-      execute: (v) =>
-        draft("create_poll", {
-          g: group,
-          title_text: v.title,
-          venue_text: v.venue,
-          minimum: v.minimum,
-          deadline: v.deadline,
-          options: v.options,
-        }),
-    }),
     draft_rsvp: tool({
       description:
         "Tạo bản nháp tự chốt đi/không đi trước hạn. Người hỏi phải mở bản nháp và xác nhận.",
       inputSchema: z.object({ session_id: z.uuid(), going: z.boolean() }),
       execute: ({ session_id, going }) =>
         draft("rsvp", { sid: session_id, going }),
-    }),
-    draft_vote: tool({
-      description: "Tạo bản nháp phiếu của chính người hỏi, không chốt hộ ai.",
-      inputSchema: z.object({
-        option_id: z.uuid(),
-        answer: z.enum(["yes", "maybe", "no"]),
-      }),
-      execute: (v) => draft("vote", v),
     }),
     draft_mark_paid: tool({
       description:

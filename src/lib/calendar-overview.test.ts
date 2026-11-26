@@ -1,85 +1,49 @@
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 import {
   calendarMarkers,
   markerLabel,
   markerStates,
-  type CalendarPoll,
 } from "./calendar-overview";
 import type { SessionOverview } from "./session-overview";
-
-const session = (
-  overrides: Partial<SessionOverview> = {},
-): SessionOverview => ({
+const session = (patch: Partial<SessionOverview> = {}): SessionOverview => ({
   id: "s",
-  title: "Buổi chơi",
+  title: "Buổi",
   venue: "Sân",
   starts_at: "2026-11-24T22:00:00Z",
   status: "planned",
-  ...overrides,
+  ...patch,
 });
-const poll: CalendarPoll = {
-  id: "p",
-  title: "Chọn giờ",
-  venue: "Sân",
-  closes_at: "2026-11-26T00:00:00Z",
-  group_name: "Nhóm",
-  options: [
-    {
-      id: "o1",
-      starts_at: "2026-11-25T10:00:00Z",
-      ends_at: "2026-11-25T11:00:00Z",
-    },
-    {
-      id: "o2",
-      starts_at: "2026-11-25T12:00:00Z",
-      ends_at: "2026-11-25T13:00:00Z",
-    },
-  ],
-};
-describe("calendar overview", () => {
-  it("keeps personal attendance, a confirmed booking and a poll on the same Vietnam date", () => {
-    const markers = calendarMarkers(
-      [session({ my_rsvp: "going", schedule_confirmed: true })],
-      [poll],
-    );
-    expect(markers["2026-11-25"]).toEqual({
-      joined: 1,
-      confirmed: 1,
-      voting: 1,
-      tentative: 0,
-    });
-    expect(markers["2026-11-24"]).toBeUndefined();
-    expect(markerStates(markers["2026-11-25"])).toBe("joined confirmed voting");
-    expect(markerLabel(markers["2026-11-25"])).toContain("thăm dò đang vote");
+it("shows joined and finalized sessions on the Vietnam date", () => {
+  const marks = calendarMarkers([
+    session({ my_rsvp: "going", schedule_confirmed: true }),
+  ]);
+  expect(marks["2026-11-25"]).toEqual({
+    joined: 1,
+    confirmed: 1,
+    tentative: 0,
   });
-  it("does not mark an invitation as attendance or a finalized group schedule", () => {
-    expect(
-      calendarMarkers([session({ my_rsvp: "pending" })], [])["2026-11-25"],
-    ).toEqual({ joined: 0, confirmed: 0, voting: 0, tentative: 1 });
-  });
-  it("excludes cancelled sessions even when old attendance was accepted", () => {
-    expect(
-      calendarMarkers(
-        [
-          session({
-            status: "cancelled",
-            my_rsvp: "going",
-            schedule_confirmed: true,
-          }),
-        ],
-        [],
-      ),
-    ).toEqual({});
-  });
-  it("marks finalized and settled sessions as confirmed without assuming the viewer joined", () => {
-    expect(
-      calendarMarkers(
-        [
-          session({ status: "played", my_rsvp: "not_going" }),
-          session({ status: "settled" }),
-        ],
-        [],
-      )["2026-11-25"],
-    ).toEqual({ joined: 0, confirmed: 2, voting: 0, tentative: 0 });
-  });
+  expect(marks["2026-11-24"]).toBeUndefined();
+  expect(markerStates(marks["2026-11-25"])).toBe("joined confirmed");
+  expect(markerLabel(marks["2026-11-25"])).toContain("bạn tham gia");
+});
+it("pending invitation does not mean accepted attendance", () => {
+  expect(
+    calendarMarkers([session({ my_rsvp: "pending" })])["2026-11-25"],
+  ).toEqual({ joined: 0, confirmed: 0, tentative: 1 });
+});
+it("ignores cancelled sessions and has no voting marker", () => {
+  expect(
+    calendarMarkers([session({ status: "cancelled", my_rsvp: "going" })]),
+  ).toEqual({});
+  expect(
+    markerStates(calendarMarkers([session()])["2026-11-25"]),
+  ).not.toContain("voting");
+});
+it("finalized and settled sessions are confirmed without assuming the viewer joined", () => {
+  expect(
+    calendarMarkers([
+      session({ status: "played", my_rsvp: "not_going" }),
+      session({ status: "settled" }),
+    ])["2026-11-25"],
+  ).toEqual({ joined: 0, confirmed: 2, tentative: 0 });
 });
