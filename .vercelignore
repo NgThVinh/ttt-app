@@ -1,5 +1,12 @@
 .env*
 .secrets/
+.vercel/
+.agents/
+.codex/
+.aws/
+skills-lock.json
+AGENTS.md
+*.tsbuildinfo
 .tools/
 .git/
 .next/
