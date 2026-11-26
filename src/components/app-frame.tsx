@@ -3,13 +3,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import BrandMark from "./brand-mark";
+import NotificationPreview from "./notification-preview";
 import {
   Home,
   CalendarDays,
   Wallet,
   Users,
   User,
-  Bell,
   Sparkles,
   CheckCheck,
   FileClock,
@@ -164,9 +164,7 @@ export default function AppFrame({
                 </span>
               </span>
             </button>
-            <Link href="/notifications" aria-label="Thông báo">
-              <Bell size={20} />
-            </Link>
+            <NotificationPreview key={path} />
           </div>
         </header>
         <div id="main-content" tabIndex={-1} data-scroll="workspace">

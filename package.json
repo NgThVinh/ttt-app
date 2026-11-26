@@ -31,6 +31,7 @@
     "test:calendar-ux": "node scripts/verify-calendar-ux.mjs",
     "test:calendar-workspace": "node scripts/verify-calendar-workspace.mjs",
     "test:product-controls": "node scripts/verify-product-controls.mjs",
+    "test:overview-ui": "node scripts/verify-overview-ui.mjs",
     "security:check": "node scripts/check-secrets.mjs",
     "db:status": "node --env-file=.env scripts/migrate.mjs",
     "db:migrate": "node --env-file=.env scripts/migrate.mjs --apply",

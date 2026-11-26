@@ -20,8 +20,8 @@ try {
   );
   await empty.page.goto(origin + "/sessions");
   await expect(
-    empty.page.getByRole("tab", { name: "Lịch tháng", exact: true }),
-  ).toBeVisible();
+    empty.page.getByRole("tablist", { name: "Cách xem buổi chơi" }),
+  ).toHaveCount(0);
   await expect(empty.page.locator(".calendar-card")).toBeVisible();
   await expect(
     empty.page.getByText(

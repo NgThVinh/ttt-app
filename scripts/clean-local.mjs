@@ -20,6 +20,14 @@ const fixtureOwners = new Map([
   ["Session focus fixture", /^focus-owner@3t\.test$/],
   ["Calendar workspace fixture", /^calendar-workspace@3t\.test$/],
   ["Product controls fixture", /^controls-owner@3t\.test$/],
+  [
+    "Overview browser fixture",
+    new RegExp(`^overview-owner(?:-${uuid})?@3t\\.test$`),
+  ],
+  [
+    "Private overview fixture",
+    new RegExp(`^overview-outside(?:-${uuid})?@3t\\.test$`),
+  ],
   ["Other controls fixture", /^controls-outside@3t\.test$/],
   ["Profile UI fixture", /^ui-acceptance@3t\.test$/],
   ["UX minimal fixture", /^minimal-owner@3t\.test$/],

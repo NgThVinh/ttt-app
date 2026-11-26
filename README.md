@@ -54,4 +54,6 @@ Pending: full permission/tool eval acceptance, remaining UI flow/accessibility c
 
 See [account onboarding](docs/account-onboarding.md) for login, registration and admin-approved guest member linking; run `npm run test:account-onboarding` to verify email signup through local Auth and Mailpit.
 
+The home dashboard includes personal/group participation graphs, the header offers a private notification preview, and `/sessions` uses one calendar workspace. See [home and notifications](docs/home-and-notifications.md); `npm run test:overview-ui` verifies these flows with isolated local identities and no AI calls.
+
 See DEPLOY.md for infrastructure prerequisites and DECISIONS.md for design choices.

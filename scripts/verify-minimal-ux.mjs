@@ -278,7 +278,7 @@ try {
   );
   await page.screenshot({ path: ".tools/minimal-ux/debt-table-360.png" });
   await page.goto(origin + "/sessions");
-  await page.getByRole("tab", { name: "Lịch tháng", exact: true }).waitFor();
+  await expect(page.locator(".calendar-card")).toBeVisible();
   await page
     .getByRole("button", { name: "Xem lịch tháng", exact: true })
     .click();
@@ -291,8 +291,9 @@ try {
   );
   await page.screenshot({ path: ".tools/minimal-ux/calendar-360.png" });
   await expect(page.locator(`a[href="/sessions/${sid}"]`)).toBeVisible();
-  await page.getByRole("tab", { name: "Danh sách", exact: true }).click();
-  await expect(page.locator(".calendar")).toHaveCount(0);
+  await expect(
+    page.getByRole("tablist", { name: "Cách xem buổi chơi" }),
+  ).toHaveCount(0);
   await page.goto(origin + "/sessions/" + sid);
   await expect(page).toHaveTitle("Chi tiết buổi chơi · 3T");
   await page.goto(origin + "/sessions/new");
@@ -302,35 +303,6 @@ try {
       "Court",
     "RECENT_VENUE_SUGGESTED",
   );
-  await page.goto(origin + "/polls");
-  await page.locator("#poll-group").selectOption(group);
-  check(
-    (await page.getByLabel("Địa điểm", { exact: true }).inputValue()) ===
-      "Court",
-    "POLL_VENUE_SUGGESTED",
-  );
-  for (const width of [360, 1440]) {
-    await page.setViewportSize({ width, height: 900 });
-    check(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      ),
-      "POLL_NO_OVERFLOW",
-    );
-    await page.screenshot({
-      path: `.tools/minimal-ux/poll-${width}.png`,
-      fullPage: true,
-    });
-  }
-  const localTime = (hours) =>
-    new Date(Date.now() + (hours + 7) * 3600000).toISOString().slice(0, 16);
-  await page.locator("#poll-deadline").fill(localTime(24));
-  for (const [i, hour] of [48, 72].entries()) {
-    await page.locator(`#starts-${i}`).fill(localTime(hour));
-    await page.locator(`#ends-${i}`).fill(localTime(hour + 1));
-  }
-  await page.getByRole("button", { name: "Tạo thăm dò", exact: true }).click();
-  await page.waitForURL(/\/polls\/[a-f0-9-]{36}$/);
   step = "bank-preflight";
   await db.query(
     "update public.profiles set bank_bin=null,bank_account_no=null,bank_account_name=null where id=$1",
@@ -438,8 +410,11 @@ try {
   await expect(page).toHaveTitle("Trang chủ · 3T");
   step = "payment";
   await member.page.goto(origin + "/sessions/" + sid);
+  await member.page
+    .getByRole("button", { name: "Thanh toán", exact: true })
+    .click();
   const panel = member.page
-    .locator("article.session-row")
+    .locator(".session-detail:visible article.session-row")
     .filter({ hasText: /3T-/ });
   const button = panel.getByRole("button", {
     name: "Tôi đã chuyển",

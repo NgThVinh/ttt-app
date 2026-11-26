@@ -1,18 +1,11 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
-import {
-  CalendarDays,
-  List,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-} from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import {
   SessionWorkspaceLink,
   useSessionWorkspace,
 } from "./session-workspace-shell";
 import { Calendar } from "./ui/calendar";
-import { SlidingTabs } from "./ui/sliding-tabs";
 import SessionListItem from "./session-list-item";
 import { CalendarDayMarks, CalendarLegend } from "./ui/calendar-markers";
 import {
@@ -32,13 +25,10 @@ export default function SessionBrowser({
   sessions: SessionOverview[];
   today: string;
 }) {
-  const [localMode, setLocalMode] = useState("calendar");
   const showGroup = new Set([...sessions.map((s) => s.group_name)]).size > 1;
   const panelId = useId();
   const [localDay, setLocalDay] = useState<string>();
   const workspace = useSessionWorkspace();
-  const mode = workspace?.mode || localMode;
-  const setMode = workspace?.setMode || setLocalMode;
   const day = workspace ? workspace.day : localDay;
   const setDay = workspace?.setDay || setLocalDay;
   const [week, setWeek] = useState(today);
@@ -61,10 +51,9 @@ export default function SessionBrowser({
     const key = dayKey(session.starts_at);
     counts[key] = (counts[key] || 0) + 1;
   }
-  const rows =
-    mode === "calendar" && day
-      ? sessions.filter((s) => dayKey(s.starts_at) === day)
-      : sessions;
+  const rows = day
+    ? sessions.filter((s) => dayKey(s.starts_at) === day)
+    : sessions;
   const items = [...rows].sort((a, b) => {
     const ap = dayKey(a.starts_at) < today,
       bp = dayKey(b.starts_at) < today;
@@ -78,130 +67,103 @@ export default function SessionBrowser({
   });
   return (
     <section className="session-browser">
-      <SlidingTabs
-        value={mode}
-        onChange={setMode}
-        panelId={panelId}
-        label="Cách xem buổi chơi"
-        className="view-switch"
-        options={[
-          {
-            value: "calendar",
-            label: "Lịch tháng",
-            icon: <CalendarDays size={18} aria-hidden="true" />,
-          },
-          {
-            value: "list",
-            label: "Danh sách",
-            icon: <List size={18} aria-hidden="true" />,
-          },
-        ]}
-      />
-      <div
-        role="tabpanel"
-        id={panelId}
-        aria-labelledby={`${panelId}-${mode}`}
-        tabIndex={0}
-        className={mode === "calendar" ? "calendar-layout" : "agenda-layout"}
-      >
-        {mode === "calendar" && (
-          <section
-            className={`calendar-card${monthOpen ? " month-expanded" : ""}`}
-            ref={card}
-            onKeyDown={(event) => {
-              if (event.key === "Escape" && monthOpen) {
-                setMonthOpen(false);
-                monthToggle.current?.focus();
-              }
-            }}
+      <div className="calendar-layout">
+        <section
+          className={`calendar-card${monthOpen ? " month-expanded" : ""}`}
+          ref={card}
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && monthOpen) {
+              setMonthOpen(false);
+              monthToggle.current?.focus();
+            }
+          }}
+        >
+          <div className="mobile-week">
+            <div className="week-toolbar">
+              <button
+                type="button"
+                className="secondary"
+                aria-label="Tuần trước"
+                onClick={() => setWeek(shiftDate(week, -7))}
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                aria-expanded={monthOpen}
+                ref={monthToggle}
+                aria-label={monthOpen ? "Thu gọn lịch" : "Xem lịch tháng"}
+                aria-controls={`${panelId}-month`}
+                onClick={() => setMonthOpen(!monthOpen)}
+              >
+                <CalendarDays size={16} aria-hidden />
+                {weekStart.slice(5).split("-").reverse().join("/")}–
+                {shiftDate(weekStart, 6)
+                  .slice(5)
+                  .split("-")
+                  .reverse()
+                  .join("/")}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                aria-label="Tuần sau"
+                onClick={() => setWeek(shiftDate(week, 7))}
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+            <div className="week-days" aria-label="Lịch tuần">
+              {Array.from({ length: 7 }, (_, i) => {
+                const d = shiftDate(weekStart, i);
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    aria-pressed={day === d}
+                    aria-current={d === today ? "date" : undefined}
+                    data-date={d}
+                    data-calendar-states={markerStates(markers[d])}
+                    aria-label={`${d.split("-").reverse().join("/")}, ${markerLabel(markers[d]) || "Chưa có lịch"}`}
+                    onClick={() => setDay(day === d ? undefined : d)}
+                  >
+                    <small>
+                      {["T2", "T3", "T4", "T5", "T6", "T7", "CN"][i]}
+                    </small>
+                    <strong>{Number(d.slice(8))}</strong>
+                    <CalendarDayMarks mark={markers[d]} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div
+            className={`month-calendar${monthOpen ? " is-open" : ""}`}
+            id={`${panelId}-month`}
           >
-            <div className="mobile-week">
-              <div className="week-toolbar">
-                <button
-                  type="button"
-                  className="secondary"
-                  aria-label="Tuần trước"
-                  onClick={() => setWeek(shiftDate(week, -7))}
-                >
-                  <ChevronLeft size={18} />
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  aria-expanded={monthOpen}
-                  ref={monthToggle}
-                  aria-label={monthOpen ? "Thu gọn lịch" : "Xem lịch tháng"}
-                  aria-controls={`${panelId}-month`}
-                  onClick={() => setMonthOpen(!monthOpen)}
-                >
-                  <CalendarDays size={16} aria-hidden />
-                  {weekStart.slice(5).split("-").reverse().join("/")}–
-                  {shiftDate(weekStart, 6)
-                    .slice(5)
-                    .split("-")
-                    .reverse()
-                    .join("/")}
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  aria-label="Tuần sau"
-                  onClick={() => setWeek(shiftDate(week, 7))}
-                >
-                  <ChevronRight size={18} />
-                </button>
-              </div>
-              <div className="week-days" aria-label="Lịch tuần">
-                {Array.from({ length: 7 }, (_, i) => {
-                  const d = shiftDate(weekStart, i);
-                  return (
-                    <button
-                      key={d}
-                      type="button"
-                      aria-pressed={day === d}
-                      aria-current={d === today ? "date" : undefined}
-                      data-date={d}
-                      data-calendar-states={markerStates(markers[d])}
-                      aria-label={`${d.split("-").reverse().join("/")}, ${markerLabel(markers[d]) || "Chưa có lịch"}`}
-                      onClick={() => setDay(day === d ? undefined : d)}
-                    >
-                      <small>
-                        {["T2", "T3", "T4", "T5", "T6", "T7", "CN"][i]}
-                      </small>
-                      <strong>{Number(d.slice(8))}</strong>
-                      <CalendarDayMarks mark={markers[d]} />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div
-              className={`month-calendar${monthOpen ? " is-open" : ""}`}
-              id={`${panelId}-month`}
-            >
-              <Calendar
-                today={today}
-                value={day}
-                onChange={(d) => {
-                  setDay(d);
-                  setMonthOpen(false);
-                  if (monthOpen) monthToggle.current?.focus();
-                }}
-                counts={counts}
-                markers={markers}
-              />
-            </div>
-            <CalendarLegend />
-          </section>
-        )}
+            <Calendar
+              today={today}
+              value={day}
+              onChange={(d) => {
+                setDay(d);
+                setMonthOpen(false);
+                if (monthOpen) monthToggle.current?.focus();
+              }}
+              counts={counts}
+              markers={markers}
+            />
+          </div>
+          <CalendarLegend />
+        </section>
         <div className="session-agenda">
           <div className="agenda-heading">
             <h2>
-              {mode === "calendar" && day
+              {day
                 ? `Ngày ${day.split("-").reverse().join("/")}`
                 : "Lịch của nhóm"}
             </h2>
-            {day && mode === "calendar" && (
+            {day && (
               <button
                 type="button"
                 className="secondary"
@@ -234,7 +196,7 @@ export default function SessionBrowser({
             ))}
             <SessionWorkspaceLink create className="calendar-create-row">
               <Plus size={19} aria-hidden="true" />
-              {day && mode === "calendar"
+              {day
                 ? `Tạo buổi ngày ${day.split("-").reverse().join("/")}`
                 : "Tạo buổi chơi mới"}
             </SessionWorkspaceLink>

@@ -29,6 +29,7 @@ import "./calendar-ux.css";
 import "./bank-picker.css";
 import "./auth.css";
 import "./session-workspace.css";
+import "./overview.css";
 
 export const metadata: Metadata = {
   title: { default: appName, template: `%s · ${appName}` },

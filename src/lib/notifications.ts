@@ -5,8 +5,17 @@ export interface NotificationChannel {
   ): Promise<"sent" | "expired" | "retry">;
 }
 export function safeAppPath(value: string) {
-  return /^\/(sessions|polls|groups)\/[0-9a-f-]{36}$/.test(value) ||
-    ["/approvals", "/notifications"].includes(value)
+  if (/^\/polls\/[0-9a-f-]{36}$/.test(value)) return "/sessions";
+  return /^\/(sessions|groups)\/[0-9a-f-]{36}$/.test(value) ||
+    [
+      "/",
+      "/sessions",
+      "/groups",
+      "/approvals",
+      "/notifications",
+      "/me",
+      "/ai/settings",
+    ].includes(value)
     ? value
     : "/notifications";
 }

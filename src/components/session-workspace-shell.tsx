@@ -16,8 +16,6 @@ import { X } from "lucide-react";
 const Workspace = createContext<{
   day: string | undefined;
   setDay: Dispatch<SetStateAction<string | undefined>>;
-  mode: string;
-  setMode: Dispatch<SetStateAction<string>>;
   remember: (element: HTMLElement) => void;
 } | null>(null);
 export const useSessionWorkspace = () => useContext(Workspace);
@@ -34,8 +32,7 @@ export function SessionWorkspaceLink({
   children: React.ReactNode;
 }) {
   const workspace = useSessionWorkspace();
-  const selectedDay =
-    workspace?.mode === "calendar" ? workspace.day : undefined;
+  const selectedDay = workspace?.day;
   const target = create
     ? "/sessions/new" + (selectedDay ? "?date=" + selectedDay : "")
     : href!;
@@ -71,7 +68,6 @@ export default function SessionWorkspaceShell({
   const router = useRouter();
   const titleId = useId();
   const [day, setDay] = useState<string>();
-  const [mode, setMode] = useState("calendar");
   const [motion, setMotion] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
   const body = useRef<HTMLDivElement>(null);
@@ -121,8 +117,6 @@ export default function SessionWorkspaceShell({
       value={{
         day,
         setDay,
-        mode,
-        setMode,
         remember: (element) => {
           opener.current = element;
         },

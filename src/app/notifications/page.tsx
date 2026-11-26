@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import LiveUpdates from "@/components/live-updates";
 import ActionForm from "@/components/action-form";
 import { readNotification } from "./read-actions";
+import { safeAppPath } from "@/lib/notifications";
 export default async function Notifications() {
   const db = await supabase();
   const {
@@ -24,7 +25,7 @@ export default async function Notifications() {
       {!data?.length && !error && <p>Bạn chưa có thông báo.</p>}
       {data?.map((n) => (
         <section className="panel" key={n.id}>
-          <Link href={n.href}>
+          <Link href={safeAppPath(n.href)}>
             <h2>{n.title}</h2>
           </Link>
           <p>
