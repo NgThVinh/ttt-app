@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { writeFileSync } from "node:fs";
 import { expect } from "@playwright/test";
 import { localBrowser, check } from "./local-browser.mjs";
 let app,
@@ -76,6 +77,70 @@ try {
   );
   const clientErrors = [];
   page.on("pageerror", (e) => clientErrors.push(e.message));
+  step = "bandwidth-payloads";
+  const before = await owner.client
+    .from("sessions")
+    .select(
+      "id,title,venue,starts_at,ends_at,status,revision,group:groups(name),attendees:session_attendees(member_id,rsvp,committed_at,removed_at,member:group_members(display_name))",
+    );
+  const after = await owner.client
+    .from("sessions")
+    .select(
+      "id,title,venue,starts_at,ends_at,status,revision,group:groups(name),attendees:session_attendees(member_id,rsvp,committed_at,removed_at)",
+    )
+    .eq("status", "planned")
+    .gte("starts_at", new Date().toISOString())
+    .eq("attendees.member_id", a)
+    .is("attendees.removed_at", null)
+    .order("starts_at")
+    .limit(3);
+  check(
+    !before.error &&
+      !after.error &&
+      after.data.length === 3 &&
+      after.data.every((s) => s.attendees.length === 1),
+    "BOUNDED_HOME_PAYLOAD",
+  );
+  const payloads = {
+    before: Buffer.byteLength(JSON.stringify(before.data)),
+    after: Buffer.byteLength(JSON.stringify(after.data)),
+  };
+  check(payloads.after < payloads.before * 0.15, "HOME_PAYLOAD_REDUCTION");
+  let joined = false;
+  const activeTopics = new Set();
+  page.on("websocket", (ws) => {
+    if (!ws.url().includes("/realtime/v1/websocket")) return;
+    const decode = (payload) => {
+      if (typeof payload !== "string") return {};
+      const value = JSON.parse(payload);
+      return Array.isArray(value)
+        ? { topic: value[2], event: value[3], payload: value[4] }
+        : value;
+    };
+    ws.on("framesent", ({ payload }) => {
+      const value = decode(payload);
+      if (value.event === "phx_join") activeTopics.add(value.topic);
+      if (value.event === "phx_leave") activeTopics.delete(value.topic);
+    });
+    ws.on("framereceived", ({ payload }) => {
+      const value = decode(payload);
+      if (
+        value.event === "phx_reply" &&
+        value.payload?.status === "ok" &&
+        value.topic?.includes("3t-visible-updates")
+      )
+        joined = true;
+    });
+  });
+  const requests = [];
+  page.on("request", (r) => {
+    const u = new URL(r.url());
+    if (
+      u.origin === origin &&
+      (u.searchParams.has("_rsc") || u.pathname.startsWith("/api/"))
+    )
+      requests.push(u.pathname + u.search);
+  });
   step = "home-statistics";
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(origin + "/");
@@ -97,6 +162,45 @@ try {
   await expect(page.locator(".contribution-grid :focus")).toBeVisible();
   await expect(page.locator(".home-upcoming li")).toHaveCount(3);
   await page.screenshot({ path: ".tools/overview-ui/home-1440.png" });
+  step = "bandwidth-idle";
+  await expect.poll(() => joined).toBe(true);
+  await expect
+    .poll(() => requests.includes("/api/notifications/preview?count=1"))
+    .toBe(true);
+  check(
+    !requests.includes("/api/notifications/preview"),
+    "BADGE_ONLY_LOADS_COUNT",
+  );
+  check(activeTopics.size === 1, "ONE_SHARED_REALTIME_CHANNEL");
+  await page.waitForTimeout(1000);
+  requests.length = 0;
+  console.log(JSON.stringify({ step: "idle-window", seconds: 35 }));
+  await page.waitForTimeout(35000);
+  check(requests.length === 0, "NO_IDLE_REFRESH_OR_POLLING");
+  step = "bandwidth-realtime";
+  await db.query(
+    "update public.sessions set title='Realtime updated session' where id=$1",
+    [future[0]],
+  );
+  await expect(page.locator(".home-upcoming li").first()).toContainText(
+    "Realtime updated session",
+    { timeout: 12000 },
+  );
+  check(
+    requests.filter((p) => p.startsWith("/?_rsc=")).length === 1,
+    "ONE_EVENT_REFRESH",
+  );
+  const bandwidth = {
+    payloads,
+    idleSeconds: 35,
+    idleRequests: 0,
+    sharedChannel: true,
+    realtimeRefresh: true,
+  };
+  writeFileSync(
+    ".tools/overview-ui/bandwidth.json",
+    JSON.stringify(bandwidth, null, 2) + "\n",
+  );
   step = "notification-isolation";
   const response = await page.request.get(
     origin + "/api/notifications/preview",
@@ -106,6 +210,11 @@ try {
     "PRIVATE_PREVIEW",
   );
   const preview = await response.json();
+  const countResponse = await page.request.get(
+    origin + "/api/notifications/preview?count=1",
+  );
+  const count = await countResponse.json();
+  check(count.unread === 6 && !("items" in count), "COUNT_ONLY_RESPONSE");
   check(
     preview.unread === 6 && preview.items.length === 6,
     "BOUNDED_UNREAD_COUNT",
@@ -148,8 +257,17 @@ try {
   await page.keyboard.press("Escape");
   await expect(dropdown).toBeHidden();
   await expect(bell).toBeFocused();
+  const fullLoads = requests.filter(
+    (p) => p === "/api/notifications/preview",
+  ).length;
+  check(fullLoads === 1, "LAZY_NOTIFICATION_LIST");
   await bell.press("Enter");
   await expect(dropdown).toBeVisible();
+  check(
+    requests.filter((p) => p === "/api/notifications/preview").length ===
+      fullLoads,
+    "REOPEN_REUSES_FRESH_DATA",
+  );
   await page.getByRole("heading", { level: 1 }).click();
   await expect(dropdown).toBeHidden();
   step = "read-notification";
@@ -249,6 +367,7 @@ try {
       keyboardAndRetry: true,
       responsive: [320, 390, 768, 1440],
       providerCalls: 0,
+      bandwidth,
     }),
   );
 } catch (e) {

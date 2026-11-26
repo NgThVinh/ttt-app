@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/app-link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import BrandMark from "./brand-mark";
@@ -53,24 +53,6 @@ export default function AppFrame({
   localDevelopment?: boolean;
 }) {
   const path = usePathname();
-  const [canAudit, setCanAudit] = useState(false);
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch("/api/navigation", { signal: controller.signal, cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : { canAudit: false }))
-      .then((v) => setCanAudit(v.canAudit === true))
-      .catch(() => {
-        if (!controller.signal.aborted) setCanAudit(false);
-      });
-    return () => controller.abort();
-  }, [path]);
-  const mainLinks = canAudit
-    ? [
-        ...navigationLinks.slice(0, -1),
-        { href: "/audit", label: "Nhật ký", icon: FileClock },
-        navigationLinks.at(-1)!,
-      ]
-    : navigationLinks;
   const theme = useSyncExternalStore(
     subscribeTheme,
     currentTheme,
@@ -79,6 +61,67 @@ export default function AppFrame({
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+  if (
+    path === "/login" ||
+    path === "/register" ||
+    path === "/welcome" ||
+    path.startsWith("/join/")
+  )
+    return <>{children}</>;
+  return (
+    <AuthenticatedFrame localDevelopment={localDevelopment} theme={theme}>
+      {children}
+    </AuthenticatedFrame>
+  );
+}
+function AuthenticatedFrame({
+  children,
+  localDevelopment = false,
+  theme,
+}: {
+  children: React.ReactNode;
+  localDevelopment?: boolean;
+  theme: string;
+}) {
+  const path = usePathname();
+  const [canAudit, setCanAudit] = useState(false);
+  useEffect(() => {
+    let controller: AbortController | undefined;
+    let last = 0;
+    const load = () => {
+      if (document.hidden || !navigator.onLine || Date.now() - last < 60_000)
+        return;
+      last = Date.now();
+      controller?.abort();
+      controller = new AbortController();
+      const request = controller;
+      fetch("/api/navigation", { signal: request.signal, cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : { canAudit: false }))
+        .then((v) => {
+          if (!request.signal.aborted) setCanAudit(v.canAudit === true);
+        })
+        .catch(() => {
+          if (!request.signal.aborted) setCanAudit(false);
+        });
+    };
+    load();
+    window.addEventListener("focus", load);
+    window.addEventListener("online", load);
+    document.addEventListener("visibilitychange", load);
+    return () => {
+      controller?.abort();
+      window.removeEventListener("focus", load);
+      window.removeEventListener("online", load);
+      document.removeEventListener("visibilitychange", load);
+    };
+  }, []);
+  const mainLinks = canAudit
+    ? [
+        ...navigationLinks.slice(0, -1),
+        { href: "/audit", label: "Nhật ký", icon: FileClock },
+        navigationLinks.at(-1)!,
+      ]
+    : navigationLinks;
   useEffect(() => {
     document.getElementById("main-content")?.scrollTo({ top: 0 });
   }, [path]);
@@ -90,13 +133,6 @@ export default function AppFrame({
     }
     window.dispatchEvent(new Event("3t-theme"));
   }
-  if (
-    path === "/login" ||
-    path === "/register" ||
-    path === "/welcome" ||
-    path.startsWith("/join/")
-  )
-    return <>{children}</>;
   const active = (href: string) =>
     href === "/" ? path === "/" : path === href || path.startsWith(href + "/");
   const title =
@@ -164,7 +200,7 @@ export default function AppFrame({
                 </span>
               </span>
             </button>
-            <NotificationPreview key={path} />
+            <NotificationPreview />
           </div>
         </header>
         <div id="main-content" tabIndex={-1} data-scroll="workspace">

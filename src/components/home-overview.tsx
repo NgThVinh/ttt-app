@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/app-link";
 import {
   Plus,
   ArrowRight,
@@ -57,7 +57,14 @@ export default function HomeOverview({
   const stats = activity ? participationWindow(activity, 26) : null;
   return (
     <main className="minimal-home activity-home">
-      <LiveUpdates tables={["sessions", "session_attendees", "settlements"]} />
+      <LiveUpdates
+        tables={[
+          "sessions",
+          "session_attendees",
+          "settlements",
+          "notifications",
+        ]}
+      />
       <div className="page-heading">
         <div>
           <h1>Chào {name}</h1>

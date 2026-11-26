@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-export async function supabase() {
+import { cache } from "react";
+// React cache is scoped to one server render, never shared between users/requests.
+export const supabase = cache(async () => {
   const jar = await cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,4 +22,8 @@ export async function supabase() {
       },
     },
   );
-}
+});
+export const currentUser = cache(async () => {
+  const db = await supabase();
+  return (await db.auth.getUser()).data.user;
+});

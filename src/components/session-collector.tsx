@@ -2,7 +2,7 @@
 import ActionForm from "./action-form";
 import { sessionCommand } from "@/app/sessions/actions";
 import { requestChange, decideApproval } from "@/app/approvals/actions";
-import Link from "next/link";
+import Link from "@/components/app-link";
 import type { SessionDetail } from "@/lib/session-data";
 export type CollectorRequest = {
   id: string;

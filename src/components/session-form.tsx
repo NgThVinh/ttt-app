@@ -1,7 +1,7 @@
 "use client";
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/app-link";
 import ActionForm from "./action-form";
 import { createSession } from "@/app/sessions/actions";
 import { formatMoney, reconcile } from "@/lib/money";

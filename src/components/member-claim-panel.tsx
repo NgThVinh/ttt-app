@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/app-link";
 import ActionForm from "./action-form";
 import { requestClaim, cancelClaim } from "@/app/groups/actions";
 export type MemberClaim = {

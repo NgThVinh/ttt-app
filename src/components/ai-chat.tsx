@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/app-link";
 export default function AIChat({
   groups,
 }: {

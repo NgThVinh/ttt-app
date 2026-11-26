@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/app-link";
 import { ArrowLeft, Clock3, MapPin, Pencil, Trash2 } from "lucide-react";
 import SessionTask from "./session-task";
 import ActionForm from "./action-form";

@@ -1,57 +1,100 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/app-link";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Bell, ArrowRight, RefreshCw } from "lucide-react";
-import { createBrowserClient } from "@supabase/ssr";
+import { subscribeToChanges } from "@/lib/live-data";
 import { z } from "zod";
 import { readNotification } from "@/app/notifications/read-actions";
 import { safeAppPath } from "@/lib/notifications";
 
 const schema = z.object({
   unread: z.number().int().nonnegative(),
-  items: z.array(
-    z.object({
-      id: z.uuid(),
-      title: z.string(),
-      href: z.string(),
-      created_at: z.string(),
-      read_at: z.string().nullable(),
-    }),
-  ),
+  items: z
+    .array(
+      z.object({
+        id: z.uuid(),
+        title: z.string(),
+        href: z.string(),
+        created_at: z.string(),
+        read_at: z.string().nullable(),
+      }),
+    )
+    .optional(),
 });
 export default function NotificationPreview() {
   const path = usePathname();
   const id = useId();
   const [data, setData] = useState<z.infer<typeof schema> | null>(null);
   const [error, setError] = useState(false);
-  const [state, setState] = useState("");
+  const [menu, setMenu] = useState({ state: "", path });
+  // Reset on navigation so browser Back cannot reopen an old dropdown.
+  if (menu.path !== path) setMenu({ state: "", path });
+  const state = menu.path === path ? menu.state : "";
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const request = useRef<AbortController | null>(null);
+  const inFlight = useRef(false);
+  const requestedItems = useRef(false);
+  const reload = useRef(false);
+  const lastCount = useRef(0);
+  const lastItems = useRef(0);
   const open = state === "is-open";
-  const load = useCallback(async () => {
+  const isOpen = useRef(false);
+  useEffect(() => {
+    isOpen.current = open;
+  }, [open]);
+  const load = useCallback(async function load(
+    items = isOpen.current,
+    force = false,
+  ): Promise<void> {
+    if (document.hidden || !navigator.onLine) return;
+    const last = items ? lastItems.current : lastCount.current;
+    if (!force && Date.now() - last < 60_000) return;
+    if (inFlight.current && (!items || requestedItems.current)) {
+      if (force) reload.current = true;
+      return;
+    }
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
+    inFlight.current = true;
+    requestedItems.current = items;
     try {
-      const response = await fetch("/api/notifications/preview", {
-        cache: "no-store",
-        signal: controller.signal,
-      });
+      const response = await fetch(
+        "/api/notifications/preview" + (items ? "" : "?count=1"),
+        {
+          cache: "no-store",
+          signal: controller.signal,
+        },
+      );
       const result = schema.safeParse(await response.json());
       if (controller.signal.aborted) return;
       if (!response.ok || !result.success) throw new Error("load");
-      setData(result.data);
+      const value = result.data;
+      setData((previous) => ({
+        unread: value.unread,
+        items: value.items ?? previous?.items,
+      }));
+      lastCount.current = Date.now();
+      if (items) lastItems.current = Date.now();
       setError(false);
     } catch {
       if (!controller.signal.aborted) setError(true);
+    } finally {
+      if (request.current === controller) {
+        inFlight.current = false;
+        if (reload.current && !controller.signal.aborted) {
+          reload.current = false;
+          void load(isOpen.current, true);
+        }
+      }
     }
   }, []);
   const close = useCallback(() => {
-    setState("is-closing");
+    setMenu((current) => ({ ...current, state: "is-closing" }));
     const ms = matchMedia("(prefers-reduced-motion: reduce)").matches
       ? 0
       : parseFloat(
@@ -60,51 +103,30 @@ export default function NotificationPreview() {
           ),
         ) || 150;
     clearTimeout(timer.current);
-    timer.current = setTimeout(() => setState(""), ms);
+    timer.current = setTimeout(
+      () => setMenu((current) => ({ ...current, state: "" })),
+      ms,
+    );
   }, []);
   useEffect(() => {
-    if (
-      ["/login", "/register", "/welcome"].includes(path) ||
-      path.startsWith("/join/")
-    )
-      return;
     const initial = setTimeout(() => {
-      void load();
+      void load(false);
     }, 0);
-    const focus = () => {
-      if (!document.hidden) void load();
+    const changed = () => {
+      lastItems.current = 0;
+      void load(isOpen.current, true);
     };
-    const interval = setInterval(focus, 30000);
-    window.addEventListener("focus", focus);
-    window.addEventListener("3t-notifications-read", focus);
-    const db = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    );
-    let debounce: ReturnType<typeof setTimeout>;
-    const channel = db
-      .channel("notification-preview")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "notifications" },
-        () => {
-          clearTimeout(debounce);
-          debounce = setTimeout(() => {
-            void load();
-          }, 300);
-        },
-      )
-      .subscribe();
+    const unsubscribe = subscribeToChanges(["notifications"], changed);
+    window.addEventListener("3t-notifications-read", changed);
     return () => {
       clearTimeout(initial);
-      clearInterval(interval);
-      clearTimeout(debounce);
-      window.removeEventListener("focus", focus);
-      window.removeEventListener("3t-notifications-read", focus);
+      window.removeEventListener("3t-notifications-read", changed);
       request.current?.abort();
-      void db.removeChannel(channel);
+      inFlight.current = false;
+      reload.current = false;
+      unsubscribe();
     };
-  }, [path, load]);
+  }, [load]);
   useEffect(() => () => clearTimeout(timer.current), []);
   useEffect(() => {
     if (!open) return;
@@ -157,8 +179,8 @@ export default function NotificationPreview() {
           if (open) close();
           else {
             clearTimeout(timer.current);
-            setState("is-open");
-            void load();
+            setMenu({ state: "is-open", path });
+            void load(true);
             requestAnimationFrame(() => panel.current?.focus());
           }
         }}
@@ -194,14 +216,14 @@ export default function NotificationPreview() {
                 <button
                   className="secondary"
                   onClick={() => {
-                    void load();
+                    void load(true, true);
                   }}
                 >
                   <RefreshCw size={14} aria-hidden />
                   Thử lại
                 </button>
               </div>
-            ) : !data ? (
+            ) : !data?.items ? (
               <p className="notification-preview-state" role="status">
                 Đang tải thông báo…
               </p>

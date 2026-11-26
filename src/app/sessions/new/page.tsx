@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase, currentUser } from "@/lib/supabase";
 import SessionForm from "@/components/session-form";
 import { z } from "zod";
 import { expenseToolsSchema, type ExpenseTools } from "@/lib/expense-tools";
@@ -9,9 +9,7 @@ export default async function NewSession({
   searchParams: Promise<{ date?: string; poll?: string; option?: string }>;
 }) {
   const db = await supabase();
-  const {
-    data: { user },
-  } = await db.auth.getUser();
+  const user = await currentUser();
   if (!user) redirect("/login");
   const query = await searchParams;
   if (query.poll || query.option) redirect("/sessions");

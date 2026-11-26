@@ -56,4 +56,6 @@ See [account onboarding](docs/account-onboarding.md) for login, registration and
 
 The home dashboard includes personal/group participation graphs, the header offers a private notification preview, and `/sessions` uses one calendar workspace. See [home and notifications](docs/home-and-notifications.md); `npm run test:overview-ui` verifies these flows with isolated local identities and no AI calls.
 
+See [Supabase bandwidth controls](docs/supabase-bandwidth.md) for query limits, visible-only Realtime, local measurements and Free quota monitoring.
+
 See DEPLOY.md for infrastructure prerequisites and DECISIONS.md for design choices.

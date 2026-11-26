@@ -154,3 +154,64 @@ it("isolates other groups and revokes aggregates when a member is removed", asyn
   await actor("");
   await expect(activity()).rejects.toThrow();
 });
+
+it("summarizes outstanding debt exactly without downloading confirmed history", async () => {
+  const sid = await session();
+  const peer = (
+    await db.query<{ id: string }>(
+      "insert into public.group_members(group_id,user_id,display_name) values($1,$2,'Peer') returning id",
+      [g, b],
+    )
+  ).rows[0].id;
+  for (const [from, to, amount, status] of [
+    [member, peer, "9007199254740993", "pending"],
+    [member, peer, "1000", "marked_paid"],
+    [peer, member, "7000", "pending"],
+    [peer, member, "999999", "cancelled"],
+  ])
+    await db.query(
+      "insert into public.settlements(session_id,from_member,to_member,amount,status,ref_code) values($1,$2,$3,$4,$5,$6)",
+      [sid, from, to, amount, status, randomUUID()],
+    );
+  await db.query(
+    "insert into public.settlements(session_id,from_member,to_member,amount,status,ref_code) select $1,$2,$3,100000,'confirmed',gen_random_uuid()::text from generate_series(1,1100)",
+    [sid, peer, member],
+  );
+  await actor(a);
+  const result = (
+    await db.query<{ data: unknown }>("select public.my_debt_summary() data")
+  ).rows[0].data;
+  expect(result).toEqual({
+    owe: "9007199254741993",
+    owed: "7000",
+    payCount: 2,
+    receiveCount: 1,
+  });
+  await actor(b);
+  expect(
+    (await db.query<{ data: unknown }>("select public.my_debt_summary() data"))
+      .rows[0].data,
+  ).toEqual({
+    owe: "7000",
+    owed: "9007199254741993",
+    payCount: 1,
+    receiveCount: 2,
+  });
+  await db.exec("reset role");
+  await db.query(
+    "update public.group_members set status='removed' where id=$1",
+    [member],
+  );
+  await actor(a);
+  expect(
+    (await db.query<{ data: unknown }>("select public.my_debt_summary() data"))
+      .rows[0].data,
+  ).toEqual({ owe: "0", owed: "0", payCount: 0, receiveCount: 0 });
+});
+
+it("denies anonymous debt summary execution", async () => {
+  await db.exec("set role anon");
+  await expect(db.query("select public.my_debt_summary()")).rejects.toThrow(
+    /permission denied/,
+  );
+});

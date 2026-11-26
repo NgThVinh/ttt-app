@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/app-link";
 import { Mail, ArrowLeft } from "lucide-react";
 import { login, register, googleLogin } from "@/app/actions";
 import { localLogin } from "@/app/local-actions";

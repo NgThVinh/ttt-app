@@ -1,6 +1,6 @@
 "use client";
 import { useActionState } from "react";
-import Link from "next/link";
+import Link from "@/components/app-link";
 import ReceiptPanel from "./receipt-panel";
 import ExpenseEditButton from "./expense-edit-button";
 import ActionForm from "./action-form";

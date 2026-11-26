@@ -1,6 +1,6 @@
 "use client";
 import { useId, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/app-link";
 import { useRouter } from "next/navigation";
 import { Clock3, MapPin, Users, NotebookPen } from "lucide-react";
 import ActionForm from "./action-form";

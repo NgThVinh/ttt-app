@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/app-link";
 import { useState } from "react";
 import ActionForm from "./action-form";
 import { requestChange } from "@/app/approvals/actions";

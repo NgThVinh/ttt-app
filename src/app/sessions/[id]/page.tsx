@@ -8,7 +8,7 @@ import ExpenseEditButton from "@/components/expense-edit-button";
 import { expenseToolsSchema, expenseEditorSchema } from "@/lib/expense-tools";
 import { redirect, notFound } from "next/navigation";
 import { z } from "zod";
-import { supabase } from "@/lib/supabase";
+import { supabase, currentUser } from "@/lib/supabase";
 import { detailSchema } from "@/lib/session-data";
 import { formatMoney } from "@/lib/money";
 import ActionForm from "@/components/action-form";
@@ -27,9 +27,7 @@ export default async function Session({
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
   const db = await supabase();
-  const {
-    data: { user },
-  } = await db.auth.getUser();
+  const user = await currentUser();
   if (!user) redirect("/login");
   const { data, error } = await db.rpc("session_details", { sid: id });
   if (error) notFound();

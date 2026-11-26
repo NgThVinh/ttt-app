@@ -1,6 +1,6 @@
 # Trang chủ, thông báo và lịch
 
-Cập nhật 26/11/2026. Migration 047 đã áp dụng local; chưa hosted/deploy.
+Cập nhật 26/11/2026. Migration 048 đã áp dụng local; chưa hosted/deploy.
 
 ## Trang chủ
 
@@ -15,7 +15,7 @@ Cập nhật 26/11/2026. Migration 047 đã áp dụng local; chưa hosted/deplo
 
 - Chuông mở sáu thông báo gần nhất cùng tổng chưa đọc và liên kết **Xem tất cả** tới `/notifications`.
 - Đọc bằng JWT người dùng, có RLS và lọc user ID ở server; số chưa đọc chỉ thuộc người đó trong nhóm đang có quyền. Admin không đọc hộ thông báo của thành viên khác. Endpoint trả `private, no-store`.
-- Bấm một mục mở trang liên quan và đánh dấu đã đọc. Cập nhật bằng Realtime, khi focus, khi mở dropdown và fallback 30 giây. Giao diện có trạng thái rỗng, lỗi/thử lại; badge không giả định bằng 0 khi tải thất bại.
+- Bấm một mục mở trang liên quan và đánh dấu đã đọc. Chuông đóng chỉ tải số chưa đọc; danh sách tải khi mở và dùng lại trong 60 giây. Cập nhật bằng Realtime, khi quay lại tab và fallback 120 giây khi kết nối lỗi; dừng khi tab ẩn/offline. Giao diện có trạng thái rỗng, lỗi/thử lại; badge không giả định bằng 0 khi tải thất bại.
 - Escape trả focus về chuông; bấm ngoài hoặc Tab ra ngoài đóng. Giữ chuyển động dropdown của skill `transitions-dev`, hỗ trợ reduced motion. Chỉ danh sách dài trong dropdown mới cuộn; nút Xem tất cả luôn ở cuối panel.
 - Chỉ nhận liên kết nội bộ được cho phép; liên kết thăm dò cũ chuyển về Buổi chơi.
 

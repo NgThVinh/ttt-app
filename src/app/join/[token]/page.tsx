@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/app-link";
 import { notFound, redirect } from "next/navigation";
 import { createHash } from "node:crypto";
 import { supabase } from "@/lib/supabase";

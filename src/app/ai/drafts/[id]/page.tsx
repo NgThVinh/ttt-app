@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/app-link";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import ActionForm from "@/components/action-form";

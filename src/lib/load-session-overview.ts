@@ -77,3 +77,56 @@ export async function loadSessionOverview(
     }),
   };
 }
+
+// The home page needs three upcoming sessions and only the viewer's RSVP.
+// Filter and limit in Postgres rather than downloading history and every roster.
+export async function loadUpcomingSessions(
+  db: Awaited<ReturnType<typeof supabase>>,
+  userId: string,
+  now: string,
+): Promise<{ sessions: SessionOverview[]; error: boolean }> {
+  const membership = await db
+    .from("group_members")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("status", "active");
+  if (membership.error) return { sessions: [], error: true };
+  const result = await db
+    .from("sessions")
+    .select(
+      "id,title,venue,starts_at,ends_at,status,revision,group:groups(name),attendees:session_attendees(member_id,rsvp,committed_at,removed_at)",
+    )
+    .eq("status", "planned")
+    .gte("starts_at", now)
+    .in(
+      "attendees.member_id",
+      (membership.data || []).map((m) => m.id),
+    )
+    .is("attendees.removed_at", null)
+    .order("starts_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(3);
+  const parsed = z
+    .array(
+      schema.element.extend({
+        attendees: z.array(
+          schema.element.shape.attendees.element.omit({ member: true }),
+        ),
+      }),
+    )
+    .safeParse(result.data);
+  if (result.error || !parsed.success) return { sessions: [], error: true };
+  return {
+    error: false,
+    sessions: parsed.data.map(({ attendees, group, ...session }) => ({
+      ...session,
+      group_name: group.name,
+      my_rsvp:
+        attendees[0]?.rsvp === "going" && attendees[0].committed_at
+          ? "going"
+          : attendees[0]?.rsvp === "not_going"
+            ? "not_going"
+            : "pending",
+    })),
+  };
+}
