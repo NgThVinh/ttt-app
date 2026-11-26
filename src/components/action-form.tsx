@@ -13,6 +13,7 @@ export default function ActionForm({
   onInvalidCapture,
   className,
   onSuccess,
+  preserveValues = false,
 }: {
   action: (state: FormResult, form: FormData) => Promise<FormResult>;
   children: React.ReactNode;
@@ -23,6 +24,7 @@ export default function ActionForm({
   onInvalidCapture?: React.FormEventHandler<HTMLFormElement>;
   className?: string;
   onSuccess?: () => void;
+  preserveValues?: boolean;
 }) {
   const reasonId = useId();
   const request = useRef<{ fingerprint: string; key: string } | null>(null);
@@ -57,6 +59,8 @@ export default function ActionForm({
   return (
     <form
       action={submit}
+      // A handled action error also triggers React's reset; creation forms must retain retry inputs.
+      onReset={preserveValues ? (event) => event.preventDefault() : undefined}
       onInvalidCapture={onInvalidCapture}
       className={className}
     >

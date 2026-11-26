@@ -1,6 +1,16 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
-import { CalendarDays, List, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  CalendarDays,
+  List,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+} from "lucide-react";
+import {
+  SessionWorkspaceLink,
+  useSessionWorkspace,
+} from "./session-workspace-shell";
 import { Calendar } from "./ui/calendar";
 import { SlidingTabs } from "./ui/sliding-tabs";
 import SessionListItem from "./session-list-item";
@@ -28,14 +38,19 @@ export default function SessionBrowser({
   polls?: CalendarPoll[];
   pollsError?: boolean;
 }) {
-  const [mode, setMode] = useState("calendar");
+  const [localMode, setLocalMode] = useState("calendar");
   const showGroup =
     new Set([
       ...sessions.map((s) => s.group_name),
       ...polls.map((p) => p.group_name),
     ]).size > 1;
   const panelId = useId();
-  const [day, setDay] = useState<string>();
+  const [localDay, setLocalDay] = useState<string>();
+  const workspace = useSessionWorkspace();
+  const mode = workspace?.mode || localMode;
+  const setMode = workspace?.setMode || setLocalMode;
+  const day = workspace ? workspace.day : localDay;
+  const setDay = workspace?.setDay || setLocalDay;
   const [week, setWeek] = useState(today);
   const [monthOpen, setMonthOpen] = useState(false);
   const card = useRef<HTMLElement>(null);
@@ -261,6 +276,12 @@ export default function SessionBrowser({
                 />
               ),
             )}
+            <SessionWorkspaceLink create className="calendar-create-row">
+              <Plus size={19} aria-hidden="true" />
+              {day && mode === "calendar"
+                ? `Tạo buổi ngày ${day.split("-").reverse().join("/")}`
+                : "Tạo buổi chơi mới"}
+            </SessionWorkspaceLink>
           </div>
         </div>
       </div>

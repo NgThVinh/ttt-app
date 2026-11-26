@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { SessionWorkspaceLink } from "./session-workspace-shell";
 import { MapPin } from "lucide-react";
 import { Badge } from "./ui/badge";
 import RsvpButtons from "./rsvp-buttons";
@@ -25,9 +25,9 @@ export default function SessionListItem({
         {s.ends_at && <small>– {sessionTime(s.ends_at)}</small>}
       </div>
       <div className="agenda-info">
-        <Link href={`/sessions/${s.id}`}>
+        <SessionWorkspaceLink href={`/sessions/${s.id}`}>
           <h3>{s.title}</h3>
-        </Link>
+        </SessionWorkspaceLink>
         <p className="inline-meta">
           <span>
             <MapPin size={14} aria-hidden />

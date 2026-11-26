@@ -275,7 +275,7 @@ try {
       exact: true,
     })
     .click();
-  await expect(collector.locator(".booking-lock")).toBeVisible();
+  await expect(collector.locator(".booking-lock:visible")).toBeVisible();
   check(
     (
       await db.query(
@@ -288,7 +288,7 @@ try {
   step = "locked-permissions";
   for (const actor of actors.slice(0, 2)) {
     await actor.page.goto(origin + "/sessions/" + sid);
-    await expect(actor.page.locator(".booking-lock")).toBeVisible();
+    await expect(actor.page.locator(".booking-lock:visible")).toBeVisible();
     await expect(
       actor.page.getByRole("group", { name: "Tôi tham gia", exact: true }),
     ).toHaveCount(0);

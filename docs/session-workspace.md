@@ -2,6 +2,7 @@
 
 ## Giao diện
 
+- Từ 26/11/2026, tạo và chi tiết mở trong modal trên nền trang Buổi chơi; link riêng vẫn hoạt động. Lặp hàng tuần chuyển vào form tạo; chi tiết xem trạng thái/dừng sinh buổi mới. Xem [calendar-workspace.md](calendar-workspace.md).
 - Bố cục hiện tại đã review lại ở [session-detail-review.md](session-detail-review.md). Tổng quan trước buổi hiển thị người tham gia và chi phí cho mọi vai trò; form chốt mở bằng nút Nhập phí và chốt buổi trong khu vực chi phí. Sau buổi, khoản thanh toán cá nhân hiện trước trên điện thoại và ở cột bên trên desktop; QR/ngân hàng/báo chuyển mở bằng nút Thanh toán.
 - Đầu trang ưu tiên tên buổi, ngày/giờ, địa điểm, ghi chú và thời gian còn lại. Giờ kết thúc khác ngày có nhãn ngày kết thúc. Bỏ ba ô thống kê Tham gia / Phần của tôi / Người tính tiền ở đầu trang.
 - Nút biểu tượng bút (nhãn truy cập/tooltip: Sửa thông tin buổi) mở các trường ngay trong khu vực thông tin. Lưu thành công đóng phần sửa; lỗi giữ nguyên dữ liệu nhập. Hủy sửa không gửi thay đổi. Vẫn kiểm tra revision, khóa lịch, điều kiện hủy/mở lại và lý do ở server/database.

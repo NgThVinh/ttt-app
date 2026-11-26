@@ -40,6 +40,7 @@ export default function SessionForm({
   bankReady = true,
   events = [],
   pollDraft,
+  initialDate,
 }: {
   groups: { id: string; name: string }[];
   members: {
@@ -55,9 +56,18 @@ export default function SessionForm({
   bankReady?: boolean;
   events?: MeetingEvent[];
   pollDraft?: PollMeetingDraft;
+  initialDate?: string;
 }) {
   const [group, setGroup] = useState(groups[0].id),
-    [flow, setFlow] = useState("planned"),
+    [flow, setFlow] = useState(
+      initialDate &&
+        initialDate <
+          new Date(Date.parse(initialTime) + 7 * 3600000)
+            .toISOString()
+            .slice(0, 10)
+        ? "played"
+        : "planned",
+    ),
     [selected, setSelected] = useState<string[]>([]),
     [amount, setAmount] = useState("");
   const fieldId = useId();
@@ -77,7 +87,9 @@ export default function SessionForm({
     new Date(new Date(initialTime).getTime() + 7 * 3600000 + offset)
       .toISOString()
       .slice(0, 16);
-  const [starts, setStarts] = useState(defaultTime(0));
+  const [starts, setStarts] = useState(
+    initialDate ? initialDate + "T18:00" : defaultTime(0),
+  );
   const courtInput = courtInputSchema.safeParse(amount);
   const weightInputs = Object.fromEntries(
     selected.map((id) => [id, weightInputSchema.safeParse(weights[id] ?? "1")]),
@@ -209,6 +221,7 @@ export default function SessionForm({
           </div>
         )}
         <MeetingForm
+          initialDate={initialDate}
           groups={groups}
           members={members}
           initialTime={initialTime}
@@ -300,6 +313,7 @@ export default function SessionForm({
       </div>
       <ActionForm
         action={createSession}
+        preserveValues
         hideSubmit={flow === "played" && step !== 2}
         onInvalidCapture={(event) => {
           const target = event.target as HTMLElement;

@@ -325,10 +325,12 @@ try {
   step = "long-page-scroll";
   await page.goto(origin + "/sessions/new");
   await expect(page.locator(".meeting-editor")).toBeVisible();
-  await page.locator("#main-content").hover();
+  await page.locator(".session-workspace-body").hover();
   await page.mouse.wheel(0, 1200);
   await expect
-    .poll(() => page.locator("#main-content").evaluate((el) => el.scrollTop))
+    .poll(() =>
+      page.locator(".session-workspace-body").evaluate((el) => el.scrollTop),
+    )
     .toBeGreaterThan(0);
   check(
     await page.evaluate(
@@ -337,7 +339,7 @@ try {
         document.scrollingElement.scrollHeight <= innerHeight + 1 &&
         document.querySelector(".app-header").getBoundingClientRect().top === 0,
     ),
-    "FORMS_USE_WORKSPACE_NOT_DOCUMENT",
+    "FORMS_USE_MODAL_NOT_DOCUMENT",
   );
   check(errors.length === 0, "NO_CLIENT_ERRORS");
   console.log(

@@ -1,5 +1,5 @@
 ﻿"use server";
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
@@ -60,15 +60,14 @@ export async function scheduleMeeting(
     be_collector: p.collectorMode === "self",
     nominee: p.collectorMode === "nominee" ? p.nominee : "",
     invitees: p.invitees,
+    repeat_weeks: p.repeatWeeks,
   };
-  const { data, error } = source.success
-    ? await db.rpc("schedule_poll_meeting", {
-        request_key: p.request_key,
-        target_poll: source.data.poll_id,
-        chosen_option: source.data.poll_option,
-        body,
-      })
-    : await db.rpc("schedule_meeting", { request_key: p.request_key, body });
+  const { data, error } = await db.rpc("schedule_calendar_meeting", {
+    request_key: p.request_key,
+    source_poll: source.success ? source.data.poll_id : null,
+    chosen_option: source.success ? source.data.poll_option : null,
+    body,
+  });
   const result = z.object({ id: z.uuid() }).safeParse(data);
   if (error?.code === "PGRST202" || error?.code === "42883")
     return {
@@ -87,7 +86,8 @@ export async function scheduleMeeting(
     };
   for (const path of ["/", "/sessions", "/notifications", "/polls"])
     revalidatePath(path);
-  redirect(`/sessions/${result.data.id}`);
+  revalidatePath("/sessions", "layout");
+  redirect(`/sessions/${result.data.id}`, RedirectType.replace);
 }
 export async function inviteToSession(
   _state: FormResult,
@@ -274,7 +274,8 @@ export async function createSession(
   revalidatePath("/");
   revalidatePath("/debts");
   revalidatePath("/notifications");
-  redirect(`/sessions/${created.data.id}`);
+  revalidatePath("/sessions", "layout");
+  redirect(`/sessions/${created.data.id}`, RedirectType.replace);
 }
 export async function sessionCommand(
   _state: FormResult,

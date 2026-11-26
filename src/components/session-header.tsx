@@ -49,7 +49,7 @@ export default function SessionHeader({
   return (
     <header className="session-hero">
       <div className="session-page-tools">
-        <Link href="/sessions">
+        <Link href="/sessions" scroll={false}>
           <ArrowLeft size={16} aria-hidden="true" />
           Buổi chơi
         </Link>

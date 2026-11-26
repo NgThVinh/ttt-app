@@ -30,6 +30,7 @@
     "test:session-focus": "node scripts/verify-session-focus.mjs",
     "test:theme-ui": "node scripts/verify-theme-ui.mjs",
     "test:calendar-ux": "node scripts/verify-calendar-ux.mjs",
+    "test:calendar-workspace": "node scripts/verify-calendar-workspace.mjs",
     "security:check": "node scripts/check-secrets.mjs",
     "db:status": "node --env-file=.env scripts/migrate.mjs",
     "db:migrate": "node --env-file=.env scripts/migrate.mjs --apply",

@@ -20,6 +20,7 @@ export const meetingSchema = z
       .max(100)
       .refine((v) => new Set(v).size === v.length),
     request_key: z.uuid(),
+    repeatWeeks: z.coerce.number().int().min(0).max(12).default(0),
   })
   .refine(
     (v) =>

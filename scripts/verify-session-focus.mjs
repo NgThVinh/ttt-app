@@ -111,6 +111,9 @@ try {
   async function capture(actor, id, label) {
     await actor.page.goto(origin + "/sessions/" + id);
     await actor.page.getByRole("heading", { level: 1 }).waitFor();
+    await expect(
+      actor.page.locator(".session-workspace-frame.is-open"),
+    ).toHaveCSS("opacity", "1");
     if (!audit) {
       const first = label.startsWith("planned")
         ? /session-participants/
@@ -119,7 +122,7 @@ try {
         actor.page.locator(".detail-main > section").first(),
       ).toHaveClass(first);
     }
-    await actor.page.locator("#main-content").evaluate((el) => {
+    await actor.page.locator(".session-workspace-body").evaluate((el) => {
       el.scrollTop = 0;
     });
     await actor.page.screenshot({
@@ -133,12 +136,15 @@ try {
     measurements.push({
       label,
       ...(await actor.page.evaluate(() => {
-        const bottom =
-          innerHeight -
-          (document.querySelector(".bottom-nav")?.getBoundingClientRect()
-            .height || 69);
+        const bottom = document
+          .querySelector(".session-workspace-body")
+          .getBoundingClientRect().bottom;
+        const visible = (selector) =>
+          [...document.querySelectorAll(selector)].find((el) =>
+            el.checkVisibility(),
+          );
         const rect = (selector) => {
-          const r = document.querySelector(selector)?.getBoundingClientRect();
+          const r = visible(selector)?.getBoundingClientRect();
           return r ? Math.round(r.bottom) : null;
         };
         return {
@@ -147,13 +153,11 @@ try {
           headerBottom: rect(".session-hero"),
           peopleBottom: rect(".session-participants"),
           costsBottom: rect(".expense-summary"),
-          paymentTop: document.querySelector(".payment-list")
-            ? Math.round(
-                document.querySelector(".payment-list").getBoundingClientRect()
-                  .top,
-              )
+          paymentTop: visible(".payment-list")
+            ? Math.round(visible(".payment-list").getBoundingClientRect().top)
             : null,
-          scrollHeight: document.querySelector("#main-content").scrollHeight,
+          scrollHeight: document.querySelector(".session-workspace-body")
+            .scrollHeight,
         };
       })),
     });
@@ -202,28 +206,33 @@ try {
       path: ".tools/session-focus/after-cost-task-390.png",
     });
     await owner.page.getByRole("button", { name: "Đóng", exact: true }).click();
-    await expect(owner.page.getByRole("dialog")).toBeHidden();
+    await expect(owner.page.locator(".session-task-dialog")).toBeHidden();
     step = "first-viewport";
     await member.page.setViewportSize({ width: 390, height: 844 });
     await member.page.goto(origin + "/sessions/" + planned);
+    let viewportItem = 0;
     for (const locator of [
-      member.page.getByText("Sân cầu lông Hoàng Minh", { exact: true }),
-      member.page.locator(".my-attendance"),
-      member.page.locator(".attendance-groups"),
-      member.page.locator(".expense-summary"),
+      member.page
+        .locator(".session-detail:visible")
+        .getByText("Sân cầu lông Hoàng Minh", { exact: true }),
+      member.page.locator(".my-attendance:visible"),
+      member.page.locator(".attendance-groups:visible"),
+      member.page.locator(".expense-summary:visible"),
     ]) {
+      step = "planned-first-viewport:" + viewportItem++;
       await expect(locator).toBeInViewport({ ratio: 1 });
     }
     check(
-      (await member.page.locator(".collector-change").getAttribute("open")) ===
-        null,
+      (await member.page
+        .locator(".collector-change:visible")
+        .getAttribute("open")) === null,
       "ROLE_FORM_NOT_DEFAULT",
     );
     await member.page.goto(origin + "/sessions/" + sid);
     for (const selector of [
-      ".payment-list",
-      ".session-participants",
-      ".expense-summary",
+      ".payment-list:visible",
+      ".session-participants:visible",
+      ".expense-summary:visible",
     ]) {
       step = "payer-first-viewport:" + selector;
       await expect(member.page.locator(selector)).toBeInViewport({ ratio: 1 });
@@ -235,11 +244,13 @@ try {
     });
     await expect(payButton).toBeInViewport({ ratio: 1 });
     await payButton.click();
-    await expect(member.page.getByRole("dialog")).toBeVisible();
+    await expect(member.page.locator(".session-task-dialog")).toBeVisible();
     await expect(
       member.page.locator(".session-task-content.is-open"),
     ).toHaveCSS("opacity", "1");
-    const taskBox = await member.page.getByRole("dialog").boundingBox();
+    const taskBox = await member.page
+      .locator(".session-task-dialog")
+      .boundingBox();
     check(
       Math.abs(taskBox.x + taskBox.width / 2 - 195) < 2 &&
         Math.abs(taskBox.y + taskBox.height / 2 - 422) < 2,
@@ -252,23 +263,25 @@ try {
       path: ".tools/session-focus/after-payment-task-390.png",
     });
     await member.page.keyboard.press("Escape");
-    await expect(member.page.getByRole("dialog")).toBeHidden();
+    await expect(member.page.locator(".session-task-dialog")).toBeHidden();
     await expect(payButton).toBeFocused();
     await payButton.click();
     check(
       (await member.page.locator(".payment-list > .payment-row").count()) === 1,
       "ONLY_MY_PAYMENT_EXPANDED",
     );
-    await expect(member.page.locator(".personal-payment-amount")).toContainText(
-      "30.000",
-    );
+    await expect(
+      member.page.locator(".personal-payment-amount:visible"),
+    ).toContainText("30.000");
     check(
       await member.page
-        .locator(".personal-payment-amount")
+        .locator(".personal-payment-amount:visible")
         .evaluate((el) => parseFloat(getComputedStyle(el).fontSize) >= 24),
       "PERSONAL_AMOUNT_VISUAL_PRIORITY",
     );
-    const overview = await member.page.locator(".session-hero").boundingBox();
+    const overview = await member.page
+      .locator(".session-hero:visible")
+      .boundingBox();
     check(overview.y + overview.height < 320, "COMPACT_HEADER");
     step = "marked-paid";
     await member.page
@@ -311,18 +324,20 @@ try {
     await member.page
       .getByRole("button", { name: "Lịch sử", exact: true })
       .click();
-    await member.page.getByRole("dialog").waitFor();
+    await member.page.locator(".history-dialog").waitFor();
     await expect(
       member.page.locator(".history-dialog-content.is-open"),
     ).toHaveCSS("opacity", "1");
-    const historyBox = await member.page.getByRole("dialog").boundingBox();
+    const historyBox = await member.page
+      .locator(".history-dialog")
+      .boundingBox();
     check(
       Math.abs(historyBox.x + historyBox.width / 2 - 195) < 2 &&
         Math.abs(historyBox.y + historyBox.height / 2 - 422) < 2,
       "HISTORY_CENTERED",
     );
     await member.page.keyboard.press("Escape");
-    await expect(member.page.getByRole("dialog")).toBeHidden();
+    await expect(member.page.locator(".history-dialog")).toBeHidden();
     step = "settled";
     await owner.page.emulateMedia({ reducedMotion: "reduce" });
     await owner.page.goto(origin + "/sessions/" + planned);
@@ -334,7 +349,7 @@ try {
       "0s",
     );
     await owner.page.keyboard.press("Escape");
-    await expect(owner.page.getByRole("dialog")).toBeHidden();
+    await expect(owner.page.locator(".session-task-dialog")).toBeHidden();
     await db.query(
       "update public.settlements set status='confirmed',confirmed_at=now() where session_id=$1 and status<>'confirmed'",
       [sid],
@@ -361,7 +376,7 @@ try {
     JSON.stringify({
       step,
       code: e.code || e.name,
-      detail: e.message?.split("\n")[0]?.slice(0, 160),
+      detail: e.message?.slice(0, 650),
     }),
   );
   process.exitCode = 1;

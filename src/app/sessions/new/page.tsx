@@ -8,7 +8,7 @@ import { expenseToolsSchema, type ExpenseTools } from "@/lib/expense-tools";
 export default async function NewSession({
   searchParams,
 }: {
-  searchParams: Promise<{ poll?: string; option?: string }>;
+  searchParams: Promise<{ poll?: string; option?: string; date?: string }>;
 }) {
   const db = await supabase();
   const {
@@ -48,6 +48,9 @@ export default async function NewSession({
   const query = await searchParams;
   let pollDraft: PollMeetingDraft | undefined,
     draftError = "";
+  const requestedDate = z.iso.date().safeParse(query.date);
+  if (query.date && !requestedDate.success)
+    draftError = "Ngày được chọn không hợp lệ. Hãy chọn lại ngày trong lịch.";
   if (query.poll || query.option) {
     const source = z
       .object({ poll: z.uuid(), option: z.uuid() })
@@ -124,12 +127,9 @@ export default async function NewSession({
     }),
   );
   return (
-    <main>
+    <main className="session-composer">
       <div className="page-heading">
         <h1>Tạo buổi chơi</h1>
-        <Link className="quiet-link" href="/sessions">
-          Về lịch nhóm
-        </Link>
       </div>
       {draftError ? (
         <section className="panel">
@@ -164,6 +164,15 @@ export default async function NewSession({
             </aside>
           )}
           <SessionForm
+            key={
+              pollDraft?.optionId ||
+              (requestedDate.success ? requestedDate.data : "new")
+            }
+            initialDate={
+              !pollDraft && requestedDate.success
+                ? requestedDate.data
+                : undefined
+            }
             pollDraft={pollDraft}
             userId={user.id}
             groups={groups}

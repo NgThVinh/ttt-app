@@ -5,6 +5,7 @@ vi.mock("@/lib/supabase", () => ({
   supabase: async () => ({ auth: { getUser: mocks.user }, rpc: mocks.rpc }),
 }));
 vi.mock("next/navigation", () => ({
+  RedirectType: { replace: "replace", push: "push" },
   redirect: (url: string) => {
     throw new Error("redirect:" + url);
   },
@@ -63,13 +64,16 @@ it("schedules a meeting with pending invitations and Vietnamese time, without ac
   await expect(scheduleMeeting({ message: "" }, data)).rejects.toThrow(
     "redirect:/sessions/" + session,
   );
-  expect(mocks.rpc).toHaveBeenCalledWith("schedule_meeting", {
+  expect(mocks.rpc).toHaveBeenCalledWith("schedule_calendar_meeting", {
     request_key: session,
+    source_poll: null,
+    chosen_option: null,
     body: expect.objectContaining({
       start_time: "2026-11-23T18:00:00+07:00",
       ends_at: "2026-11-23T20:00:00+07:00",
       be_collector: false,
       invitees: [memberB],
+      repeat_weeks: 0,
     }),
   });
 });

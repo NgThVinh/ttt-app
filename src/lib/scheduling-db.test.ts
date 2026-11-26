@@ -69,6 +69,190 @@ afterAll(async () => {
   await db?.close();
 });
 
+const calendarBody = (title: string, repeat = 0) => {
+  const start = Date.now() + 2 * 86400000;
+  return {
+    g: group,
+    title_text: title,
+    venue_text: "Court",
+    start_time: new Date(start).toISOString(),
+    ends_at: new Date(start + 7200000).toISOString(),
+    deadline: new Date(start).toISOString(),
+    note: "Bring water",
+    be_collector: false,
+    nominee: "",
+    invitees: [memberA, memberB],
+    repeat_weeks: repeat,
+  };
+};
+
+it("a member creates a weekly series with times/invitations atomically and retries cannot duplicate or change it", async () => {
+  await actor(b);
+  const key = randomUUID(),
+    body = calendarBody("Calendar repeat", 2);
+  const create = () =>
+    db.query<{ result: { id: string; replayed: boolean } }>(
+      "select public.schedule_calendar_meeting($1,$2::jsonb) result",
+      [key, JSON.stringify(body)],
+    );
+  const first = (await create()).rows[0].result;
+  expect(first.replayed).toBe(false);
+  const series = (
+    await db.query<{ weekly_series_id: string }>(
+      "select weekly_series_id from public.sessions where id=$1",
+      [first.id],
+    )
+  ).rows[0].weekly_series_id;
+  const instances = (
+    await db.query<{
+      id: string;
+      seconds: number;
+      collector_member_id: string | null;
+      note: string;
+    }>(
+      "select id,extract(epoch from ends_at-starts_at)::int seconds,collector_member_id,note from public.sessions where weekly_series_id=$1",
+      [series],
+    )
+  ).rows;
+  expect(instances).toHaveLength(3);
+  expect(
+    instances.every(
+      (s) =>
+        s.seconds === 7200 &&
+        s.collector_member_id === null &&
+        s.note === "Bring water",
+    ),
+  ).toBe(true);
+  const attendees = (
+    await db.query<{ rsvp: string; committed_at: unknown }>(
+      "select rsvp,committed_at from public.session_attendees where session_id=any($1::uuid[])",
+      [instances.map((s) => s.id)],
+    )
+  ).rows;
+  expect(attendees).toHaveLength(6);
+  expect(
+    attendees.every((a) => a.rsvp === "none" && a.committed_at === null),
+  ).toBe(true);
+  expect((await create()).rows[0].result).toMatchObject({
+    id: first.id,
+    replayed: true,
+  });
+  await expect(
+    db.query("select public.schedule_calendar_meeting($1,$2::jsonb)", [
+      key,
+      JSON.stringify({ ...body, repeat_weeks: 3 }),
+    ]),
+  ).rejects.toThrow(/nội dung khác/);
+  expect(
+    (
+      await db.query(
+        "select id from public.sessions where weekly_series_id=$1",
+        [series],
+      )
+    ).rows,
+  ).toHaveLength(3);
+  await actor(outsider);
+  await expect(create()).rejects.toThrow(/quyền/);
+});
+
+it("repeat validation cannot leave a session or receipt behind", async () => {
+  await actor(b);
+  const key = randomUUID(),
+    body = calendarBody("Invalid repeat", 13);
+  await expect(
+    db.query("select public.schedule_calendar_meeting($1,$2::jsonb)", [
+      key,
+      JSON.stringify(body),
+    ]),
+  ).rejects.toThrow(/tuần lặp/);
+  expect(
+    (
+      await db.query(
+        "select id from public.sessions where title='Invalid repeat'",
+      )
+    ).rows,
+  ).toHaveLength(0);
+  await db.exec("reset role");
+  expect(
+    (
+      await db.query(
+        "select request_key from app_private.financial_command_results where request_key=$1",
+        [key],
+      )
+    ).rows,
+  ).toHaveLength(0);
+});
+
+it("a failure starting recurrence rolls back the session, invitations, poll closure and all receipts", async () => {
+  await actor(b);
+  const target = (
+    await db.query<{ id: string }>(
+      "select public.create_poll($1,'Atomic repeat','Court',1,now()+interval '1 day',jsonb_build_array(jsonb_build_object('starts_at',now()+interval '2 days','ends_at',now()+interval '2 days 2 hours'),jsonb_build_object('starts_at',now()+interval '3 days','ends_at',now()+interval '3 days 2 hours'))) id",
+      [group],
+    )
+  ).rows[0].id;
+  const option = (
+    await db.query<{ id: string; starts_at: Date; ends_at: Date }>(
+      "select id,starts_at,ends_at from public.poll_options where poll_id=$1 order by starts_at limit 1",
+      [target],
+    )
+  ).rows[0];
+  const key = randomUUID(),
+    body = {
+      ...calendarBody("Repeat rollback", 2),
+      start_time: new Date(option.starts_at).toISOString(),
+      ends_at: new Date(option.ends_at).toISOString(),
+      deadline: new Date(option.starts_at).toISOString(),
+    };
+  await db.exec("reset role");
+  const before = (
+    await db.query<{ n: number }>(
+      "select count(*)::int n from app_private.financial_command_results",
+    )
+  ).rows[0].n;
+  await db.exec(
+    "create function app_private.reject_test_repeat() returns trigger language plpgsql as $$begin if new.title='Repeat rollback' then raise exception 'TEST_REPEAT_FAILED';end if;return new;end$$;create trigger reject_test_repeat before insert on public.weekly_series for each row execute function app_private.reject_test_repeat();",
+  );
+  try {
+    await actor(b);
+    await expect(
+      db.query("select public.schedule_calendar_meeting($1,$2::jsonb,$3,$4)", [
+        key,
+        JSON.stringify(body),
+        target,
+        option.id,
+      ]),
+    ).rejects.toThrow(/TEST_REPEAT_FAILED/);
+    expect(
+      (
+        await db.query(
+          "select id from public.sessions where title='Repeat rollback'",
+        )
+      ).rows,
+    ).toHaveLength(0);
+    expect(
+      (
+        await db.query<{ status: string; resulting_session_id: string | null }>(
+          "select status,resulting_session_id from public.polls where id=$1",
+          [target],
+        )
+      ).rows[0],
+    ).toEqual({ status: "open", resulting_session_id: null });
+    await db.exec("reset role");
+    expect(
+      (
+        await db.query<{ n: number }>(
+          "select count(*)::int n from app_private.financial_command_results",
+        )
+      ).rows[0].n,
+    ).toBe(before);
+  } finally {
+    await db.exec(
+      "reset role;drop trigger reject_test_repeat on public.weekly_series;drop function app_private.reject_test_repeat();",
+    );
+  }
+});
+
 it("scheduled debt reminders never confirm payments and retries do not spam", async () => {
   await db.exec("reset role");
   const sid = (
@@ -239,7 +423,8 @@ it("weekly generation is idempotent and normal users cannot run maintenance", as
   expect(
     (
       await db.query(
-        "select id from public.sessions where weekly_series_id is not null",
+        "select id from public.sessions where weekly_series_id=(select weekly_series_id from public.sessions where id=$1)",
+        [sid],
       )
     ).rows,
   ).toHaveLength(4);
@@ -251,7 +436,8 @@ it("weekly generation is idempotent and normal users cannot run maintenance", as
   expect(
     (
       await db.query(
-        "select id from public.sessions where weekly_series_id is not null",
+        "select id from public.sessions where weekly_series_id=(select weekly_series_id from public.sessions where id=$1)",
+        [sid],
       )
     ).rows,
   ).toHaveLength(4);

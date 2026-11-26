@@ -34,6 +34,7 @@ export default function MeetingForm({
   bankReady,
   events = [],
   pollDraft,
+  initialDate,
 }: {
   groups: { id: string; name: string }[];
   members: Member[];
@@ -42,6 +43,7 @@ export default function MeetingForm({
   bankReady: boolean;
   events?: MeetingEvent[];
   pollDraft?: PollMeetingDraft;
+  initialDate?: string;
 }) {
   const id = useId();
   const router = useRouter();
@@ -49,10 +51,10 @@ export default function MeetingForm({
   const [starts, setStarts] = useState(
     pollDraft
       ? pollLocalTime(pollDraft.starts)
-      : local(new Date(Date.parse(initialTime) + 86400000).toISOString()).slice(
-          0,
-          10,
-        ) + "T18:00",
+      : (initialDate ||
+          local(
+            new Date(Date.parse(initialTime) + 86400000).toISOString(),
+          ).slice(0, 10)) + "T18:00",
   );
   const [ends, setEnds] = useState(
     pollDraft ? pollLocalTime(pollDraft.ends) : starts.slice(0, 10) + "T20:00",
@@ -62,11 +64,13 @@ export default function MeetingForm({
   const [selected, setSelected] = useState<string[]>(pollDraft?.invitees || []);
   const [search, setSearch] = useState("");
   const [collector, setCollector] = useState("unknown");
+  const [repeat, setRepeat] = useState(false);
+  const [repeatWeeks, setRepeatWeeks] = useState("4");
   const inGroup = members.filter((m) => m.group_id === group);
   const day = starts.slice(0, 10);
   const name = groups.find((g) => g.id === group)?.name || "cùng nhóm";
   const autoTitle =
-    `Buổi chơi ${name} · ${day.split("-").reverse().slice(0, 2).join("/")}`.slice(
+    `Buổi chơi ${name}${repeat ? "" : " · " + day.split("-").reverse().slice(0, 2).join("/")}`.slice(
       0,
       160,
     );
@@ -105,6 +109,7 @@ export default function MeetingForm({
     <div className="meeting-layout">
       <section className="meeting-editor panel">
         <ActionForm
+          preserveValues
           action={scheduleMeeting}
           label="Tạo lịch"
           disabled={badTime || missingBank}
@@ -303,6 +308,42 @@ export default function MeetingForm({
                 Mỗi người tự xác nhận tham gia sau khi nhận lời mời.
               </p>
             </fieldset>
+          </div>
+          <div className="meeting-repeat">
+            <div>
+              <label htmlFor={`${id}-repeat`}>Lặp lại</label>
+              <select
+                id={`${id}-repeat`}
+                value={repeat ? "weekly" : "none"}
+                onChange={(e) => setRepeat(e.target.value === "weekly")}
+              >
+                <option value="none">Không lặp</option>
+                <option value="weekly">Hàng tuần</option>
+              </select>
+            </div>
+            {repeat ? (
+              <label htmlFor={`${id}-repeat-weeks`}>
+                Lặp thêm (tuần)
+                <input
+                  id={`${id}-repeat-weeks`}
+                  type="number"
+                  name="repeatWeeks"
+                  min="1"
+                  max="12"
+                  required
+                  value={repeatWeeks}
+                  onChange={(e) => setRepeatWeeks(e.target.value)}
+                />
+              </label>
+            ) : (
+              <input type="hidden" name="repeatWeeks" value="0" />
+            )}
+            {repeat && (
+              <p className="field-hint">
+                Giữ thứ, giờ và danh sách mời. Mỗi buổi tự nhận lời và chốt phí
+                riêng; tạo trước các buổi trong 4 tuần tới.
+              </p>
+            )}
           </div>
           <div className="meeting-collector">
             <label htmlFor={`${id}-collector`}>Người tính tiền</label>

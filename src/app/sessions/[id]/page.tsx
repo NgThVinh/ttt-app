@@ -73,6 +73,15 @@ export default async function Session({
     .from("expenses")
     .select("id,created_by,amount")
     .eq("session_id", id);
+  const series = metadata?.weekly_series_id
+    ? (
+        await db
+          .from("weekly_series")
+          .select("active,until_at,next_starts_at")
+          .eq("id", metadata.weekly_series_id)
+          .maybeSingle()
+      ).data
+    : null;
   const { data: paymentHistory } = await db
     .from("settlements")
     .select("id")
@@ -350,10 +359,24 @@ export default async function Session({
         </section>
       )}
       {admin && <AdminSessionPanel key={`admin-${s.revision}`} session={s} />}
-      {metadata?.created_by === user.id && s.status === "planned" && (
-        <details className="panel">
-          <summary>Lịch lặp hàng tuần</summary>
-          {metadata.weekly_series_id ? (
+      {metadata?.weekly_series_id && series && (
+        <details className="panel weekly-series-summary">
+          <summary>
+            Lặp hàng tuần ·{" "}
+            {series.active
+              ? "Đang bật"
+              : Date.parse(series.next_starts_at) > Date.parse(series.until_at)
+                ? "Đã tạo đủ buổi"
+                : "Đã dừng"}
+          </summary>
+          <p>
+            Hàng tuần đến{" "}
+            {new Intl.DateTimeFormat("vi-VN", {
+              timeZone: "Asia/Ho_Chi_Minh",
+            }).format(new Date(series.until_at))}
+            . Mỗi buổi tự nhận lời và chốt chi phí riêng.
+          </p>
+          {series.active && (metadata.created_by === user.id || admin) && (
             <ActionForm action={weeklySeries} label="Dừng tạo buổi lặp mới">
               <input
                 type="hidden"
@@ -361,25 +384,7 @@ export default async function Session({
                 value={metadata.weekly_series_id}
               />
               <input type="hidden" name="operation" value="stop" />
-            </ActionForm>
-          ) : (
-            <ActionForm action={weeklySeries} label="Bật lặp hàng tuần">
-              <input type="hidden" name="id" value={s.id} />
-              <input type="hidden" name="operation" value="start" />
-              <label htmlFor="repeat-weeks">Số tuần tiếp theo (1–12)</label>
-              <input
-                id="repeat-weeks"
-                name="weeks"
-                type="number"
-                min="1"
-                max="12"
-                defaultValue="4"
-                required
-              />
-              <p>
-                Buổi mới chưa có người tính tiền; mỗi người tự chốt. Hệ thống
-                tạo trước tối đa 4 tuần.
-              </p>
+              <p>Giữ nguyên các buổi đã tạo.</p>
             </ActionForm>
           )}
         </details>

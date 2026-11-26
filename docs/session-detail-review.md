@@ -1,5 +1,7 @@
 # Review UI/UX chi tiết buổi chơi — 25/11/2026
 
+Từ 26/11/2026, chi tiết mở trong modal trên nền lịch; tọa độ màn hình trong bản review dưới đây là của bố cục trước khi gộp workspace. Đánh giá hiện tại và kiểm thử modal: [calendar-workspace.md](calendar-workspace.md).
+
 ## Kết luận thiết kế
 
 Trang cần phục vụ hai nhu cầu: xem nhanh tình hình buổi chơi và thực hiện một thao tác cụ thể. Bản rút gọn trước đã giảm chiều dài, nhưng vẫn để form nhập tiền và QR chiếm phần lớn màn hình. Người dùng vào xem lịch phải đi qua các công cụ làm việc.

@@ -62,7 +62,10 @@ try {
     (await page.locator(".session-facts").count()) === 0,
     "NO_MEANINGLESS_FACTS",
   );
-  await page.getByText("Sân A", { exact: true }).waitFor();
+  await page
+    .locator(".session-detail:visible")
+    .getByText("Sân A", { exact: true })
+    .waitFor();
   await page
     .getByRole("button", { name: "Sửa thông tin buổi", exact: true })
     .click();
@@ -74,13 +77,19 @@ try {
   await page
     .getByRole("heading", { name: "Cầu lông tối mai", exact: true })
     .waitFor();
-  await page.getByText("Sân B", { exact: true }).waitFor();
+  await page
+    .locator(".session-detail:visible")
+    .getByText("Sân B", { exact: true })
+    .waitFor();
   check(
     (await page.locator(".session-inline-edit").count()) === 0,
     "EDITOR_CLOSES_AFTER_SAVE",
   );
   await page.reload();
-  await page.getByText("Sân B", { exact: true }).waitFor();
+  await page
+    .locator(".session-detail:visible")
+    .getByText("Sân B", { exact: true })
+    .waitFor();
   step = "participants";
   const part = page.locator(".session-participants");
   await part
