@@ -1,6 +1,6 @@
 # Trang chủ, thông báo và lịch
 
-Cập nhật 26/11/2026. Migration 048 đã áp dụng local; chưa hosted/deploy.
+Cập nhật 27/11/2026. Migration 048 đã áp dụng local và hosted; đã phát hành trên thichtinhtien.online.
 
 ## Trang chủ
 

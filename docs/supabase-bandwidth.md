@@ -1,6 +1,6 @@
 # Băng thông Supabase Free
 
-Cập nhật 27/11/2026. Các thay đổi đã kiểm tra local; production cần migration 048 cùng các migration đang chờ trước đó.
+Cập nhật 27/11/2026. Đã phát hành trên thichtinhtien.online; migration 048 và các migration trước đó đã áp dụng production.
 
 ## Các giới hạn trong ứng dụng
 
