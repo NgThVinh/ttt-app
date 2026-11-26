@@ -1,15 +1,26 @@
-name: Checks
-on: [push, pull_request]
+name: CI and production
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: 3t-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
   checks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
       NEXT_PUBLIC_APP_URL: http://127.0.0.1:3218
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24"
           cache: npm
@@ -22,3 +33,71 @@ jobs:
       - run: npm run security:check
       - run: npx playwright install --with-deps chromium
       - run: npm run test:pwa
+  production:
+    needs: checks
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: https://thichtinhtien.online
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      PRODUCTION_APP_URL: ${{ vars.PRODUCTION_APP_URL }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Ignore superseded commits
+        id: head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          if [ "$latest" = "$GITHUB_SHA" ]; then
+            echo 'current=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'A newer main commit exists; skipping this release.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Check production credentials
+        if: steps.head.outputs.current == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+        run: node -e 'for (const k of ["VERCEL_TOKEN","SUPABASE_DB_URL","NEXT_PUBLIC_SUPABASE_URL","VERCEL_ORG_ID","VERCEL_PROJECT_ID","PRODUCTION_APP_URL"]) if (!process.env[k]) throw Error("Missing production setting " + k)'
+      - name: Require IPv4-compatible Supabase connection
+        if: steps.head.outputs.current == 'true'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: node -e 'const u = new URL(process.env.SUPABASE_DB_URL); if (!u.hostname.endsWith(".pooler.supabase.com") || (u.port || "5432") !== "5432") throw Error("Use the Supabase Session pooler connection on port 5432 for GitHub Actions")'
+      - run: npm ci
+        if: steps.head.outputs.current == 'true'
+      - name: Install pinned Vercel CLI
+        if: steps.head.outputs.current == 'true'
+        run: |
+          npm install --prefix "$RUNNER_TEMP/3t-vercel" --no-save --package-lock=false vercel@66.6.0
+          echo "VERCEL_CLI_PATH=$RUNNER_TEMP/3t-vercel/node_modules/vercel/dist/vc.js" >> "$GITHUB_ENV"
+      - name: Build staged production deployment
+        if: steps.head.outputs.current == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: node scripts/vercel-release.mjs prepare
+      - name: Migrate and verify production schema
+        if: steps.head.outputs.current == 'true'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+        run: |
+          node scripts/migrate.mjs --apply
+          node scripts/verify-deployment-schema.mjs
+      - name: Promote and verify domain
+        if: steps.head.outputs.current == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: node scripts/vercel-release.mjs promote
