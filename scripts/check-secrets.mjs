@@ -11,7 +11,6 @@ const sources = [
 ];
 const names = [
   "SUPABASE_DB_URL",
-  "SUPABASE_CI_DB_URL",
   "SUPABASE_SECRET_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
   "AI_KEY_ENCRYPTION_SECRET",

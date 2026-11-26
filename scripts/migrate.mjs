@@ -1,12 +1,8 @@
 import pg from "pg";
 import { readFileSync, readdirSync } from "node:fs";
-import { X509Certificate } from "node:crypto";
+import { createHash, X509Certificate } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import {
-  databaseUrlForProject,
-  migrationContent,
-  migrationPlan,
-} from "./migration-utils.mjs";
+import { databaseUrlForProject } from "./migration-utils.mjs";
 
 // CLI only. Credentials are loaded from .env, never passed as command arguments.
 delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
@@ -43,14 +39,16 @@ try {
     .filter((f) => /^\d+_.+\.sql$/.test(f))
     .sort();
   const local = files.map((file) => {
-    const content = migrationContent(
-      readFileSync(new URL(file, folder), "utf8"),
+    const sql = readFileSync(new URL(file, folder), "utf8").replace(
+      /^\uFEFF/,
+      "",
     );
     return {
       file,
       version: file.split("_")[0],
       name: file.replace(/^\d+_/, "").replace(/\.sql$/, ""),
-      ...content,
+      sql,
+      hash: createHash("sha256").update(sql).digest("hex"),
     };
   });
   if (new Set(local.map((m) => m.version)).size !== local.length)
@@ -94,33 +92,19 @@ try {
       "select to_regclass('supabase_migrations.ttt_checksums') is not null present",
     )
   ).rows[0].present;
-  const checksums = checksumsExist
-    ? (
-        await client.query(
-          "select version,sha256 from supabase_migrations.ttt_checksums",
-        )
-      ).rows
-    : [];
-  // Only fetch old SQL for nonstandard historical line endings, never every file.
-  const legacy = checksums
-    .filter((row) => {
-      const file = local.find((m) => m.version === row.version);
-      return file && ![file.hash, file.windowsHash].includes(row.sha256);
-    })
-    .map((row) => row.version);
-  if (legacy.length) {
-    const stored = (
+  if (checksumsExist) {
+    for (const row of (
       await client.query(
-        "select version,statements from supabase_migrations.schema_migrations where version=any($1::text[])",
-        [legacy],
+        "select version,sha256 from supabase_migrations.ttt_checksums",
       )
-    ).rows;
-    for (const entry of history)
-      entry.statements = stored.find(
-        (row) => row.version === entry.version,
-      )?.statements;
+    ).rows) {
+      if (local.find((m) => m.version === row.version)?.hash !== row.sha256)
+        throw Object.assign(new Error(), { code: "APPLIED_MIGRATION_CHANGED" });
+    }
   }
-  const { pending, canonicalize } = migrationPlan(local, history, checksums);
+  const pending = local.filter(
+    (m) => !history.some((h) => h.version === m.version),
+  );
   console.log(
     JSON.stringify({
       projectMatches: true,
@@ -149,11 +133,6 @@ try {
     await client.query(
       "revoke all on all tables in schema supabase_migrations from public,anon,authenticated",
     );
-    for (const m of canonicalize)
-      await client.query(
-        "update supabase_migrations.ttt_checksums set sha256=$1 where version=$2",
-        [m.hash, m.version],
-      );
     for (const m of pending) {
       stage = m.file;
       await client.query(m.sql);
@@ -182,7 +161,6 @@ try {
       JSON.stringify({
         committed: true,
         newMigrations: pending.length,
-        canonicalizedChecksums: canonicalize.length,
         rlsVerified: true,
       }),
     );

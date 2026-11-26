@@ -59,5 +59,3 @@ The home dashboard includes personal/group participation graphs, the header offe
 See [Supabase bandwidth controls](docs/supabase-bandwidth.md) for query limits, visible-only Realtime, local measurements and Free quota monitoring.
 
 See DEPLOY.md for infrastructure prerequisites and DECISIONS.md for design choices.
-
-Pushes to `main` use the [CI/CD pipeline](docs/ci-cd.md): checks, staged Vercel build, transactional Supabase migration, schema verification, then domain promotion. Configure the two production environment secrets once; pull requests run checks without production credentials.
